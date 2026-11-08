@@ -130,6 +130,10 @@ Compartida por todos los servidores de la experiencia.
 | Publicaciones simultáneas | 5 (15 con el pase de la Fase 6) |
 | Duración | 48 h (30 min en Studio) |
 
+En la pestaña **Vender**, cada objeto de la mochila tiene su propia casilla de precio (precio total de la pila), con
+el depósito y lo que recibirías si se vende. "Publicar" publica esa fila; **"Publicar todo"** publica una tras otra
+todas las filas con precio válido, y se frena si se llega al límite de publicaciones o falta oro para un depósito.
+
 ### Estados de una publicación
 
 ```mermaid
