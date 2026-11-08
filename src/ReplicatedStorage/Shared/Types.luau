@@ -90,6 +90,7 @@ export type SeccionDatos =
 	| "Misiones"
 	| "Honor"
 	| "Cosmeticos"
+	| "Clase"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =
