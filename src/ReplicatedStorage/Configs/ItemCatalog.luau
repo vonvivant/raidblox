@@ -15,6 +15,7 @@ export type DefinicionItem = {
 	SlotEquipo: Types.SlotEquipo?, -- solo equipos
 	PrecioVenta: number, -- oro que paga un NPC
 	Atributos: { Fuerza: number?, Agilidad: number?, Inteligencia: number? }?,
+	SoloRaidBlox: boolean?, -- ítems Únicos: solo caen de jefes RaidBlox
 }
 
 local ItemCatalog: { [string]: DefinicionItem } = {
@@ -35,6 +36,50 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		SlotEquipo = "ArmaPrincipal",
 		PrecioVenta = 25,
 		Atributos = { Fuerza = 4 },
+	},
+	NucleoObsidiana = { Nombre = "Núcleo de Obsidiana", Tipo = "Material", Apilable = true, PrecioVenta = 30 },
+	SedaArana = { Nombre = "Seda de Araña", Tipo = "Material", Apilable = true, PrecioVenta = 20 },
+	PecheraCuero = {
+		Nombre = "Pechera de Cuero",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Pechera",
+		PrecioVenta = 15,
+		Atributos = { Fuerza = 2, Agilidad = 2 },
+	},
+	BaculoRoble = {
+		Nombre = "Báculo de Roble",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "ArmaPrincipal",
+		PrecioVenta = 25,
+		Atributos = { Inteligencia = 5 },
+	},
+	AnilloCobre = {
+		Nombre = "Anillo de Cobre",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Accesorio1",
+		PrecioVenta = 20,
+		Atributos = { Agilidad = 2, Inteligencia = 2 },
+	},
+	CoronaObsidiana = {
+		Nombre = "Corona de Obsidiana",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Casco",
+		PrecioVenta = 500,
+		Atributos = { Fuerza = 6, Agilidad = 3, Inteligencia = 6 },
+		SoloRaidBlox = true,
+	},
+	ColmilloReina = {
+		Nombre = "Colmillo de la Reina",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "ArmaPrincipal",
+		PrecioVenta = 600,
+		Atributos = { Fuerza = 8, Agilidad = 6 },
+		SoloRaidBlox = true,
 	},
 	CascoCuero = {
 		Nombre = "Casco de Cuero",

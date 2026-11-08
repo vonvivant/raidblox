@@ -11,6 +11,10 @@ local DataManager = require(Systems.DataManager)
 local AntiCheat = require(Systems.AntiCheat)
 local ZoneManager = require(Systems.ZoneManager)
 local ArchitectWarManager = require(Systems.Guerra.ArchitectWarManager)
+local CombatManager = require(Systems.Combate.CombatManager)
+local LootManager = require(Systems.Combate.LootManager)
+local EnemyManager = require(Systems.Combate.EnemyManager)
+local RaidBloxManager = require(Systems.Combate.RaidBloxManager)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -24,9 +28,16 @@ AntiCheat.Init()
 -- 4. Mundo: portales y teletransporte.
 ZoneManager.Init()
 
--- 5. Modos de juego según el place.
+-- 5. Combate: motor, botín, enemigos y jefes de la zona de este place.
+CombatManager.Init()
+LootManager.Init()
+local zona = ZoneManager.ZonaActual()
+EnemyManager.Init(zona)
+RaidBloxManager.Init(zona)
+
+-- 6. Modos de juego según el place.
 if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
 end
 
-print("[RaidBlox] Servidor iniciado - Fase 2")
+print(`[RaidBlox] Servidor iniciado - Fase 3 (zona: {zona or "sin configurar"})`)

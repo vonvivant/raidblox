@@ -12,6 +12,9 @@
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$path": "src/StarterPlayer/StarterPlayerScripts"
+      },
+      "StarterCharacterScripts": {
+        "$path": "src/StarterPlayer/StarterCharacterScripts"
       }
     },
     "ReplicatedFirst": {

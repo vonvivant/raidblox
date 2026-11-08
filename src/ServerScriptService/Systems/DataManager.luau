@@ -38,6 +38,15 @@ type CodigoError = Types.CodigoError
 
 -- Mensaje del buzón offline.
 type MensajeOro = { Id: string, Tipo: "Oro", Cantidad: number, Motivo: string }
+type MensajeItem = {
+	Id: string,
+	Tipo: "Item",
+	ItemId: string,
+	Cantidad: number,
+	Rareza: Rareza,
+	Meta: ItemMeta?,
+	Motivo: string,
+}
 
 type Conexion = { Disconnect: (self: any) -> () }
 type Perfil = {
@@ -54,7 +63,7 @@ type Perfil = {
 }
 type Store = {
 	StartSessionAsync: (self: Store, clave: string, params: { Cancel: () -> boolean }?) -> Perfil?,
-	MessageAsync: (self: Store, clave: string, mensaje: MensajeOro) -> boolean,
+	MessageAsync: (self: Store, clave: string, mensaje: MensajeOro | MensajeItem) -> boolean,
 }
 type ModuloProfileStore = {
 	New: (nombre: string, plantilla: DatosJugador) -> Store,
@@ -67,6 +76,13 @@ local ProfileStore = (require(ServerScriptService.Packages.ProfileStore) :: any)
 ------------------------------------------------------------------------
 
 local VERSION_ACTUAL = GameConfig.Datos.VersionEsquema
+local RAREZAS_VALIDAS: { [string]: Rareza } = {
+	Comun = "Comun",
+	Raro = "Raro",
+	Epico = "Epico",
+	Mistico = "Mistico",
+	Unico = "Unico",
+}
 local MAX_ORO = 999_999_999_999
 
 local PLANTILLA: DatosJugador = {
@@ -175,6 +191,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.Estadisticas
 	elseif seccion == "Inventario" then
 		return datos.Inventario
+	elseif seccion == "Clase" then
+		return datos.Clase
 	elseif seccion == "Honor" then
 		return datos.PuntosHonor
 	elseif seccion == "Cosmeticos" then
@@ -235,6 +253,46 @@ local function procesarMensaje(player: Player, perfil: Perfil, mensaje: unknown,
 			local motivo = if typeof(m.Motivo) == "string" then m.Motivo :: string else "Buzón"
 			NetworkBridge.Server.FireClient("Notificacion", player, `+{cantidad} de oro ({motivo})`, "Oro")
 		end
+	elseif m.Tipo == "Item" then
+		local itemId = m.ItemId
+		local cantidad = m.Cantidad
+		local rareza = m.Rareza
+		if
+			typeof(itemId) ~= "string"
+			or not ItemCatalog[itemId :: string]
+			or typeof(cantidad) ~= "number"
+			or not esEnteroPositivo(cantidad :: number)
+			or typeof(rareza) ~= "string"
+			or not RAREZAS_VALIDAS[rareza :: string]
+		then
+			procesado() -- datos inválidos: se descarta
+			return
+		end
+		local meta: ItemMeta? = nil
+		if typeof(m.Meta) == "table" then
+			meta = {}
+			for clave, valor in m.Meta :: { [any]: any } do
+				local tv = typeof(valor)
+				if typeof(clave) == "string" and (tv == "string" or tv == "number" or tv == "boolean") then
+					(meta :: ItemMeta)[clave] = valor
+				end
+			end
+		end
+		local ok =
+			DataManager.AddItem(player, itemId :: string, cantidad :: number, RAREZAS_VALIDAS[rareza :: string], meta)
+		if not ok then
+			-- Inventario lleno: queda en el buzón y se reintenta al volver a entrar.
+			NetworkBridge.Server.FireClient(
+				"Notificacion",
+				player,
+				"Tenés objetos esperando en el buzón: liberá espacio y volvé a entrar para recibirlos.",
+				"Error"
+			)
+			return
+		end
+		local motivo = if typeof(m.Motivo) == "string" then m.Motivo :: string else "Buzón"
+		local nombre = ItemCatalog[itemId :: string].Nombre
+		NetworkBridge.Server.FireClient("Notificacion", player, `Recibiste {nombre} x{cantidad} ({motivo})`, "Oro")
 	else
 		-- Tipo desconocido: puede venir de un servidor con una versión más nueva
 		-- del juego. NO se marca como procesado; lo entregará un servidor que lo entienda.
@@ -258,6 +316,31 @@ function DataManager.EnviarOroOffline(userId: number, cantidad: number, motivo: 
 		Id = HttpService:GenerateGUID(false),
 		Tipo = "Oro",
 		Cantidad = cantidad,
+		Motivo = motivo,
+	}
+	return store:MessageAsync(tostring(userId), mensaje)
+end
+
+-- Envía un ítem al buzón (lo usa el botín cuando el inventario está lleno).
+function DataManager.EnviarItemOffline(
+	userId: number,
+	itemId: string,
+	cantidad: number,
+	rareza: Rareza,
+	meta: ItemMeta?,
+	motivo: string
+): boolean
+	assert(store, "DataManager.Init() no se llamó")
+	if not ItemCatalog[itemId] or not esEnteroPositivo(cantidad) then
+		return false
+	end
+	local mensaje: MensajeItem = {
+		Id = HttpService:GenerateGUID(false),
+		Tipo = "Item",
+		ItemId = itemId,
+		Cantidad = cantidad,
+		Rareza = rareza,
+		Meta = meta,
 		Motivo = motivo,
 	}
 	return store:MessageAsync(tostring(userId), mensaje)
@@ -757,6 +840,102 @@ function DataManager.RemoveItemByUid(player: Player, uid: string): ItemInstancia
 		end
 	end
 	return nil
+end
+
+------------------------------------------------------------------------
+-- Clase y equipamiento
+------------------------------------------------------------------------
+
+-- Fija la clase. Las reglas de cuándo se permite (solo sin clase, o cambio
+-- pagado) las decide quien llama.
+function DataManager.SetClase(player: Player, clase: Types.Clase): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.Clase = clase
+	notificarCambio(player, perfil.Data, "Clase")
+	return true
+end
+
+local SLOTS_EQUIPO: { [string]: Types.SlotEquipo } = {
+	Casco = "Casco",
+	Pechera = "Pechera",
+	ArmaPrincipal = "ArmaPrincipal",
+	ArmaSecundaria = "ArmaSecundaria",
+	Accesorio1 = "Accesorio1",
+	Accesorio2 = "Accesorio2",
+}
+
+-- Equipa un ítem del inventario en su slot. Si había otro equipado, pasan a
+-- intercambiar lugares (el viejo queda en la ranura del nuevo).
+function DataManager.EquiparItem(player: Player, uid: string): (boolean, CodigoError?)
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false, "DATA_NOT_LOADED"
+	end
+	local inv = perfil.Data.Inventario
+	local claveRanura: string? = nil
+	local item: ItemInstancia? = nil
+	for i = 1, inv.MaxSlots do
+		local clave = tostring(i)
+		local candidato = inv.Slots[clave]
+		if candidato and candidato.Uid == uid then
+			claveRanura, item = clave, candidato
+			break
+		end
+	end
+	if not claveRanura or not item then
+		return false, "NOT_FOUND"
+	end
+	local def = ItemCatalog[item.ItemId]
+	local slot = def and def.SlotEquipo
+	if not def or def.Tipo ~= "Equipo" or not slot then
+		return false, "NOT_ALLOWED"
+	end
+	-- Los accesorios ocupan el primer slot de accesorio libre.
+	if
+		slot == "Accesorio1"
+		and perfil.Data.Equipamiento.Accesorio1 ~= nil
+		and perfil.Data.Equipamiento.Accesorio2 == nil
+	then
+		slot = "Accesorio2"
+	end
+	local equipamiento = perfil.Data.Equipamiento :: { [string]: ItemInstancia? }
+	local anterior = equipamiento[slot]
+	equipamiento[slot] = item
+	inv.Slots[claveRanura] = anterior :: any
+	notificarCambio(player, perfil.Data, "Inventario")
+	notificarCambio(player, perfil.Data, "Equipamiento")
+	return true, nil
+end
+
+-- Saca el ítem de un slot y lo deja en la primera ranura libre del inventario.
+function DataManager.DesequiparItem(player: Player, slot: string): (boolean, CodigoError?)
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false, "DATA_NOT_LOADED"
+	end
+	if not SLOTS_EQUIPO[slot] then
+		return false, "INVALID_ARGS"
+	end
+	local equipamiento = perfil.Data.Equipamiento :: { [string]: ItemInstancia? }
+	local item = equipamiento[slot]
+	if not item then
+		return false, "NOT_FOUND"
+	end
+	local inv = perfil.Data.Inventario
+	for i = 1, inv.MaxSlots do
+		local clave = tostring(i)
+		if inv.Slots[clave] == nil then
+			inv.Slots[clave] = item
+			equipamiento[slot] = nil
+			notificarCambio(player, perfil.Data, "Inventario")
+			notificarCambio(player, perfil.Data, "Equipamiento")
+			return true, nil
+		end
+	end
+	return false, "INVENTORY_FULL"
 end
 
 -- Cambia la cantidad de ranuras (pase de extensión de inventario).

@@ -22,7 +22,11 @@ src/
 │   │   ├── GameConfig.luau           Constantes globales (datos, red, anti-cheat, progresión)
 │   │   ├── ItemCatalog.luau          Definición de ítems
 │   │   ├── ZoneConfig.luau           Zonas/places, nivel mínimo y temas de carga
-│   │   └── GuerraConfig.luau         Balance de la Guerra de Arquitectos
+│   │   ├── GuerraConfig.luau         Balance de la Guerra de Arquitectos
+│   │   ├── ClassConfig.luau          8 clases, stats por nivel y habilidades
+│   │   ├── ItemRarityConfig.luau     Rarezas, efectos secundarios y pasivas
+│   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
+│   │   └── RaidBloxConfig.luau       Jefes de mundo
 │   └── Modules/
 │       ├── NetworkBridge.luau        Remotes, rate limiting, timeout y validadores (Guard)
 │       ├── Signal.luau               Eventos tipados entre módulos del mismo lado
@@ -35,13 +39,23 @@ src/
 │       ├── DataManager.luau          Perfiles, oro, ítems, XP, honor, buzón
 │       ├── AntiCheat.luau            Speedhack y vuelo
 │       ├── ZoneManager.luau          Portales y TeleportService
-│       └── Guerra/
-│           ├── ArenaGuerra.luau      Mapa, planos holográficos y construcción
-│           └── ArchitectWarManager.luau  Lógica de la partida
-└── StarterPlayer/StarterPlayerScripts/
-    ├── ClientMain.client.luau        Espejo local de los datos del jugador
-    ├── TeleportClient.client.luau    Pantalla de carga y avisos
-    └── GuerraUI.client.luau          Interfaz de la Guerra de Arquitectos
+│       ├── Guerra/
+│       │   ├── ArenaGuerra.luau      Mapa, planos holográficos y construcción
+│       │   └── ArchitectWarManager.luau  Lógica de la partida
+│       └── Combate/
+│           ├── Estadisticas.luau     Stats por clase, nivel y equipo
+│           ├── CombatManager.luau    Máquina de estados, habilidades, parry
+│           ├── EnemyManager.luau     IA por amenaza y recompensas
+│           ├── RaidBloxManager.luau  Jefes de mundo
+│           └── LootManager.luau      Rarezas y botín personal
+└── StarterPlayer/
+    ├── StarterCharacterScripts/Health.server.luau  Reemplaza la regeneración por defecto de Roblox
+    └── StarterPlayerScripts/
+        ├── ClientMain.client.luau        Espejo local de los datos del jugador
+        ├── TeleportClient.client.luau    Pantalla de carga y avisos
+        ├── GuerraUI.client.luau          Interfaz de la Guerra de Arquitectos
+        ├── CombatClient.client.luau      Targeting, barra de acción, selector de clase
+        └── CombatEffectsClient.client.luau  Números flotantes, barra del jefe, botín
 ```
 
 Convención de Rojo: `.server.luau` → `Script`, `.client.luau` → `LocalScript`, `.luau` → `ModuleScript`.
@@ -60,6 +74,7 @@ flowchart TD
         NetworkBridge
         PantallaCarga
         Avisos
+        ClassConfig
     end
 
     subgraph Server[ServerScriptService]
@@ -70,6 +85,11 @@ flowchart TD
         ArenaGuerra
         ArchitectWarManager
         ProfileStore
+        CombatManager
+        Estadisticas
+        EnemyManager
+        RaidBloxManager
+        LootManager
     end
 
     subgraph Client[Cliente]
@@ -106,6 +126,15 @@ flowchart TD
     ArchitectWarManager --> GuerraConfig
     ArenaGuerra --> GuerraConfig
 
+    Main --> CombatManager
+    CombatManager --> DataManager
+    CombatManager --> Estadisticas
+    Estadisticas --> ClassConfig
+    EnemyManager --> CombatManager
+    EnemyManager --> LootManager
+    RaidBloxManager --> EnemyManager
+    LootManager --> DataManager
+
     ClientMain --> NetworkBridge
     TeleportClient --> NetworkBridge
     TeleportClient --> PantallaCarga
@@ -137,6 +166,8 @@ sequenceDiagram
     Note right of AC: Empieza el muestreo de<br/>posiciones cada 1 s
     M->>ZM: Init()
     Note right of ZM: Registra portales y el manejo<br/>de llegadas por teleport
+    M->>M: CombatManager, LootManager,<br/>EnemyManager y RaidBloxManager .Init(zona)
+    Note right of M: Spawns de enemigos y jefes<br/>de la zona de este place
     M->>AW: DebeActivarse()
     alt place de la Guerra, mapa presente o prueba en Studio
         M->>AW: Init()
@@ -155,7 +186,10 @@ sequenceDiagram
 | `GuerraEstado` | Event | S → C | Estado de la partida (cada segundo y en cada cambio) |
 | `GuerraCarga` | Event | S → C | Recursos que lleva el jugador |
 | `SolicitarDatos` | Function | C → S | Respaldo para pedir el snapshot |
-| `MoverItem`, `UsarItem`, `Atacar` | Event | C → S | Reservados para las fases 3 y 4 |
+| `UsarHabilidad`, `Parry`, `RecogerBotin` | Event | C → S | Combate y botín (ver [combate](combate.md)) |
+| `ElegirClase`, `EquiparItem`, `DesequiparItem` | Function | C → S | Clase y equipamiento |
+| `CombateEvento`, `HabilidadEstado`, `RaidBloxEstado`, `AnuncioGlobal`, `BotinSoltado`, `BotinRetirado` | Event | S → C | Efectos y estado de combate |
+| `MoverItem`, `UsarItem` | Event | C → S | Reservados para la Fase 4 |
 
 La recolección y el depósito de la Guerra no usan remotes: van por `ProximityPrompt`, cuyos eventos se reciben en el servidor.
 

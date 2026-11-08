@@ -1,0 +1,4 @@
+--!strict
+-- Health: reemplaza al script "Health" que Roblox agrega a cada personaje.
+-- Está vacío a propósito: la regeneración de vida la maneja CombatManager
+-- (solo fuera de combate y según las estadísticas de la clase).

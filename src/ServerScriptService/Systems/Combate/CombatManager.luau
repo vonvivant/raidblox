@@ -1,0 +1,1090 @@
+--!strict
+-- CombatManager: motor de combate tab-targeting, 100% en el servidor.
+--
+-- * Combatientes: personajes de jugadores y NPCs (enemigos y RaidBlox).
+-- * Máquina de estados por combatiente:
+--     Idle -> Casting -> Attacking -> Idle
+--     cualquier estado -> Stunned -> Idle, cualquier estado -> Dead
+--   Solo se puede lanzar una habilidad en Idle. Stunned y Dead no pueden actuar.
+-- * Cooldowns y tiempos con workspace:GetServerTimeNow(), nunca con task.wait.
+-- * Distancia al objetivo validada en el servidor con margen por latencia.
+-- * Parry: ventana de 0.5 s que anula el golpe cuerpo a cuerpo, devuelve el daño
+--   y aturde al agresor.
+-- * Efectos: daño, cura, daño/cura en el tiempo, aturdir, provocar, auras e invisibilidad.
+-- * Amenaza: cada daño suma amenaza (x3 para el Tanque); lo usa EnemyManager.
+--
+-- El cliente solo manda "usar habilidad N sobre este modelo" y "parry".
+-- Todo lo demás (costos, daño, rango, cooldown, estado) lo decide el servidor.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Types = require(ReplicatedStorage.Shared.Types)
+local ClassConfig = require(ReplicatedStorage.Configs.ClassConfig)
+local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
+local DataManager = require(script.Parent.Parent.DataManager)
+local Estadisticas = require(script.Parent.Estadisticas)
+
+type Habilidad = ClassConfig.Habilidad
+type Efecto = ClassConfig.Efecto
+type Stat = ClassConfig.Stat
+type Stats = Estadisticas.Stats
+
+export type Bando = "Jugadores" | "Enemigos"
+export type Estado = "Idle" | "Casting" | "Attacking" | "Stunned" | "Dead"
+type Escuela = "Fisico" | "Magico"
+
+type Buff = { Fuente: string, Stat: Stat, Porcentaje: number, Hasta: number }
+type Periodico = {
+	Tipo: "Cura" | "Danio",
+	Cantidad: number,
+	Escuela: Escuela,
+	Fuente: Combatiente?,
+	Siguiente: number,
+	Hasta: number,
+	Intervalo: number,
+}
+type Casteo = {
+	Id: number,
+	Habilidad: Habilidad,
+	Indice: number,
+	Objetivo: Combatiente?,
+	PosInicio: Vector3,
+	Fin: number,
+}
+
+export type Combatiente = {
+	Modelo: Model,
+	Humanoid: Humanoid,
+	Raiz: BasePart,
+	Player: Player?,
+	Bando: Bando,
+	Nombre: string,
+	Nivel: number,
+	Stats: Stats,
+	Mana: number,
+	Estado: Estado,
+	BloqueoHasta: number,
+	AturdidoHasta: number,
+	ParryHasta: number,
+	ParryListo: number,
+	InvisibleHasta: number,
+	InmuneAturdirHasta: number, -- rendimientos decrecientes: tras un aturdimiento, unos segundos de inmunidad
+	ReduccionAturdir: number, -- 1 = normal; los jefes 0.5
+	TransparenciasOriginales: { [Instance]: number }?,
+	Casteo: Casteo?,
+	Cooldowns: { [string]: number },
+	Buffs: { Buff },
+	Periodicos: { Periodico },
+	UltimoCombate: number,
+	MultiplicadorDanio: number, -- Furia de los RaidBlox
+	ProvocadoPor: Combatiente?,
+	ProvocadoHasta: number,
+	Conexiones: { RBXScriptConnection },
+}
+
+local CombatManager = {}
+
+-- Señales para otros sistemas (amenaza, aportes a jefes, recompensas).
+CombatManager.DanioAplicado = Signal.new() :: Signal.Signal<Combatiente?, Combatiente, number, number>
+CombatManager.CuraAplicada = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
+CombatManager.Murio = Signal.new() :: Signal.Signal<Combatiente, Combatiente?>
+CombatManager.Provocado = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
+CombatManager.InvisibilidadIniciada = Signal.new() :: Signal.Signal<Combatiente>
+
+local combatientes: { [Model]: Combatiente } = {}
+local porJugador: { [Player]: Combatiente } = {}
+local contadorCasteos = 0
+local iniciado = false
+
+local DISTANCIA_EVENTOS = 150 -- studs: quién recibe los números flotantes
+
+local function ahora(): number
+	return Workspace:GetServerTimeNow()
+end
+
+------------------------------------------------------------------------
+-- Utilidades
+------------------------------------------------------------------------
+
+local function vivo(c: Combatiente): boolean
+	return c.Estado ~= "Dead" and c.Humanoid.Health > 0 and c.Modelo.Parent ~= nil
+end
+
+local function statEfectivo(c: Combatiente, stat: Stat): number
+	local valor = c.Stats[stat]
+	local t = ahora()
+	local extra = 0
+	for _, buff in c.Buffs do
+		if buff.Stat == stat and buff.Hasta > t then
+			extra += buff.Porcentaje
+		end
+	end
+	return valor * (1 + extra / 100)
+end
+
+local function distancia(a: Combatiente, b: Combatiente): number
+	return (a.Raiz.Position - b.Raiz.Position).Magnitude
+end
+
+-- Envía un evento visual a los jugadores cercanos a una posición.
+local function emitir(posicion: Vector3, tipo: string, modelo: Model, valor: any, extra: any?)
+	local destinatarios: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		local personaje = player.Character
+		local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+		if raiz and raiz:IsA("BasePart") and (raiz.Position - posicion).Magnitude <= DISTANCIA_EVENTOS then
+			table.insert(destinatarios, player)
+		end
+	end
+	NetworkBridge.Server.FireList("CombateEvento", destinatarios, tipo, modelo, valor, extra)
+end
+
+local function avisar(player: Player?, texto: string)
+	if player then
+		NetworkBridge.Server.FireClient("Notificacion", player, texto, "Error")
+	end
+end
+
+-- Lazy: resuelve transiciones por tiempo (fin de aturdimiento y de GCD).
+local function actualizarEstado(c: Combatiente)
+	if not vivo(c) then
+		c.Estado = "Dead"
+		return
+	end
+	local t = ahora()
+	if c.Estado == "Stunned" and t >= c.AturdidoHasta then
+		c.Estado = "Idle"
+	end
+	if c.Estado == "Attacking" and t >= c.BloqueoHasta then
+		c.Estado = "Idle"
+	end
+	-- Red de seguridad: un casteo nunca puede quedar colgado.
+	local casteo = c.Casteo
+	if c.Estado == "Casting" and (not casteo or t > casteo.Fin + 1) then
+		c.Estado = "Idle"
+		c.Casteo = nil
+	end
+end
+
+local function sincronizarMana(c: Combatiente)
+	local player = c.Player
+	if player then
+		player:SetAttribute("Mana", math.floor(c.Mana))
+		player:SetAttribute("ManaMax", c.Stats.ManaMax)
+	end
+end
+
+local function marcarCombate(c: Combatiente)
+	c.UltimoCombate = ahora()
+end
+
+------------------------------------------------------------------------
+-- Invisibilidad
+------------------------------------------------------------------------
+
+local function aplicarTransparencia(c: Combatiente, invisible: boolean)
+	if invisible then
+		-- Guarda la transparencia original de cada parte para restaurarla igual.
+		local originales: { [Instance]: number } = c.TransparenciasOriginales or {}
+		for _, objeto in c.Modelo:GetDescendants() do
+			local visible = (objeto:IsA("BasePart") and objeto.Name ~= "HumanoidRootPart") or objeto:IsA("Decal")
+			if visible then
+				local parte = objeto :: any -- BasePart o Decal: ambos tienen Transparency
+				if originales[objeto] == nil then
+					originales[objeto] = parte.Transparency
+				end
+				parte.Transparency = math.max(parte.Transparency, 0.75)
+			end
+		end
+		c.TransparenciasOriginales = originales
+	else
+		local originales = c.TransparenciasOriginales
+		if originales then
+			for objeto, valor in originales do
+				if objeto.Parent and (objeto:IsA("BasePart") or objeto:IsA("Decal")) then
+					(objeto :: any).Transparency = valor
+				end
+			end
+		end
+		c.TransparenciasOriginales = nil
+	end
+end
+
+local function terminarInvisibilidad(c: Combatiente)
+	if c.InvisibleHasta > 0 then
+		c.InvisibleHasta = 0
+		aplicarTransparencia(c, false)
+	end
+end
+
+-- Texto flotante sobre un combatiente (ej. el aviso antes de un golpe).
+function CombatManager.Anunciar(c: Combatiente, texto: string)
+	emitir(c.Raiz.Position, "Estado", c.Modelo, texto)
+end
+
+function CombatManager.EsInvisible(c: Combatiente): boolean
+	return c.InvisibleHasta > ahora()
+end
+
+------------------------------------------------------------------------
+-- Daño y cura
+------------------------------------------------------------------------
+
+local aplicarDanio: (
+	fuente: Combatiente?,
+	objetivo: Combatiente,
+	cantidad: number,
+	escuela: Escuela,
+	critico: boolean,
+	parryable: boolean,
+	bruto: number?
+) -> ()
+
+local function morir(c: Combatiente, asesino: Combatiente?)
+	if c.Estado == "Dead" then
+		return
+	end
+	c.Estado = "Dead"
+	c.Casteo = nil
+	table.clear(c.Periodicos)
+	table.clear(c.Buffs)
+	CombatManager.Murio:Fire(c, asesino)
+end
+
+local function curar(fuente: Combatiente, objetivo: Combatiente, cantidad: number, critico: boolean)
+	if not vivo(objetivo) then
+		return
+	end
+	local h = objetivo.Humanoid
+	local real = math.min(math.floor(cantidad), math.floor(h.MaxHealth - h.Health))
+	if real <= 0 then
+		return
+	end
+	h.Health += real
+	emitir(objetivo.Raiz.Position, "Cura", objetivo.Modelo, real, critico)
+	CombatManager.CuraAplicada:Fire(fuente, objetivo, real)
+end
+
+aplicarDanio = function(
+	fuente: Combatiente?,
+	objetivo: Combatiente,
+	cantidad: number,
+	escuela: Escuela,
+	critico: boolean,
+	parryable: boolean,
+	bruto: number?
+)
+	if not vivo(objetivo) then
+		return
+	end
+	local t = ahora()
+
+	-- Parry: anula el golpe, devuelve el daño y aturde al agresor.
+	if parryable and fuente and objetivo.ParryHasta > t and vivo(fuente) then
+		objetivo.ParryHasta = 0
+		emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, "¡PARRY!")
+		-- El golpe devuelto se mitiga con la defensa del agresor, no con la del que paró.
+		local defensaFuente = statEfectivo(fuente, "Defensa")
+		local devuelto = (bruto or cantidad) * (1 - defensaFuente / (defensaFuente + 100))
+		aplicarDanio(objetivo, fuente, devuelto, escuela, false, false)
+		CombatManager.Aturdir(fuente, ClassConfig.AturdimientoParry)
+		return
+	end
+
+	local final = math.max(1, math.floor(cantidad))
+	local h = objetivo.Humanoid
+	h.Health = math.max(0, h.Health - final)
+	marcarCombate(objetivo)
+	emitir(objetivo.Raiz.Position, "Danio", objetivo.Modelo, final, { Escuela = escuela, Critico = critico })
+
+	local amenaza = final
+	if fuente then
+		marcarCombate(fuente)
+		amenaza = final * fuente.Stats.MultiplicadorAmenaza
+		if fuente.Stats.RoboVida > 0 then
+			curar(fuente, fuente, final * fuente.Stats.RoboVida, false)
+		end
+	end
+	CombatManager.DanioAplicado:Fire(fuente, objetivo, final, amenaza)
+
+	if h.Health <= 0 then
+		morir(objetivo, fuente)
+	end
+end
+
+-- ¿La fuente está detrás del objetivo? (para el Asesino)
+local function porLaEspalda(fuente: Combatiente, objetivo: Combatiente): boolean
+	local haciaFuente = fuente.Raiz.Position - objetivo.Raiz.Position
+	if haciaFuente.Magnitude < 0.1 then
+		return false
+	end
+	return objetivo.Raiz.CFrame.LookVector:Dot(haciaFuente.Unit) < -0.3
+end
+
+-- Daño de una habilidad con todos los modificadores.
+local function calcularDanio(
+	fuente: Combatiente,
+	objetivo: Combatiente,
+	base: number,
+	escala: Stat,
+	factor: number
+): (number, boolean)
+	local bruto = base + statEfectivo(fuente, escala) * factor
+	local critico = math.random() < fuente.Stats.Critico
+	local mult = fuente.MultiplicadorDanio
+
+	local espalda = fuente.Stats.MultiplicadorEspalda
+	if espalda and porLaEspalda(fuente, objetivo) then
+		critico = true
+		mult *= espalda
+	end
+	if critico then
+		mult *= ClassConfig.MultiplicadorCritico
+	end
+	local pasivas = fuente.Stats.Pasivas
+	if pasivas.Ejecutor and objetivo.Humanoid.Health < objetivo.Humanoid.MaxHealth * 0.3 then
+		mult *= 1.25
+	end
+	if pasivas.Furia and fuente.Humanoid.Health < fuente.Humanoid.MaxHealth * 0.5 then
+		mult *= 1.15
+	end
+
+	local defensa = statEfectivo(objetivo, "Defensa")
+	local mitigacion = defensa / (defensa + 100)
+	return bruto * mult * (1 - mitigacion), critico
+end
+
+------------------------------------------------------------------------
+-- Control
+------------------------------------------------------------------------
+
+function CombatManager.Aturdir(c: Combatiente, duracion: number)
+	if not vivo(c) then
+		return
+	end
+	local t = ahora()
+	-- Rendimientos decrecientes: tras un aturdimiento hay una ventana de inmunidad,
+	-- así nadie (ni un jefe) puede quedar aturdido para siempre.
+	if t < c.InmuneAturdirHasta and t >= c.AturdidoHasta then
+		emitir(c.Raiz.Position, "Estado", c.Modelo, "Inmune")
+		return
+	end
+	c.AturdidoHasta = math.max(c.AturdidoHasta, t + duracion * c.ReduccionAturdir)
+	c.InmuneAturdirHasta = c.AturdidoHasta + ClassConfig.InmunidadAturdir
+	c.Estado = "Stunned"
+	c.Casteo = nil -- el aturdimiento interrumpe el casteo
+	emitir(c.Raiz.Position, "Estado", c.Modelo, "Aturdido")
+	local player = c.Player
+	if player then
+		NetworkBridge.Server.FireClient("HabilidadEstado", player, { Cancelado = true })
+	end
+end
+
+------------------------------------------------------------------------
+-- Efectos de habilidades
+------------------------------------------------------------------------
+
+local function aplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto: Efecto, idHabilidad: string)
+	local t = ahora()
+	if efecto.Tipo == "Danio" then
+		local cantidad, critico = calcularDanio(fuente, objetivo, efecto.Base, efecto.Escala, efecto.Factor)
+		aplicarDanio(fuente, objetivo, cantidad, efecto.Escuela, critico, false)
+	elseif efecto.Tipo == "Cura" then
+		local critico = math.random() < fuente.Stats.Critico
+		local cantidad = (efecto.Base + statEfectivo(fuente, "Poder") * efecto.Factor)
+			* (if critico then ClassConfig.MultiplicadorCritico else 1)
+		curar(fuente, objetivo, cantidad, critico)
+	elseif efecto.Tipo == "CuraTiempo" then
+		table.insert(objetivo.Periodicos, {
+			Tipo = "Cura",
+			Cantidad = efecto.Base + statEfectivo(fuente, "Poder") * efecto.Factor,
+			Escuela = "Magico",
+			Fuente = fuente,
+			Siguiente = t + efecto.Intervalo,
+			Hasta = t + efecto.Duracion + 0.05,
+			Intervalo = efecto.Intervalo,
+		})
+	elseif efecto.Tipo == "DanioTiempo" then
+		local defensa = statEfectivo(objetivo, "Defensa")
+		local porTick = (efecto.Base + statEfectivo(fuente, efecto.Escala) * efecto.Factor)
+			* fuente.MultiplicadorDanio
+			* (1 - defensa / (defensa + 100))
+		table.insert(objetivo.Periodicos, {
+			Tipo = "Danio",
+			Cantidad = porTick,
+			Escuela = efecto.Escuela,
+			Fuente = fuente,
+			Siguiente = t + efecto.Intervalo,
+			Hasta = t + efecto.Duracion + 0.05,
+			Intervalo = efecto.Intervalo,
+		})
+	elseif efecto.Tipo == "Aturdir" then
+		CombatManager.Aturdir(objetivo, efecto.Duracion)
+	elseif efecto.Tipo == "Provocar" then
+		if objetivo.Player == nil then
+			objetivo.ProvocadoPor = fuente
+			objetivo.ProvocadoHasta = t + efecto.Duracion
+			CombatManager.Provocado:Fire(objetivo, fuente, efecto.Duracion)
+			emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, "Provocado")
+		end
+	elseif efecto.Tipo == "Aura" then
+		-- La misma habilidad no se acumula: renueva su propio buff.
+		for i = #objetivo.Buffs, 1, -1 do
+			if objetivo.Buffs[i].Fuente == idHabilidad then
+				table.remove(objetivo.Buffs, i)
+			end
+		end
+		table.insert(objetivo.Buffs, {
+			Fuente = idHabilidad,
+			Stat = efecto.Stat,
+			Porcentaje = efecto.Porcentaje,
+			Hasta = t + efecto.Duracion,
+		})
+		emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, `+{efecto.Porcentaje}% {efecto.Stat}`)
+	elseif efecto.Tipo == "Invisible" then
+		objetivo.InvisibleHasta = t + efecto.Duracion
+		aplicarTransparencia(objetivo, true)
+		CombatManager.InvisibilidadIniciada:Fire(objetivo)
+	end
+end
+
+local function esOfensiva(hab: Habilidad): boolean
+	return hab.Objetivo == "Enemigo" or hab.Objetivo == "AreaEnemigos"
+end
+
+-- Combatientes de un bando dentro de un radio.
+local function enRadio(centro: Vector3, radio: number, bando: Bando): { Combatiente }
+	local lista: { Combatiente } = {}
+	for _, c in combatientes do
+		if c.Bando == bando and vivo(c) and (c.Raiz.Position - centro).Magnitude <= radio then
+			table.insert(lista, c)
+		end
+	end
+	return lista
+end
+
+local function bandoOpuesto(b: Bando): Bando
+	return if b == "Jugadores" then "Enemigos" else "Jugadores"
+end
+
+------------------------------------------------------------------------
+-- Habilidades: validación, casteo y ejecución
+------------------------------------------------------------------------
+
+-- Resuelve el objetivo según el tipo de habilidad. Devuelve (ok, objetivo, motivo).
+local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatiente?): (boolean, Combatiente?, string?)
+	local alcance = hab.Rango + ClassConfig.ToleranciaRango
+	local centro: string? = hab.Centro
+	local tipo: string = hab.Objetivo
+	if tipo == "Propio" then
+		return true, c, nil
+	elseif tipo == "Aliado" or (tipo == "AreaAliados" and centro == "Objetivo") then
+		if pedido == nil or pedido.Bando ~= c.Bando or not vivo(pedido) then
+			return true, c, nil -- sin aliado válido: se lanza sobre uno mismo
+		end
+		if distancia(c, pedido) > alcance then
+			return false, nil, "Tu aliado está demasiado lejos."
+		end
+		return true, pedido, nil
+	elseif tipo == "Enemigo" or (tipo == "AreaEnemigos" and centro == "Objetivo") then
+		if pedido == nil or pedido.Bando == c.Bando or not vivo(pedido) then
+			return false, nil, "Necesitás un enemigo seleccionado."
+		end
+		if CombatManager.EsInvisible(pedido) then
+			return false, nil, "No podés ver a ese objetivo."
+		end
+		if distancia(c, pedido) > alcance then
+			return false, nil, "Fuera de alcance."
+		end
+		return true, pedido, nil
+	end
+	return true, nil, nil -- área centrada en uno mismo
+end
+
+local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo: Combatiente?)
+	local t = ahora()
+	if c.Mana < hab.CostoMana then
+		avisar(c.Player, "No tenés maná suficiente.")
+		c.Estado = "Idle"
+		return
+	end
+	c.Mana -= hab.CostoMana
+	sincronizarMana(c)
+	c.Cooldowns[hab.Id] = t + hab.Cooldown
+	c.Estado = "Attacking"
+	c.BloqueoHasta = t + ClassConfig.GCD
+	c.Casteo = nil
+	if esOfensiva(hab) then
+		terminarInvisibilidad(c) -- atacar revela
+		marcarCombate(c)
+	end
+
+	local objetivos: { Combatiente } = {}
+	if hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
+		local centro = if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position
+		local bando: Bando = if hab.Objetivo == "AreaEnemigos" then bandoOpuesto(c.Bando) else c.Bando
+		objetivos = enRadio(centro, hab.Radio or 10, bando)
+	elseif objetivo then
+		objetivos = { objetivo }
+	end
+
+	for _, o in objetivos do
+		for _, efecto in hab.Efectos do
+			if vivo(o) or efecto.Tipo == "Aura" then
+				aplicarEfecto(c, o, efecto, hab.Id)
+			end
+		end
+	end
+
+	local player = c.Player
+	if player then
+		NetworkBridge.Server.FireClient("HabilidadEstado", player, {
+			Indice = indice,
+			ListoEn = c.Cooldowns[hab.Id],
+			GcdHasta = c.BloqueoHasta,
+		})
+	end
+	emitir(c.Raiz.Position, "Habilidad", c.Modelo, hab.Nombre)
+end
+
+-- Cancela un casteo en curso y avisa al jugador.
+local function cancelarCasteo(c: Combatiente, motivo: string)
+	c.Casteo = nil
+	c.Estado = "Idle"
+	local player = c.Player
+	avisar(player, motivo)
+	if player then
+		NetworkBridge.Server.FireClient("HabilidadEstado", player, { Cancelado = true })
+	end
+end
+
+-- Termina un casteo: valida que siga en pie y ejecuta la habilidad.
+local function completarCasteo(c: Combatiente, id: number, hab: Habilidad, _player: Player?): nil
+	local casteo = c.Casteo
+	local estadoActual: Estado = c.Estado
+	if not casteo or casteo.Id ~= id or estadoActual ~= "Casting" or not vivo(c) then
+		return nil -- interrumpido (aturdido, muerto o reemplazado)
+	end
+	local cancelar: string? = nil
+	if (c.Raiz.Position - casteo.PosInicio).Magnitude > ClassConfig.MovimientoMaxCasteo then
+		cancelar = "Te moviste: se canceló el hechizo."
+	else
+		local okFinal, objetivoFinal, motivoFinal = resolverObjetivo(c, hab, casteo.Objetivo)
+		if not okFinal then
+			cancelar = motivoFinal or "Objetivo inválido."
+		else
+			casteo.Objetivo = objetivoFinal
+		end
+	end
+	if cancelar then
+		cancelarCasteo(c, cancelar)
+		return nil
+	end
+	ejecutar(c, hab, casteo.Indice, casteo.Objetivo)
+	return nil
+end
+
+local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combatiente?)
+	local player = c.Player
+	local datos = player and DataManager.GetData(player)
+	local def = datos and ClassConfig.Clases[datos.Clase]
+	if not def then
+		avisar(player, "Primero elegí una clase.")
+		return
+	end
+	local hab = def.Habilidades[indice]
+	if not hab then
+		return
+	end
+
+	actualizarEstado(c)
+	if c.Estado == "Stunned" then
+		avisar(player, "Estás aturdido.")
+		return
+	elseif c.Estado ~= "Idle" then
+		return -- casteando o en GCD: se ignora en silencio
+	end
+	local t = ahora()
+	if t < (c.Cooldowns[hab.Id] or 0) then
+		return
+	end
+	if c.Mana < hab.CostoMana then
+		avisar(player, "No tenés maná suficiente.")
+		return
+	end
+	local ok, objetivo, motivo = resolverObjetivo(c, hab, pedido)
+	if not ok then
+		avisar(player, motivo or "No se puede usar ahora.")
+		return
+	end
+
+	if hab.TiempoCasteo <= 0 then
+		ejecutar(c, hab, indice, objetivo)
+		return
+	end
+
+	contadorCasteos += 1
+	local id = contadorCasteos
+	c.Estado = "Casting"
+	c.Casteo = {
+		Id = id,
+		Habilidad = hab,
+		Indice = indice,
+		Objetivo = objetivo,
+		PosInicio = c.Raiz.Position,
+		Fin = t + hab.TiempoCasteo,
+	}
+	if player then
+		NetworkBridge.Server.FireClient("HabilidadEstado", player, {
+			Indice = indice,
+			CasteoHasta = t + hab.TiempoCasteo,
+			Nombre = hab.Nombre,
+		})
+	end
+
+	task.delay(hab.TiempoCasteo, function()
+		local okCasteo, err = pcall(completarCasteo, c, id, hab, player)
+		if not okCasteo then
+			warn(`[Combate] Error completando casteo: {err}`)
+			local casteo = c.Casteo
+			if casteo and casteo.Id == id then
+				c.Casteo = nil
+				c.Estado = "Idle"
+			end
+		end
+	end)
+end
+
+local function intentarParry(c: Combatiente)
+	actualizarEstado(c)
+	if c.Estado ~= "Idle" and c.Estado ~= "Attacking" then
+		return
+	end
+	local t = ahora()
+	if t < c.ParryListo then
+		return
+	end
+	c.ParryHasta = t + ClassConfig.VentanaParry
+	c.ParryListo = t + ClassConfig.CooldownParry
+	emitir(c.Raiz.Position, "Estado", c.Modelo, "Guardia")
+	local player = c.Player
+	if player then
+		NetworkBridge.Server.FireClient("HabilidadEstado", player, { Indice = 0, ListoEn = c.ParryListo })
+	end
+end
+
+------------------------------------------------------------------------
+-- Registro de combatientes
+------------------------------------------------------------------------
+
+local function nuevoCombatiente(
+	modelo: Model,
+	humanoid: Humanoid,
+	raiz: BasePart,
+	bando: Bando,
+	nombre: string,
+	nivel: number,
+	stats: Stats,
+	player: Player?
+): Combatiente
+	local c: Combatiente = {
+		Modelo = modelo,
+		Humanoid = humanoid,
+		Raiz = raiz,
+		Player = player,
+		Bando = bando,
+		Nombre = nombre,
+		Nivel = nivel,
+		Stats = stats,
+		Mana = stats.ManaMax,
+		Estado = "Idle",
+		BloqueoHasta = 0,
+		AturdidoHasta = 0,
+		ParryHasta = 0,
+		ParryListo = 0,
+		InvisibleHasta = 0,
+		InmuneAturdirHasta = 0,
+		ReduccionAturdir = 1,
+		TransparenciasOriginales = nil,
+		Casteo = nil,
+		Cooldowns = {},
+		Buffs = {},
+		Periodicos = {},
+		UltimoCombate = 0,
+		MultiplicadorDanio = 1,
+		ProvocadoPor = nil,
+		ProvocadoHasta = 0,
+		Conexiones = {},
+	}
+	humanoid.MaxHealth = stats.VidaMax
+	humanoid.Health = stats.VidaMax
+	modelo:SetAttribute("NombreCombate", nombre)
+	modelo:SetAttribute("Nivel", nivel)
+	modelo:SetAttribute("Bando", bando)
+	combatientes[modelo] = c
+	table.insert(
+		c.Conexiones,
+		humanoid.Died:Connect(function()
+			morir(c, nil)
+		end)
+	)
+	table.insert(
+		c.Conexiones,
+		modelo.Destroying:Connect(function()
+			CombatManager.Quitar(modelo)
+		end)
+	)
+	return c
+end
+
+function CombatManager.Quitar(modelo: Model)
+	local c = combatientes[modelo]
+	if not c then
+		return
+	end
+	for _, conexion in c.Conexiones do
+		conexion:Disconnect()
+	end
+	combatientes[modelo] = nil
+	local player = c.Player
+	if player and porJugador[player] == c then
+		porJugador[player] = nil
+	end
+end
+
+-- Registra un NPC (enemigo o RaidBlox).
+function CombatManager.RegistrarNpc(modelo: Model, nombre: string, nivel: number, stats: Stats): Combatiente?
+	local humanoid = modelo:FindFirstChildOfClass("Humanoid")
+	local raiz = modelo:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not raiz or not raiz:IsA("BasePart") then
+		warn(`[Combate] {modelo:GetFullName()} no tiene Humanoid/HumanoidRootPart`)
+		return nil
+	end
+	return nuevoCombatiente(modelo, humanoid, raiz, "Enemigos", nombre, nivel, stats, nil)
+end
+
+-- Recalcula las estadísticas de un jugador manteniendo el porcentaje de vida y maná.
+function CombatManager.RecalcularJugador(player: Player)
+	local c = porJugador[player]
+	local datos = DataManager.GetData(player)
+	if not c or not datos then
+		return
+	end
+	local fraccionVida = if c.Humanoid.MaxHealth > 0 then c.Humanoid.Health / c.Humanoid.MaxHealth else 1
+	local fraccionMana = if c.Stats.ManaMax > 0 then c.Mana / c.Stats.ManaMax else 1
+	c.Stats = Estadisticas.DeJugador(datos)
+	c.Nivel = datos.Nivel
+	c.Humanoid.MaxHealth = c.Stats.VidaMax
+	if c.Estado ~= "Dead" then
+		c.Humanoid.Health = math.max(1, c.Stats.VidaMax * fraccionVida)
+	end
+	c.Mana = c.Stats.ManaMax * fraccionMana
+	c.Modelo:SetAttribute("Nivel", datos.Nivel)
+	player:SetAttribute("Clase", datos.Clase)
+	sincronizarMana(c)
+end
+
+local function alAparecer(player: Player, personaje: Model)
+	local datos = DataManager.WaitForData(player, 70)
+	if not datos or player.Character ~= personaje then
+		return
+	end
+	local humanoid = personaje:WaitForChild("Humanoid", 10)
+	local raiz = personaje:WaitForChild("HumanoidRootPart", 10)
+	if not humanoid or not humanoid:IsA("Humanoid") or not raiz or not raiz:IsA("BasePart") then
+		return
+	end
+	-- La regeneración la maneja el combate (se quita el script "Health" por defecto).
+	if player.Character ~= personaje then
+		return -- reapareció mientras esperábamos: lo registra el hilo del personaje nuevo
+	end
+	local salud = personaje:FindFirstChild("Health")
+	if salud and salud:IsA("Script") then
+		salud:Destroy()
+	end
+	local anterior = porJugador[player]
+	if anterior then
+		CombatManager.Quitar(anterior.Modelo)
+	end
+	local c = nuevoCombatiente(
+		personaje,
+		humanoid,
+		raiz,
+		"Jugadores",
+		player.DisplayName,
+		datos.Nivel,
+		Estadisticas.DeJugador(datos),
+		player
+	)
+	porJugador[player] = c
+	player:SetAttribute("Clase", datos.Clase)
+	sincronizarMana(c)
+end
+
+------------------------------------------------------------------------
+-- API de consulta (para IA, jefes y UI)
+------------------------------------------------------------------------
+
+function CombatManager.Obtener(modelo: Model): Combatiente?
+	return combatientes[modelo]
+end
+
+function CombatManager.DeJugador(player: Player): Combatiente?
+	return porJugador[player]
+end
+
+function CombatManager.EstaVivo(c: Combatiente): boolean
+	return vivo(c)
+end
+
+function CombatManager.PuedeActuar(c: Combatiente): boolean
+	actualizarEstado(c)
+	return c.Estado == "Idle" or c.Estado == "Attacking"
+end
+
+function CombatManager.Jugadores(): { Combatiente }
+	local lista: { Combatiente } = {}
+	for _, c in porJugador do
+		if vivo(c) then
+			table.insert(lista, c)
+		end
+	end
+	return lista
+end
+
+-- Golpe cuerpo a cuerpo de un NPC (se puede hacer parry).
+function CombatManager.AtaqueNpc(npc: Combatiente, objetivo: Combatiente, multiplicador: number)
+	if not vivo(npc) or not vivo(objetivo) then
+		return
+	end
+	local defensa = statEfectivo(objetivo, "Defensa")
+	local critico = math.random() < npc.Stats.Critico
+	local bruto = npc.Stats.Ataque
+		* multiplicador
+		* npc.MultiplicadorDanio
+		* (if critico then ClassConfig.MultiplicadorCritico else 1)
+	marcarCombate(npc)
+	aplicarDanio(npc, objetivo, bruto * (1 - defensa / (defensa + 100)), "Fisico", critico, true, bruto)
+end
+
+-- Daño de área de un jefe (no se puede hacer parry).
+function CombatManager.DanioArea(fuente: Combatiente, objetivo: Combatiente, multiplicador: number)
+	if not vivo(objetivo) then
+		return
+	end
+	local defensa = statEfectivo(objetivo, "Defensa")
+	local bruto = fuente.Stats.Ataque * multiplicador * fuente.MultiplicadorDanio
+	aplicarDanio(fuente, objetivo, bruto * (1 - defensa / (defensa + 100)), "Magico", false, false)
+end
+
+-- Restaura vida, maná y estado (enemigos que vuelven a su spawn).
+function CombatManager.Restaurar(c: Combatiente)
+	c.Humanoid.Health = c.Humanoid.MaxHealth
+	c.Mana = c.Stats.ManaMax
+	c.Estado = "Idle"
+	c.Casteo = nil
+	table.clear(c.Periodicos)
+	table.clear(c.Buffs)
+	c.ProvocadoPor = nil
+end
+
+------------------------------------------------------------------------
+-- Ciclo periódico: efectos en el tiempo, regeneración y expiraciones
+------------------------------------------------------------------------
+
+local acumuladorSegundo = 0
+
+local function tick(dt: number): nil
+	local t = ahora()
+	acumuladorSegundo += dt
+	local cadaSegundo = acumuladorSegundo >= 1
+	if cadaSegundo then
+		acumuladorSegundo -= 1
+	end
+
+	for _, c in table.clone(combatientes) do
+		if not vivo(c) then
+			continue
+		end
+		actualizarEstado(c)
+
+		-- Efectos periódicos.
+		for i = #c.Periodicos, 1, -1 do
+			local p = c.Periodicos[i]
+			while p.Siguiente <= t and p.Siguiente <= p.Hasta and vivo(c) do
+				p.Siguiente += p.Intervalo
+				local fuente = p.Fuente
+				if p.Tipo == "Cura" and fuente then
+					curar(fuente, c, p.Cantidad, false)
+				elseif p.Tipo == "Danio" then
+					aplicarDanio(fuente, c, p.Cantidad, p.Escuela, false, false)
+				end
+			end
+			if p.Siguiente > p.Hasta then
+				table.remove(c.Periodicos, i)
+			end
+		end
+
+		-- Moverse durante un casteo lo cancela en el momento (no solo al final).
+		local casteo = c.Casteo
+		if
+			c.Estado == "Casting"
+			and casteo
+			and (c.Raiz.Position - casteo.PosInicio).Magnitude > ClassConfig.MovimientoMaxCasteo
+		then
+			cancelarCasteo(c, "Te moviste: se canceló el hechizo.")
+		end
+
+		if c.InvisibleHasta > 0 and c.InvisibleHasta <= t then
+			terminarInvisibilidad(c)
+		end
+		if c.ProvocadoPor and c.ProvocadoHasta <= t then
+			c.ProvocadoPor = nil
+		end
+
+		if cadaSegundo and c.Player and vivo(c) then
+			for i = #c.Buffs, 1, -1 do
+				if c.Buffs[i].Hasta <= t then
+					table.remove(c.Buffs, i)
+				end
+			end
+			if c.Mana < c.Stats.ManaMax then
+				c.Mana = math.min(c.Stats.ManaMax, c.Mana + c.Stats.RegenMana)
+				sincronizarMana(c)
+			end
+			local h = c.Humanoid
+			if t - c.UltimoCombate >= ClassConfig.SegundosParaFueraDeCombate and h.Health < h.MaxHealth then
+				h.Health = math.min(h.MaxHealth, h.Health + h.MaxHealth * ClassConfig.RegenVidaFueraCombate)
+			end
+		end
+	end
+	return nil
+end
+
+------------------------------------------------------------------------
+-- Inicio
+------------------------------------------------------------------------
+
+function CombatManager.Init()
+	assert(not iniciado, "CombatManager.Init() se llamó dos veces")
+	iniciado = true
+
+	local function alEntrar(player: Player)
+		player.CharacterAdded:Connect(function(personaje: Model)
+			alAparecer(player, personaje)
+		end)
+		if player.Character then
+			task.spawn(alAparecer, player, player.Character)
+		end
+	end
+	for _, player in Players:GetPlayers() do
+		alEntrar(player)
+	end
+	Players.PlayerAdded:Connect(alEntrar)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		local c = porJugador[player]
+		if c then
+			CombatManager.Quitar(c.Modelo)
+		end
+	end)
+
+	-- Si el perfil tardó más que la espera inicial, se registra al terminar de cargar.
+	DataManager.PerfilCargado:Connect(function(player: Player)
+		local personaje = player.Character
+		if personaje and not porJugador[player] then
+			task.spawn(alAparecer, player, personaje)
+		end
+	end)
+
+	-- Cambios de nivel, clase o equipo recalculan las estadísticas.
+	DataManager.DatosCambiados:Connect(function(player: Player, seccion: Types.SeccionDatos)
+		if seccion == "Nivel" or seccion == "Equipamiento" or seccion == "Clase" then
+			CombatManager.RecalcularJugador(player)
+		end
+	end)
+
+	-- Remotes
+	NetworkBridge.Server.OnEvent("UsarHabilidad", function(player: Player, indice: unknown, objetivo: unknown)
+		local n = NetworkBridge.Guard.Integer(indice, 1, 4)
+		local c = porJugador[player]
+		if not n or not c or not vivo(c) then
+			return
+		end
+		local pedido: Combatiente? = nil
+		if objetivo ~= nil then
+			local modelo = NetworkBridge.Guard.InstanceOf(objetivo, "Model")
+			pedido = if modelo then combatientes[modelo :: Model] else nil
+		end
+		intentarHabilidad(c, n, pedido)
+	end)
+
+	NetworkBridge.Server.OnEvent("Parry", function(player: Player)
+		local c = porJugador[player]
+		if c and vivo(c) then
+			intentarParry(c)
+		end
+	end)
+
+	NetworkBridge.Server.OnInvoke("ElegirClase", function(player: Player, clase: unknown): Types.Respuesta
+		local id = NetworkBridge.Guard.OneOf(clase, ClassConfig.Clases)
+		local datos = DataManager.GetData(player)
+		if not id or not datos then
+			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		-- Elegir es gratis la primera vez; en Studio se puede cambiar libremente para probar.
+		if datos.Clase ~= "SinClase" and not RunService:IsStudio() then
+			return NetworkBridge.Fail("NOT_ALLOWED")
+		end
+		DataManager.SetClase(player, id :: any)
+		local c = porJugador[player]
+		if c then
+			table.clear(c.Cooldowns)
+			c.Humanoid.Health = c.Humanoid.MaxHealth
+			c.Mana = c.Stats.ManaMax
+			sincronizarMana(c)
+		end
+		return NetworkBridge.Ok(id)
+	end)
+
+	NetworkBridge.Server.OnInvoke("EquiparItem", function(player: Player, uid: unknown): Types.Respuesta
+		local id = NetworkBridge.Guard.String(uid, 64)
+		if not id then
+			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		local ok, codigo = DataManager.EquiparItem(player, id)
+		return if ok
+			then NetworkBridge.Ok(nil)
+			else NetworkBridge.Fail((codigo or "INTERNAL_ERROR") :: Types.CodigoError)
+	end)
+
+	NetworkBridge.Server.OnInvoke("DesequiparItem", function(player: Player, slot: unknown): Types.Respuesta
+		local s = NetworkBridge.Guard.String(slot, 20)
+		if not s then
+			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		local ok, codigo = DataManager.DesequiparItem(player, s)
+		return if ok
+			then NetworkBridge.Ok(nil)
+			else NetworkBridge.Fail((codigo or "INTERNAL_ERROR") :: Types.CodigoError)
+	end)
+
+	local acumulado = 0
+	RunService.Heartbeat:Connect(function(dt: number)
+		acumulado += dt
+		if acumulado < 0.25 then
+			return
+		end
+		local paso = acumulado
+		acumulado = 0
+		local ok, err = pcall(tick, paso)
+		if not ok then
+			warn(`[Combate] Error en el ciclo: {err}`)
+		end
+	end)
+end
+
+return CombatManager

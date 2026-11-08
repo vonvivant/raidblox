@@ -158,6 +158,16 @@ end
 -- API pública
 ------------------------------------------------------------------------
 
+-- Id de la zona de este place. En Studio devuelve "Pruebas" (área de práctica
+-- con enemigos y un RaidBlox de prueba). nil si el place no está configurado.
+function ZoneManager.ZonaActual(): string?
+	if RunService:IsStudio() then
+		return "Pruebas"
+	end
+	local id = zonaDeEstePlace()
+	return id
+end
+
 -- Pide llevar a un jugador a una zona. Devuelve false (y avisa al jugador) si
 -- no se puede. Lo usan los portales y lo pueden usar NPCs o menús.
 function ZoneManager.Teleportar(player: Player, zonaId: string, spawnId: string?, portal: BasePart?): boolean
