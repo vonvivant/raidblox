@@ -228,7 +228,7 @@ local function alMorir(jefe: Jefe)
 			end
 		end
 	end
-	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre)
+	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre, jefe.Id)
 	NetworkBridge.Server.FireAll("AnuncioGlobal", `¡{jefe.Def.Nombre} fue derrotado!`, COLOR_ANUNCIO)
 
 	local espera = if Pruebas.Activas() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion

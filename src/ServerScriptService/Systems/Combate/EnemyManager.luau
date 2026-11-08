@@ -18,6 +18,7 @@ local Workspace = game:GetService("Workspace")
 
 local EnemigosConfig = require(ReplicatedStorage.Configs.EnemigosConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
 local DataManager = require(script.Parent.Parent.DataManager)
 local CombatManager = require(script.Parent.CombatManager)
 local Estadisticas = require(script.Parent.Estadisticas)
@@ -59,6 +60,9 @@ export type Npc = {
 }
 
 local EnemyManager = {}
+
+-- (tipoEnemigo, jugadores que participaron): para las misiones de "Matar".
+EnemyManager.Derrotado = Signal.new() :: Signal.Signal<string, { Player }>
 
 local npcs: { [Combatiente]: Npc } = {}
 local carpeta: Folder? = nil
@@ -338,14 +342,18 @@ function EnemyManager.Obtener(c: Combatiente): Npc?
 end
 
 -- Recompensa estándar: XP, oro y botín personal para cada jugador que aportó.
+-- `tipo` es el id del enemigo (EnemigosConfig.Enemigos o RaidBloxConfig.Jefes):
+-- las misiones de "Matar" lo usan.
 function EnemyManager.Recompensar(
 	npc: Npc,
 	xp: number,
 	oro: number,
 	botin: { EnemigosConfig.EntradaBotin },
-	origen: string
+	origen: string,
+	tipo: string?
 )
 	local posicion = npc.Combatiente.Raiz.Position
+	local participantes: { Player } = {}
 	for userId, aporte in npc.Aportes do
 		local player = Players:GetPlayerByUserId(userId)
 		if not player or aporte <= 0 then
@@ -366,6 +374,10 @@ function EnemyManager.Recompensar(
 		if #items > 0 then
 			LootManager.Soltar(player, posicion, items, origen)
 		end
+		table.insert(participantes, player)
+	end
+	if tipo and #participantes > 0 then
+		EnemyManager.Derrotado:Fire(tipo, participantes)
 	end
 end
 
@@ -397,7 +409,7 @@ local function crearDeSpawn(spawn: EnemigosConfig.Spawn, def: EnemigosConfig.Def
 		return
 	end
 	npc.AlMorir = function(n: Npc)
-		EnemyManager.Recompensar(n, def.Xp, def.Oro, def.Botin, def.Nombre)
+		EnemyManager.Recompensar(n, def.Xp, def.Oro, def.Botin, def.Nombre, spawn.Enemigo)
 		task.delay(spawn.Reaparicion, crearDeSpawn, spawn, def, indice)
 	end
 end

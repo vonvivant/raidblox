@@ -22,6 +22,7 @@ local CraftingManager = require(Systems.Economia.CraftingManager)
 local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
 local AuctionManager = require(Systems.Economia.AuctionManager)
 local TradeManager = require(Systems.Economia.TradeManager)
+local MisionManager = require(Systems.MisionManager)
 local DebugStudio = require(Systems.DebugStudio)
 local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
 
@@ -54,6 +55,9 @@ RecoleccionManager.Init()
 AuctionManager.Init()
 TradeManager.Init()
 
+-- 6b. Misiones (Fase 5).
+MisionManager.Init()
+
 -- 7. Modos de juego según el place.
 if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
@@ -63,4 +67,4 @@ end
 DebugStudio.Init()
 NpcsPrueba.Init()
 
-print(`[RaidBlox] Servidor iniciado - Fase 4 (zona: {zona or "sin configurar"})`)
+print(`[RaidBlox] Servidor iniciado - Fase 5 (zona: {zona or "sin configurar"})`)
