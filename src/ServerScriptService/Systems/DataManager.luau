@@ -1,0 +1,781 @@
+--!strict
+-- DataManager: persistencia de jugadores con ProfileStore (session locking).
+--
+-- Reglas:
+-- * Es el ÚNICO módulo que toca DataStores. El resto del juego usa esta API.
+-- * Cada jugador tiene una sola sesión activa en todo el juego: si reingresa
+--   rápido a otro servidor, el nuevo espera a que el viejo libere el perfil
+--   (así no se duplican ítems).
+-- * Si el perfil no carga, el jugador es expulsado con un mensaje. Nunca juega
+--   con un perfil vacío, porque al guardar pisaría sus datos reales.
+-- * ProfileStore autoguarda periódicamente y guarda todo en game:BindToClose.
+-- * Cada cambio se replica al cliente por el remote DataSync, por sección.
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local Types = require(ReplicatedStorage.Shared.Types)
+local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
+local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
+local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
+local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
+
+type DatosJugador = Types.DatosJugador
+type ItemInstancia = Types.ItemInstancia
+type ItemMeta = Types.ItemMeta
+type Rareza = Types.Rareza
+type SeccionDatos = Types.SeccionDatos
+type CodigoError = Types.CodigoError
+
+------------------------------------------------------------------------
+-- Interfaz de ProfileStore (solo lo que usamos). El tipo exportado por la
+-- librería no incluye el parámetro Cancel de StartSessionAsync, por eso se
+-- declara acá y se convierte una única vez en el require.
+------------------------------------------------------------------------
+
+-- Mensaje del buzón offline.
+type MensajeOro = { Id: string, Tipo: "Oro", Cantidad: number, Motivo: string }
+
+type Conexion = { Disconnect: (self: any) -> () }
+type Perfil = {
+	Data: DatosJugador,
+	OnSessionEnd: { Connect: (self: any, fn: () -> ()) -> Conexion },
+	OnLastSave: { Connect: (self: any, fn: (motivo: "Manual" | "External" | "Shutdown") -> ()) -> Conexion },
+	OnAfterSave: { Connect: (self: any, fn: (datosGuardados: any) -> ()) -> Conexion },
+	IsActive: (self: Perfil) -> boolean,
+	Reconcile: (self: Perfil) -> (),
+	EndSession: (self: Perfil) -> (),
+	AddUserId: (self: Perfil, userId: number) -> (),
+	Save: (self: Perfil) -> (),
+	MessageHandler: (self: Perfil, fn: (mensaje: unknown, procesado: () -> ()) -> ()) -> (),
+}
+type Store = {
+	StartSessionAsync: (self: Store, clave: string, params: { Cancel: () -> boolean }?) -> Perfil?,
+	MessageAsync: (self: Store, clave: string, mensaje: MensajeOro) -> boolean,
+}
+type ModuloProfileStore = {
+	New: (nombre: string, plantilla: DatosJugador) -> Store,
+}
+
+local ProfileStore = (require(ServerScriptService.Packages.ProfileStore) :: any) :: ModuloProfileStore
+
+------------------------------------------------------------------------
+-- Plantilla y migraciones
+------------------------------------------------------------------------
+
+local VERSION_ACTUAL = GameConfig.Datos.VersionEsquema
+local MAX_ORO = 999_999_999_999
+
+local PLANTILLA: DatosJugador = {
+	Version = VERSION_ACTUAL,
+	Nivel = 1,
+	Experiencia = 0,
+	Clase = "SinClase",
+	Faccion = "Ninguna",
+	Estadisticas = table.clone(GameConfig.EstadisticasIniciales),
+	Oro = 0,
+	MonedasPremium = 0,
+	Inventario = {
+		MaxSlots = GameConfig.Inventario.SlotsBase,
+		Slots = {},
+	},
+	Equipamiento = {},
+	MisionesActivas = {},
+	MisionesCompletadas = {},
+	RecibosProcesados = {},
+	MensajesProcesados = {},
+	PuntosHonor = 0,
+	Titulos = {},
+	TituloEquipado = nil,
+	SkinsEstructura = { "Ninguna" },
+	SkinEstructuraEquipada = "Ninguna",
+}
+
+-- MIGRACIONES[n] transforma datos de la versión n a la n+1.
+-- Reconcile completa campos nuevos con valores por defecto; una migración solo
+-- hace falta cuando hay que transformar datos existentes.
+local MIGRACIONES: { [number]: (any) -> any } = {
+	-- v1 -> v2: honor, títulos y skins de estructura (Guerra de Arquitectos).
+	[1] = function(datos)
+		datos.PuntosHonor = datos.PuntosHonor or 0
+		datos.Titulos = datos.Titulos or {}
+		datos.SkinsEstructura = datos.SkinsEstructura or { "Ninguna" }
+		datos.SkinEstructuraEquipada = datos.SkinEstructuraEquipada or "Ninguna"
+		return datos
+	end,
+}
+
+local function copiaProfunda(valor: any): any
+	if typeof(valor) ~= "table" then
+		return valor
+	end
+	local copia = {}
+	for k, v in valor do
+		copia[k] = copiaProfunda(v)
+	end
+	return copia
+end
+
+local function migrar(datos: any): nil
+	if typeof(datos.Version) ~= "number" then
+		datos.Version = 1
+	end
+	if datos.Version > VERSION_ACTUAL then
+		-- Datos de una versión más nueva (servidor viejo durante una actualización
+		-- o tras un rollback): cargarlos y guardarlos los corrompería.
+		error(`Datos en versión {datos.Version}, este servidor solo conoce hasta {VERSION_ACTUAL}`)
+	end
+	while datos.Version < VERSION_ACTUAL do
+		local paso = MIGRACIONES[datos.Version]
+		if not paso then
+			error(`Falta la migración desde la versión {datos.Version}`)
+		end
+		paso(datos)
+		datos.Version += 1
+	end
+	return nil
+end
+
+------------------------------------------------------------------------
+-- Estado
+------------------------------------------------------------------------
+
+local DataManager = {}
+
+-- Se dispara cuando un perfil terminó de cargar y está listo para usarse.
+DataManager.PerfilCargado = Signal.new() :: Signal.Signal<Player, DatosJugador>
+-- Se dispara después de cada cambio, con la sección modificada.
+DataManager.DatosCambiados = Signal.new() :: Signal.Signal<Player, SeccionDatos>
+
+local store: Store? = nil
+local perfiles: { [Player]: Perfil } = {}
+
+local function perfilActivo(player: Player): Perfil?
+	local perfil = perfiles[player]
+	if perfil and perfil:IsActive() then
+		return perfil
+	end
+	return nil
+end
+
+-- Valor de una sección tal como se manda al cliente.
+local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
+	if seccion == "Nivel" then
+		return { Nivel = datos.Nivel, Experiencia = datos.Experiencia }
+	elseif seccion == "Misiones" then
+		return { Activas = datos.MisionesActivas, Completadas = datos.MisionesCompletadas }
+	elseif seccion == "Oro" then
+		return datos.Oro
+	elseif seccion == "MonedasPremium" then
+		return datos.MonedasPremium
+	elseif seccion == "Estadisticas" then
+		return datos.Estadisticas
+	elseif seccion == "Inventario" then
+		return datos.Inventario
+	elseif seccion == "Honor" then
+		return datos.PuntosHonor
+	elseif seccion == "Cosmeticos" then
+		return {
+			Titulos = datos.Titulos,
+			TituloEquipado = datos.TituloEquipado,
+			SkinsEstructura = datos.SkinsEstructura,
+			SkinEstructuraEquipada = datos.SkinEstructuraEquipada,
+		}
+	else
+		return datos.Equipamiento
+	end
+end
+
+local function notificarCambio(player: Player, datos: DatosJugador, seccion: SeccionDatos)
+	NetworkBridge.Server.FireClient("DataSync", player, seccion, valorSeccion(datos, seccion))
+	DataManager.DatosCambiados:Fire(player, seccion)
+end
+
+local function esEnteroPositivo(n: number): boolean
+	return n == n and n >= 1 and n < math.huge and n == math.floor(n)
+end
+
+------------------------------------------------------------------------
+-- Mensajes offline (buzón): oro u otros envíos a jugadores desconectados,
+-- por ejemplo ventas de la Casa de Subastas. Se entregan al conectarse.
+------------------------------------------------------------------------
+
+local function procesarMensaje(player: Player, perfil: Perfil, mensaje: unknown, procesado: () -> ())
+	if typeof(mensaje) ~= "table" then
+		procesado() -- mensaje corrupto: se descarta para no reintentarlo siempre
+		return
+	end
+	local m = mensaje :: { [string]: unknown }
+	if typeof(m.Id) ~= "string" or typeof(m.Tipo) ~= "string" then
+		procesado() -- sin Id o sin Tipo: corrupto
+		return
+	end
+	local id = m.Id :: string
+	local vistos = perfil.Data.MensajesProcesados
+
+	-- Idempotencia: MessageAsync puede reintentar una escritura que sí se hizo,
+	-- y el mismo mensaje llegaría dos veces.
+	if table.find(vistos, id) then
+		procesado()
+		return
+	end
+
+	if m.Tipo == "Oro" then
+		local cantidad = if typeof(m.Cantidad) == "number" then m.Cantidad :: number else 0
+		if esEnteroPositivo(cantidad) then
+			local antes = perfil.Data.Oro
+			perfil.Data.Oro = math.min(MAX_ORO, antes + cantidad)
+			if antes + cantidad > MAX_ORO then
+				warn(`[DataManager] {player.UserId} llegó al tope de oro; se perdieron {antes + cantidad - MAX_ORO}`)
+			end
+			notificarCambio(player, perfil.Data, "Oro")
+			local motivo = if typeof(m.Motivo) == "string" then m.Motivo :: string else "Buzón"
+			NetworkBridge.Server.FireClient("Notificacion", player, `+{cantidad} de oro ({motivo})`, "Oro")
+		end
+	else
+		-- Tipo desconocido: puede venir de un servidor con una versión más nueva
+		-- del juego. NO se marca como procesado; lo entregará un servidor que lo entienda.
+		return
+	end
+
+	table.insert(vistos, id)
+	while #vistos > GameConfig.Datos.MaxMensajesGuardados do
+		table.remove(vistos, 1)
+	end
+	procesado()
+end
+
+-- Envía oro al buzón de un jugador (conectado o no, en cualquier servidor).
+function DataManager.EnviarOroOffline(userId: number, cantidad: number, motivo: string): boolean
+	assert(store, "DataManager.Init() no se llamó")
+	if not esEnteroPositivo(cantidad) then
+		return false
+	end
+	local mensaje: MensajeOro = {
+		Id = HttpService:GenerateGUID(false),
+		Tipo = "Oro",
+		Cantidad = cantidad,
+		Motivo = motivo,
+	}
+	return store:MessageAsync(tostring(userId), mensaje)
+end
+
+------------------------------------------------------------------------
+-- Ciclo de vida
+------------------------------------------------------------------------
+
+-- Datos completos para el cliente, sin campos internos (recibos, mensajes).
+local function snapshotCliente(d: DatosJugador): { [string]: any }
+	return {
+		Nivel = d.Nivel,
+		Experiencia = d.Experiencia,
+		Clase = d.Clase,
+		Faccion = d.Faccion,
+		Estadisticas = d.Estadisticas,
+		Oro = d.Oro,
+		MonedasPremium = d.MonedasPremium,
+		Inventario = d.Inventario,
+		Equipamiento = d.Equipamiento,
+		MisionesActivas = d.MisionesActivas,
+		MisionesCompletadas = d.MisionesCompletadas,
+		PuntosHonor = d.PuntosHonor,
+		Titulos = d.Titulos,
+		TituloEquipado = d.TituloEquipado,
+		SkinsEstructura = d.SkinsEstructura,
+		SkinEstructuraEquipada = d.SkinEstructuraEquipada,
+	}
+end
+
+local function alEntrarJugador(player: Player)
+	assert(store, "DataManager.Init() no se llamó")
+	local inicio = os.clock()
+	local perfil = store:StartSessionAsync(tostring(player.UserId), {
+		-- Corta si el jugador se fue o si la carga tarda demasiado (caída de
+		-- DataStores): con Cancel, ProfileStore reintentaría para siempre.
+		Cancel = function(): boolean
+			return player.Parent ~= Players or os.clock() - inicio > GameConfig.Datos.TimeoutCarga
+		end,
+	})
+
+	if perfil == nil then
+		-- Falló la carga o el jugador se fue mientras esperaba.
+		if player.Parent == Players then
+			player:Kick("No pudimos cargar tus datos. Volvé a entrar en unos segundos.")
+		end
+		return
+	end
+
+	perfil:AddUserId(player.UserId) -- cumplimiento GDPR
+	-- La migración trabaja sobre una copia: si falla a mitad de camino, los
+	-- datos originales quedan intactos y eso es lo que se guarda al cerrar.
+	local copia = copiaProfunda(perfil.Data)
+	local okMigracion, errMigracion = pcall(migrar, copia)
+	if not okMigracion then
+		warn(`[DataManager] Migración falló para {player.UserId}: {errMigracion}`)
+		perfil:EndSession()
+		player:Kick("Hubo un problema actualizando tus datos. Avisá al equipo de RaidBlox.")
+		return
+	end
+	local datos = perfil.Data :: any
+	for clave in table.clone(datos) do
+		datos[clave] = nil
+	end
+	for clave, valor in copia do
+		datos[clave] = valor
+	end
+	perfil:Reconcile() -- completa campos nuevos de la plantilla
+
+	perfil.OnSessionEnd:Connect(function()
+		perfiles[player] = nil
+	end)
+	perfil.OnLastSave:Connect(function(motivo)
+		-- "External": otro servidor tomó la sesión. Salidas normales y cierres no avisan.
+		if motivo == "External" and player.Parent == Players then
+			player:Kick("Tu sesión se abrió en otro servidor. Volvé a entrar.")
+		end
+	end)
+
+	if player.Parent ~= Players then
+		perfil:EndSession() -- se fue durante la carga
+		return
+	end
+
+	perfiles[player] = perfil
+	perfil:MessageHandler(function(mensaje: unknown, procesado: () -> ())
+		procesarMensaje(player, perfil, mensaje, procesado)
+	end)
+	DataManager.PerfilCargado:Fire(player, perfil.Data)
+	NetworkBridge.Server.FireClient("DatosIniciales", player, snapshotCliente(perfil.Data))
+end
+
+local function alSalirJugador(player: Player)
+	local perfil = perfiles[player]
+	if perfil then
+		perfil:EndSession() -- guarda y libera el session lock
+	end
+end
+
+function DataManager.Init()
+	assert(store == nil, "DataManager.Init() se llamó dos veces")
+	store = ProfileStore.New(GameConfig.Datos.NombreStore, PLANTILLA)
+
+	NetworkBridge.Server.OnInvoke("SolicitarDatos", function(player: Player): Types.Respuesta
+		local perfil = perfilActivo(player)
+		if not perfil then
+			return NetworkBridge.Fail("DATA_NOT_LOADED")
+		end
+		return NetworkBridge.Ok(snapshotCliente(perfil.Data))
+	end)
+
+	for _, player in Players:GetPlayers() do
+		task.spawn(alEntrarJugador, player)
+	end
+	Players.PlayerAdded:Connect(alEntrarJugador)
+	Players.PlayerRemoving:Connect(alSalirJugador)
+end
+
+------------------------------------------------------------------------
+-- Lectura
+------------------------------------------------------------------------
+
+-- Datos del jugador o nil si todavía no cargaron. SOLO LECTURA: para
+-- modificar, usar las funciones de esta API (validan y replican).
+function DataManager.GetData(player: Player): DatosJugador?
+	local perfil = perfilActivo(player)
+	return if perfil then perfil.Data else nil
+end
+
+function DataManager.IsLoaded(player: Player): boolean
+	return perfilActivo(player) ~= nil
+end
+
+-- Espera a que carguen los datos (o a que el jugador se vaya / timeout).
+function DataManager.WaitForData(player: Player, timeout: number?): DatosJugador?
+	local limite = os.clock() + (timeout or 30)
+	while player.Parent == Players and os.clock() < limite do
+		local datos = DataManager.GetData(player)
+		if datos then
+			return datos
+		end
+		task.wait(0.1)
+	end
+	return nil
+end
+
+-- Fuerza un guardado y ESPERA a que se escriba (hasta `timeout` segundos).
+-- Devuelve true solo si el guardado terminó. Para teleports entre places no es
+-- obligatorio: el servidor de destino espera a que este libere el session lock
+-- (pasa al salir el jugador), así que nunca carga datos viejos.
+function DataManager.SaveNowAsync(player: Player, timeout: number?): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	local guardado = false
+	local conexion = perfil.OnAfterSave:Connect(function()
+		guardado = true
+	end)
+	perfil:Save()
+	local limite = os.clock() + (timeout or 10)
+	while not guardado and os.clock() < limite and perfil:IsActive() do
+		task.wait(0.1)
+	end
+	conexion:Disconnect()
+	return guardado
+end
+
+------------------------------------------------------------------------
+-- Oro
+------------------------------------------------------------------------
+
+function DataManager.AddGold(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.Oro + cantidad > MAX_ORO then
+		return false -- todo o nada: no se pierde oro en silencio por el tope
+	end
+	perfil.Data.Oro += cantidad
+	notificarCambio(player, perfil.Data, "Oro")
+	return true
+end
+
+-- Descuenta oro solo si alcanza. Devuelve false sin tocar nada si no.
+function DataManager.SpendGold(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.Oro < cantidad then
+		return false
+	end
+	perfil.Data.Oro -= cantidad
+	notificarCambio(player, perfil.Data, "Oro")
+	return true
+end
+
+------------------------------------------------------------------------
+-- Moneda premium: SOLO para MonetizationManager (ProcessReceipt) y gastos
+-- validados por el servidor. Nunca exponer a un remote directo.
+------------------------------------------------------------------------
+
+function DataManager.AddPremium(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.MonedasPremium + cantidad > MAX_ORO then
+		return false
+	end
+	perfil.Data.MonedasPremium += cantidad
+	notificarCambio(player, perfil.Data, "MonedasPremium")
+	return true
+end
+
+function DataManager.SpendPremium(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.MonedasPremium < cantidad then
+		return false
+	end
+	perfil.Data.MonedasPremium -= cantidad
+	notificarCambio(player, perfil.Data, "MonedasPremium")
+	return true
+end
+
+-- Idempotencia de recibos: true si este PurchaseId ya se entregó antes.
+-- Flujo correcto en ProcessReceipt (Fase 6): si ReciboYaProcesado -> PurchaseGranted.
+-- Si no: entregar, MarcarRecibo y devolver PurchaseGranted SOLO si
+-- SaveNowAsync(player) devuelve true; si no, NotProcessedYet (Roblox reintenta).
+function DataManager.ReciboYaProcesado(player: Player, purchaseId: string): boolean
+	local perfil = perfilActivo(player)
+	return perfil ~= nil and table.find(perfil.Data.RecibosProcesados, purchaseId) ~= nil
+end
+
+function DataManager.MarcarRecibo(player: Player, purchaseId: string): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	local recibos = perfil.Data.RecibosProcesados
+	table.insert(recibos, purchaseId)
+	while #recibos > GameConfig.Datos.MaxRecibosGuardados do
+		table.remove(recibos, 1)
+	end
+	return true
+end
+
+------------------------------------------------------------------------
+-- Honor, títulos y skins de estructura
+------------------------------------------------------------------------
+
+-- Una sola fuente de verdad: las skins válidas son las definidas en GuerraConfig.Skins.
+local SKINS_VALIDAS: { [string]: Types.SkinEstructura } = {}
+for nombre in GuerraConfig.Skins do
+	SKINS_VALIDAS[nombre] = nombre :: any
+end
+
+function DataManager.AddHonor(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.PuntosHonor + cantidad > MAX_ORO then
+		return false
+	end
+	perfil.Data.PuntosHonor += cantidad
+	notificarCambio(player, perfil.Data, "Honor")
+	return true
+end
+
+-- Otorga un título (no duplica). Devuelve true si es nuevo.
+function DataManager.AddTitulo(player: Player, titulo: string): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or titulo == "" or table.find(perfil.Data.Titulos, titulo) then
+		return false
+	end
+	table.insert(perfil.Data.Titulos, titulo)
+	notificarCambio(player, perfil.Data, "Cosmeticos")
+	return true
+end
+
+-- Desbloquea una skin de estructura (la entregan el Pase de Batalla o la tienda).
+function DataManager.UnlockSkinEstructura(player: Player, skin: string): boolean
+	local perfil = perfilActivo(player)
+	local valida = SKINS_VALIDAS[skin]
+	if not perfil or not valida or table.find(perfil.Data.SkinsEstructura, valida) then
+		return false
+	end
+	table.insert(perfil.Data.SkinsEstructura, valida)
+	notificarCambio(player, perfil.Data, "Cosmeticos")
+	return true
+end
+
+-- Equipa una skin ya desbloqueada.
+function DataManager.SetSkinEstructura(player: Player, skin: string): boolean
+	local perfil = perfilActivo(player)
+	local valida = SKINS_VALIDAS[skin]
+	if not perfil or not valida or not table.find(perfil.Data.SkinsEstructura, valida) then
+		return false
+	end
+	perfil.Data.SkinEstructuraEquipada = valida :: Types.SkinEstructura
+	notificarCambio(player, perfil.Data, "Cosmeticos")
+	return true
+end
+
+------------------------------------------------------------------------
+-- Experiencia y nivel
+------------------------------------------------------------------------
+
+function DataManager.XpParaSiguienteNivel(nivel: number): number
+	local cfg = GameConfig.Progresion
+	return math.floor(cfg.XpBase * nivel ^ cfg.XpExponente)
+end
+
+-- Suma XP y sube de nivel las veces que corresponda. Devuelve los niveles ganados.
+function DataManager.AddExperience(player: Player, cantidad: number): number
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) then
+		return 0
+	end
+	local d = perfil.Data
+	local maximo = GameConfig.Progresion.NivelMaximo
+	if d.Nivel >= maximo then
+		return 0
+	end
+
+	d.Experiencia += cantidad
+	local ganados = 0
+	while d.Nivel < maximo do
+		local necesaria = DataManager.XpParaSiguienteNivel(d.Nivel)
+		if d.Experiencia < necesaria then
+			break
+		end
+		d.Experiencia -= necesaria
+		d.Nivel += 1
+		ganados += 1
+	end
+	if d.Nivel >= maximo then
+		d.Experiencia = 0
+	end
+	notificarCambio(player, d, "Nivel")
+	return ganados
+end
+
+------------------------------------------------------------------------
+-- Inventario
+------------------------------------------------------------------------
+
+local function maxStackDe(itemId: string): number
+	local def = ItemCatalog[itemId]
+	if not def or not def.Apilable then
+		return 1
+	end
+	return def.MaxStack or GameConfig.Inventario.MaxStackPorDefecto
+end
+
+-- Dos instancias se pueden apilar si son el mismo ítem, misma rareza y sin metadatos.
+local function apilables(a: ItemInstancia, itemId: string, rareza: Rareza): boolean
+	return a.ItemId == itemId and a.Rareza == rareza and a.Meta == nil
+end
+
+local function copiarMeta(meta: ItemMeta?): ItemMeta?
+	return if meta then table.clone(meta) else nil
+end
+
+-- Agrega ítems de forma atómica: primero calcula si entra todo; si no entra,
+-- no agrega nada y devuelve (false, "INVENTORY_FULL").
+function DataManager.AddItem(
+	player: Player,
+	itemId: string,
+	cantidad: number,
+	rareza: Rareza?,
+	meta: ItemMeta?
+): (boolean, CodigoError?)
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false, "DATA_NOT_LOADED"
+	end
+	local def = ItemCatalog[itemId]
+	if not def or not esEnteroPositivo(cantidad) then
+		return false, "INVALID_ARGS"
+	end
+
+	local inv = perfil.Data.Inventario
+	local rarezaFinal: Rareza = rareza or "Comun"
+	local maxStack = maxStackDe(itemId)
+	local seApila = def.Apilable and meta == nil
+
+	-- 1. Calcular capacidad disponible sin modificar nada.
+	local libres: { string } = {}
+	local espacioEnPilas = 0
+	for i = 1, inv.MaxSlots do
+		local clave = tostring(i)
+		local actual = inv.Slots[clave]
+		if actual == nil then
+			table.insert(libres, clave)
+		elseif seApila and apilables(actual, itemId, rarezaFinal) then
+			espacioEnPilas += math.max(0, maxStack - actual.Cantidad)
+		end
+	end
+	local capacidad = if seApila then espacioEnPilas + #libres * maxStack else #libres
+	if capacidad < cantidad then
+		return false, "INVENTORY_FULL"
+	end
+
+	-- 2. Aplicar: completar pilas existentes y después usar ranuras libres.
+	local restante = cantidad
+	if seApila then
+		for i = 1, inv.MaxSlots do
+			if restante == 0 then
+				break
+			end
+			local actual = inv.Slots[tostring(i)]
+			if actual and apilables(actual, itemId, rarezaFinal) and actual.Cantidad < maxStack then
+				local agregar = math.min(restante, maxStack - actual.Cantidad)
+				actual.Cantidad += agregar
+				restante -= agregar
+			end
+		end
+	end
+	for _, clave in libres do
+		if restante == 0 then
+			break
+		end
+		local agregar = if seApila then math.min(restante, maxStack) else 1
+		inv.Slots[clave] = {
+			Uid = HttpService:GenerateGUID(false),
+			ItemId = itemId,
+			Cantidad = agregar,
+			Rareza = rarezaFinal,
+			Meta = copiarMeta(meta),
+		}
+		restante -= agregar
+	end
+
+	notificarCambio(player, perfil.Data, "Inventario")
+	return true, nil
+end
+
+-- Cantidad total de un ítem en el inventario (no cuenta lo equipado).
+function DataManager.CountItem(player: Player, itemId: string): number
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return 0
+	end
+	-- Recorre 1..MaxSlots igual que RemoveItem, para que ambos vean lo mismo.
+	local inv = perfil.Data.Inventario
+	local total = 0
+	for i = 1, inv.MaxSlots do
+		local item = inv.Slots[tostring(i)]
+		if item and item.ItemId == itemId then
+			total += item.Cantidad
+		end
+	end
+	return total
+end
+
+function DataManager.HasItem(player: Player, itemId: string, cantidad: number): boolean
+	return esEnteroPositivo(cantidad) and DataManager.CountItem(player, itemId) >= cantidad
+end
+
+-- Quita `cantidad` de un ítem de forma atómica (todo o nada). Para ítems
+-- únicos con metadatos (encantados, etc.) usar RemoveItemByUid.
+function DataManager.RemoveItem(player: Player, itemId: string, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not DataManager.HasItem(player, itemId, cantidad) then
+		return false
+	end
+	local inv = perfil.Data.Inventario
+	local restante = cantidad
+	-- Primero las pilas sin metadatos, para no gastar un ítem encantado por error.
+	for pasada = 1, 2 do
+		for i = 1, inv.MaxSlots do
+			if restante == 0 then
+				break
+			end
+			local clave = tostring(i)
+			local item = inv.Slots[clave]
+			local sinMeta = item ~= nil and item.Meta == nil
+			if item and item.ItemId == itemId and (pasada == 2 or sinMeta) then
+				local quitar = math.min(restante, item.Cantidad)
+				item.Cantidad -= quitar
+				restante -= quitar
+				if item.Cantidad <= 0 then
+					inv.Slots[clave] = nil
+				end
+			end
+		end
+	end
+	notificarCambio(player, perfil.Data, "Inventario")
+	return true
+end
+
+-- Quita una instancia concreta. Devuelve la instancia quitada o nil.
+function DataManager.RemoveItemByUid(player: Player, uid: string): ItemInstancia?
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return nil
+	end
+	local slots = perfil.Data.Inventario.Slots
+	for clave, item in slots do
+		if item.Uid == uid then
+			slots[clave] = nil
+			notificarCambio(player, perfil.Data, "Inventario")
+			return item
+		end
+	end
+	return nil
+end
+
+-- Cambia la cantidad de ranuras (pase de extensión de inventario).
+-- Nunca reduce por debajo de una ranura ocupada.
+function DataManager.SetMaxSlots(player: Player, maxSlots: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(maxSlots) then
+		return false
+	end
+	local inv = perfil.Data.Inventario
+	for clave in inv.Slots do
+		local indice = tonumber(clave)
+		if indice and indice > maxSlots then
+			return false
+		end
+	end
+	inv.MaxSlots = maxSlots
+	notificarCambio(player, perfil.Data, "Inventario")
+	return true
+end
+
+return DataManager
