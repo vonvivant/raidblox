@@ -291,7 +291,10 @@ botonTodo.Activated:Connect(function()
 	publicando = true
 	botonTodo.Text = "Publicando…"
 	local hechas = 0
-	for _, pedido in cola do
+	for i, pedido in cola do
+		if i > 1 then
+			task.wait(2.1) -- el servidor acepta una publicación cada 2 s por jugador
+		end
 		if not publicar(pedido.Uid, pedido.Precio) then
 			break -- el servidor ya avisó el motivo (límite, oro, etc.)
 		end
@@ -317,8 +320,11 @@ local ESTADOS: { [string]: string } = {
 }
 
 local function redibujarMias()
-	UIKit.Limpiar(listaMias)
 	local r = NetworkBridge.Client.Invoke("SubastaMias")
+	if not r.Success and r.ErrorCode == "RATE_LIMITED" then
+		return -- se pidió hace muy poco: queda la lista que ya se ve
+	end
+	UIKit.Limpiar(listaMias)
 	if not r.Success or typeof(r.Data) ~= "table" then
 		Avisos.Mostrar("No se pudieron cargar tus publicaciones.", "Error")
 		return

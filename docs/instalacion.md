@@ -103,7 +103,10 @@ Notas:
 - Los comandos de prueba (`ServerStorage.RaidBloxDebug`) **no** existen en servidores publicados.
 - Junto a las estaciones de crafteo hay dos NPCs de prueba: el **Banquero** (+10.000 de oro por clic) y el
   **Mercader de materiales** (cualquier material a 1 de oro, de a 1, 10 o 99). Solo aparecen con `ModoPruebas` o en
-  Studio, y lo que dan se guarda en el perfil real.
+  Studio. En un servidor publicado solo los puede usar el creador del juego y los UserIds anotados en
+  `ServerScriptService/Systems/ConfigServidor` (`Probadores`), una lista que los clientes no ven.
+- **Studio usa un guardado aparte** (`RaidBlox_Jugadores_v1_Studio` y la subasta `_Studio`): lo que hagas probando en
+  Studio no llega a tu perfil del juego publicado, y al revés.
 - Cuando estén los mapas reales: `ModoPruebas = false`.
 
 ## Probar la Fase 2 en Studio

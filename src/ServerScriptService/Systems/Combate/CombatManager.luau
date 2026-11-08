@@ -470,9 +470,17 @@ local function puedeAtacar(c: Combatiente, o: Combatiente): boolean
 	return pc ~= nil and po ~= nil and BandoManager.PuedeAtacar(pc, po)
 end
 
+-- ¿No puede ayudar (curar o potenciar) a ese jugador? Rivales, o un Violeta
+-- intocable que ayuda a alguien que está peleando en PvP.
 local function sonRivales(c: Combatiente, o: Combatiente): boolean
 	local pc, po = c.Player, o.Player
-	return pc ~= nil and po ~= nil and BandoManager.SonRivales(pc, po)
+	if pc == nil or po == nil or pc == po then
+		return false
+	end
+	if BandoManager.SonRivales(pc, po) then
+		return true
+	end
+	return BandoManager.De(pc) == "Violeta" and BandoManager.De(po) ~= "Violeta" and BandoManager.EnZonaPvP(po)
 end
 
 local function enRadio(centro: Vector3, radio: number, bando: Bando): { Combatiente }
@@ -1025,6 +1033,14 @@ local function tick(dt: number): nil
 		-- Efectos periódicos.
 		for i = #c.Periodicos, 1, -1 do
 			local p = c.Periodicos[i]
+			-- Daño en el tiempo entre jugadores: se corta si dejan de poder
+			-- pelear (por ejemplo, la víctima salió de la zona PvP).
+			local fp = p.Fuente and p.Fuente.Player
+			local vp = c.Player
+			if p.Tipo == "Danio" and fp and vp and not BandoManager.SonHostiles(fp, vp) then
+				table.remove(c.Periodicos, i)
+				continue
+			end
 			while p.Siguiente <= t and p.Siguiente <= p.Hasta and vivo(c) do
 				p.Siguiente += p.Intervalo
 				local fuente = p.Fuente

@@ -108,7 +108,21 @@ local botonNeutral = UIKit.Boton(
 	UDim2.new(0.5, 3, 0, 0),
 	UIKit.Colores.BotonPeligro
 )
+-- Cuesta oro: primer clic pide confirmación, el segundo (en 4 s) paga.
+local confirmarHasta = 0
 botonNeutral.Activated:Connect(function()
+	if os.clock() > confirmarHasta then
+		confirmarHasta = os.clock() + 4
+		botonNeutral.Text = `¿Seguro? Cuesta {CFG.CostoVolverNeutral} oro`
+		task.delay(4, function()
+			if os.clock() >= confirmarHasta then
+				botonNeutral.Text = `Volver a Violeta ({CFG.CostoVolverNeutral} oro)`
+			end
+		end)
+		return
+	end
+	confirmarHasta = 0
+	botonNeutral.Text = `Volver a Violeta ({CFG.CostoVolverNeutral} oro)`
 	NetworkBridge.Client.Invoke("BandoVolverNeutral")
 end)
 orden += 1

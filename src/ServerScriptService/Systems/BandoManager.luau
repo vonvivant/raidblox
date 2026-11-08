@@ -101,6 +101,15 @@ function BandoManager.PuedeAtacar(atacante: Player, objetivo: Player): boolean
 	if not BandoManager.EnZonaPvP(atacante) or not BandoManager.EnZonaPvP(objetivo) then
 		return false
 	end
+	-- En la Guerra no se pega a un compañero de equipo (ni siquiera un Violeta).
+	if
+		atacante:GetAttribute("EnGuerra") == true
+		and objetivo:GetAttribute("EnGuerra") == true
+		and atacante.Team ~= nil
+		and atacante.Team == objetivo.Team
+	then
+		return false
+	end
 	local ba = BandoManager.De(atacante)
 	return ba == "Violeta" or ba ~= bo
 end

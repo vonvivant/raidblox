@@ -286,7 +286,13 @@ end
 -- Devoluciones: primero directo al perfil (sin pausas); si no entra, por el
 -- buzón con un id fijo (un reintento nunca entrega dos veces). true si quedó
 -- entregado o encaminado con éxito.
+-- Si el perfil ya no está activo (el jugador se fue), NO se devuelve nada: el
+-- diario quedó guardado en el perfil y la reconciliación lo resuelve al volver
+-- (solo por buzón, con el mismo id fijo, así nunca se paga dos veces).
 local function devolverItem(player: Player, item: ItemInstancia, idFijo: string, motivo: string): boolean
+	if not DataManager.PerfilActivo(player) then
+		return false
+	end
 	if DataManager.AgregarInstancia(player, item) then
 		return true
 	end
@@ -294,6 +300,9 @@ local function devolverItem(player: Player, item: ItemInstancia, idFijo: string,
 end
 
 local function devolverOro(player: Player, cantidad: number, idFijo: string, motivo: string): boolean
+	if not DataManager.PerfilActivo(player) then
+		return false
+	end
 	if DataManager.AddGold(player, cantidad) then
 		return true
 	end
@@ -325,6 +334,10 @@ end
 
 local ESPERA_DIARIO = 90 -- s: antes de esto, una operación podría seguir en vuelo en otro servidor
 
+-- Operaciones de este servidor todavía en curso (la reconciliación no las toca).
+local operacionesPorId: { [string]: boolean } = {}
+local reconciliando: { [Player]: boolean } = {}
+
 local reconciliar: (Player) -> ()
 
 local function reconciliarDespues(player: Player)
@@ -336,67 +349,96 @@ local function reconciliarDespues(player: Player)
 end
 
 reconciliar = function(player: Player)
-	local datos = DataManager.GetData(player)
-	if not datos then
-		return
+	if reconciliando[player] then
+		return -- ya hay una corriendo para este jugador
 	end
-	local ahora = os.time()
-	local pendientes = false
-
-	for id, pend in table.clone(datos.Pendientes.Subastas) do
-		local ok, p = leer(id)
-		if not ok then
-			pendientes = true
-			continue
+	reconciliando[player] = true
+	local ok, err = pcall(function(): nil
+		local datos = DataManager.GetData(player)
+		if not datos then
+			return nil
 		end
-		if p and p.VendedorId == player.UserId then
-			-- La publicación existe: el ítem está en ella.
-			DataManager.QuitarPendiente(player, "Subastas", id)
-			agregarALista(`V_{player.UserId}`, id)
-		elseif ahora - pend.Creado < ESPERA_DIARIO then
-			pendientes = true -- puede estar creándose todavía
-		else
-			local item = pend.Item
-			if item.Cantidad > 0 or pend.Deposito > 0 then
+		local pendientes = false
+
+		-- ¿Sigue la misma entrada en el diario? (se revisa después de cada pausa)
+		local function sigue(tipo: "Subastas" | "Compras", id: string, creado: number): boolean
+			local actual = DataManager.GetData(player)
+			local entrada = actual and (actual.Pendientes[tipo] :: any)[id]
+			return entrada ~= nil and entrada.Creado == creado
+		end
+
+		for id, pend in table.clone(datos.Pendientes.Subastas) do
+			if operacionesPorId[id] then
+				pendientes = true
+				continue
+			end
+			local okLeer, p = leer(id)
+			if not okLeer or not sigue("Subastas", id, pend.Creado) then
+				pendientes = pendientes or not okLeer
+				continue
+			end
+			if p and p.VendedorId == player.UserId then
+				-- La publicación existe: el ítem está en ella.
+				DataManager.QuitarPendiente(player, "Subastas", id)
+				agregarALista(`V_{player.UserId}`, id)
+			elseif os.time() - pend.Creado < ESPERA_DIARIO then
+				pendientes = true -- puede estar creándose todavía
+			else
+				-- Nunca se creó: se devuelve SOLO por buzón, con ids fijos (si un
+				-- envío anterior ya llegó, el buzón lo descarta).
+				local item = pend.Item
 				local okItem = item.Cantidad <= 0
-					or devolverItem(player, item, `subasta:{id}:rollback`, "Subasta no publicada")
+					or Buzon.EnviarItemAsync(player.UserId, item, "Subasta no publicada", `subasta:{id}:rollback`)
 				local okOro = pend.Deposito <= 0
-					or devolverOro(player, pend.Deposito, `subasta:{id}:deposito`, "Depósito devuelto")
-				if okItem and okOro then
+					or Buzon.EnviarOroAsync(player.UserId, pend.Deposito, "Depósito devuelto", `subasta:{id}:deposito`)
+				if okItem and okOro and sigue("Subastas", id, pend.Creado) then
 					DataManager.QuitarPendiente(player, "Subastas", id)
 				else
 					pendientes = true
 				end
-			else
-				DataManager.QuitarPendiente(player, "Subastas", id)
+				quitarDeLista(`V_{player.UserId}`, id)
 			end
-			quitarDeLista(`V_{player.UserId}`, id)
 		end
-	end
 
-	for id, pend in table.clone(datos.Pendientes.Compras) do
-		local ok, p = leer(id)
-		if not ok then
-			pendientes = true
-			continue
-		end
-		if p and p.Estado == "Vendida" and p.CompradorId == player.UserId then
-			-- La compra se concretó: el ítem llega por la lista C_.
-			DataManager.QuitarPendiente(player, "Compras", id)
-			agregarALista(`C_{player.UserId}`, id)
-		elseif ahora - pend.Creado < ESPERA_DIARIO and (not p or p.Estado == "Activa") then
-			pendientes = true -- la transición podría seguir en vuelo
-		else
-			if devolverOro(player, pend.Precio, `subasta:{id}:reembolso:{player.UserId}`, "Compra no realizada") then
-				DataManager.QuitarPendiente(player, "Compras", id)
-			else
+		for id, pend in table.clone(datos.Pendientes.Compras) do
+			if operacionesPorId[id] then
 				pendientes = true
+				continue
+			end
+			local okLeer, p = leer(id)
+			if not okLeer or not sigue("Compras", id, pend.Creado) then
+				pendientes = pendientes or not okLeer
+				continue
+			end
+			if p and p.Estado == "Vendida" and p.CompradorId == player.UserId then
+				-- La compra se concretó: el ítem llega por la lista C_.
+				DataManager.QuitarPendiente(player, "Compras", id)
+				agregarALista(`C_{player.UserId}`, id)
+			elseif os.time() - pend.Creado < ESPERA_DIARIO and (not p or p.Estado == "Activa") then
+				pendientes = true -- la transición podría seguir en vuelo
+			else
+				local enviado = Buzon.EnviarOroAsync(
+					player.UserId,
+					pend.Precio,
+					"Compra no realizada",
+					`subasta:{id}:reembolso:{player.UserId}`
+				)
+				if enviado and sigue("Compras", id, pend.Creado) then
+					DataManager.QuitarPendiente(player, "Compras", id)
+				else
+					pendientes = true
+				end
 			end
 		end
-	end
 
-	if pendientes then
-		reconciliarDespues(player)
+		if pendientes then
+			reconciliarDespues(player)
+		end
+		return nil
+	end)
+	reconciliando[player] = nil
+	if not ok then
+		warn(`[Subastas] Error reconciliando a {player.UserId}: {err}`)
 	end
 end
 
@@ -472,132 +514,149 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 	local id = HttpService:GenerateGUID(false)
 	local vendedorId = player.UserId
 
-	-- 1. Reservar un lugar en la lista del vendedor (el límite se verifica de forma atómica).
-	local function reservar(): string
-		local estado = "error"
-		local ok = conReintentos(3, function()
-			estado = "error"
-			obtenerStore():UpdateAsync(`V_{vendedorId}`, function(lista: { string }?): { string }?
-				local actual = lista or {}
-				if table.find(actual, id) then
-					estado = "ok"
-					return nil
-				end
-				if #actual >= CFG.MaxPublicaciones then
-					estado = "lleno"
-					return nil
-				end
-				table.insert(actual, id)
-				estado = "ok"
-				return actual
-			end)
-			return true
-		end)
-		return if ok then estado else "error"
-	end
-	local reserva = reservar()
-	if reserva == "lleno" then
-		procesarJugador(player) -- limpia publicaciones terminadas y reintenta
-		reserva = reservar()
-	end
-	if reserva == "lleno" then
-		avisar(player, `Ya tenés {CFG.MaxPublicaciones} publicaciones activas.`)
-		return NetworkBridge.Fail("NOT_ALLOWED")
-	elseif reserva ~= "ok" then
-		return NetworkBridge.Fail("INTERNAL_ERROR")
-	end
-
-	-- 2. Buscar el ítem por Uid y retenerlo junto con el depósito, anotándolo en
-	--    el diario del perfil, todo sin pausas.
-	local clave, item = DataManager.BuscarPorUid(player, uid)
-	local datos = DataManager.GetData(player)
-	local deposito = math.max(1, math.floor(precio * CFG.Deposito))
-	if not clave or not item or not datos then
-		quitarDeLista(`V_{vendedorId}`, id)
-		return NetworkBridge.Fail("NOT_FOUND")
-	end
-	if datos.Oro < deposito then
-		quitarDeLista(`V_{vendedorId}`, id)
-		avisar(player, `Necesitás {deposito} de oro para el depósito.`)
-		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
-	end
-	if not DataManager.SpendGold(player, deposito) then
-		quitarDeLista(`V_{vendedorId}`, id)
-		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
-	end
-	local retenido = DataManager.QuitarDeRanura(player, clave, item.Cantidad)
-	if not retenido then
-		DataManager.AddGold(player, deposito)
-		quitarDeLista(`V_{vendedorId}`, id)
-		return NetworkBridge.Fail("INTERNAL_ERROR")
-	end
-	DataManager.RegistrarPendienteSubasta(player, id, retenido, deposito)
-
-	-- 3. Guardar el perfil (con el diario) ANTES de crear la publicación.
-	if not DataManager.SaveNowAsync(player, 8) then
-		devolverPublicacion(player, id, retenido, deposito)
-		avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
-		return NetworkBridge.Fail("INTERNAL_ERROR")
-	end
-	if not DataManager.PerfilActivo(player) then
-		return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
-	end
-
-	-- 4. Crear la publicación (UpdateAsync con token: se sabe si se escribió).
-	local ahora = os.time()
-	local token = HttpService:GenerateGUID(false)
-	local publicacion: Publicacion = {
-		Id = id,
-		VendedorId = vendedorId,
-		VendedorNombre = player.DisplayName,
-		Item = retenido,
-		Precio = precio,
-		Creada = ahora,
-		Expira = ahora + duracionSegundos(),
-		Estado = "Activa",
-		Token = token,
-	}
-	local okCrear, creada = conReintentos(3, function()
-		return obtenerStore():UpdateAsync(`L_{id}`, function(actual: Publicacion?): Publicacion?
-			if actual then
-				return nil -- ya existe (un intento anterior se escribió)
-			end
-			return publicacion
-		end)
-	end)
-	local confirmada = okCrear and creada ~= nil
-	if not confirmada then
-		local okLeer, existente = leer(id)
-		if okLeer and existente and existente.Token == token then
-			confirmada = true
-		elseif okLeer and not existente then
-			-- Definitivamente no se creó: se devuelve todo.
-			devolverPublicacion(player, id, retenido, deposito)
-			return NetworkBridge.Fail("INTERNAL_ERROR")
-		else
-			-- No se sabe: el diario queda anotado y se revisa más tarde.
-			reconciliarDespues(player)
-			avisar(
-				player,
-				"La Casa de Subastas tiene problemas; si la publicación no aparece, tu ítem y el depósito vuelven solos."
-			)
-			return NetworkBridge.Fail("INTERNAL_ERROR")
+	-- 0. Chequeos sin DataStore primero (evita gastar escrituras con pedidos inválidos).
+	do
+		local clave0, item0 = DataManager.BuscarPorUid(player, uid)
+		local datos0 = DataManager.GetData(player)
+		if not clave0 or not item0 or not datos0 then
+			return NetworkBridge.Fail("NOT_FOUND")
+		end
+		if datos0.Oro < math.max(1, math.floor(precio * CFG.Deposito)) then
+			avisar(player, `Necesitás {math.max(1, math.floor(precio * CFG.Deposito))} de oro para el depósito.`)
+			return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
 		end
 	end
-	DataManager.QuitarPendiente(player, "Subastas", id)
-	agregarALista(`V_{vendedorId}`, id) -- por si otro servidor borró la reserva mientras tanto
+	operacionesPorId[id] = true
+	local resultado = (function(): Respuesta
+		-- 1. Reservar un lugar en la lista del vendedor (el límite se verifica de forma atómica).
+		local function reservar(): string
+			local estado = "error"
+			local ok = conReintentos(3, function()
+				estado = "error"
+				obtenerStore():UpdateAsync(`V_{vendedorId}`, function(lista: { string }?): { string }?
+					local actual = lista or {}
+					if table.find(actual, id) then
+						estado = "ok"
+						return nil
+					end
+					if #actual >= CFG.MaxPublicaciones then
+						estado = "lleno"
+						return nil
+					end
+					table.insert(actual, id)
+					estado = "ok"
+					return actual
+				end)
+				return true
+			end)
+			return if ok then estado else "error"
+		end
+		local reserva = reservar()
+		if reserva == "lleno" then
+			procesarJugador(player) -- limpia publicaciones terminadas y reintenta
+			reserva = reservar()
+		end
+		if reserva == "lleno" then
+			avisar(player, `Ya tenés {CFG.MaxPublicaciones} publicaciones activas.`)
+			return NetworkBridge.Fail("NOT_ALLOWED")
+		elseif reserva ~= "ok" then
+			return NetworkBridge.Fail("INTERNAL_ERROR")
+		end
 
-	-- 5. Indexar para la búsqueda.
-	local okIndice = conReintentos(3, function()
-		obtenerIndice():SetAsync(id, resumen(publicacion), duracionSegundos(), precio)
-		return true
-	end)
-	if not okIndice then
-		warn(`[Subastas] {id} publicada pero no indexada; se puede cancelar desde "Mis publicaciones"`)
-	end
-	cache.hora = 0
-	avisar(player, `Publicaste {nombreItem(retenido)} por {precio} de oro (depósito: {deposito}).`, "Oro")
-	return NetworkBridge.Ok(resumen(publicacion))
+		-- 2. Buscar el ítem por Uid y retenerlo junto con el depósito, anotándolo en
+		--    el diario del perfil, todo sin pausas.
+		local clave, item = DataManager.BuscarPorUid(player, uid)
+		local datos = DataManager.GetData(player)
+		local deposito = math.max(1, math.floor(precio * CFG.Deposito))
+		if not clave or not item or not datos then
+			quitarDeLista(`V_{vendedorId}`, id)
+			return NetworkBridge.Fail("NOT_FOUND")
+		end
+		if datos.Oro < deposito then
+			quitarDeLista(`V_{vendedorId}`, id)
+			avisar(player, `Necesitás {deposito} de oro para el depósito.`)
+			return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+		end
+		if not DataManager.SpendGold(player, deposito) then
+			quitarDeLista(`V_{vendedorId}`, id)
+			return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+		end
+		local retenido = DataManager.QuitarDeRanura(player, clave, item.Cantidad)
+		if not retenido then
+			DataManager.AddGold(player, deposito)
+			quitarDeLista(`V_{vendedorId}`, id)
+			return NetworkBridge.Fail("INTERNAL_ERROR")
+		end
+		DataManager.RegistrarPendienteSubasta(player, id, retenido, deposito)
+
+		-- 3. Guardar el perfil (con el diario) ANTES de crear la publicación.
+		if not DataManager.SaveNowAsync(player, 8) then
+			devolverPublicacion(player, id, retenido, deposito)
+			avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
+			return NetworkBridge.Fail("INTERNAL_ERROR")
+		end
+		if not DataManager.PerfilActivo(player) then
+			return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
+		end
+
+		-- 4. Crear la publicación (UpdateAsync con token: se sabe si se escribió).
+		local ahora = os.time()
+		local token = HttpService:GenerateGUID(false)
+		local publicacion: Publicacion = {
+			Id = id,
+			VendedorId = vendedorId,
+			VendedorNombre = player.DisplayName,
+			Item = retenido,
+			Precio = precio,
+			Creada = ahora,
+			Expira = ahora + duracionSegundos(),
+			Estado = "Activa",
+			Token = token,
+		}
+		local okCrear, creada = conReintentos(3, function()
+			return obtenerStore():UpdateAsync(`L_{id}`, function(actual: Publicacion?): Publicacion?
+				if actual then
+					return nil -- ya existe (un intento anterior se escribió)
+				end
+				return publicacion
+			end)
+		end)
+		local confirmada = okCrear and creada ~= nil
+		if not confirmada then
+			local okLeer, existente = leer(id)
+			if okLeer and existente and existente.Token == token then
+				confirmada = true
+			elseif okLeer and not existente then
+				-- Definitivamente no se creó: se devuelve todo.
+				devolverPublicacion(player, id, retenido, deposito)
+				return NetworkBridge.Fail("INTERNAL_ERROR")
+			else
+				-- No se sabe: el diario queda anotado y se revisa más tarde.
+				reconciliarDespues(player)
+				avisar(
+					player,
+					"La Casa de Subastas tiene problemas; si la publicación no aparece, tu ítem y el depósito vuelven solos."
+				)
+				return NetworkBridge.Fail("INTERNAL_ERROR")
+			end
+		end
+		DataManager.QuitarPendiente(player, "Subastas", id)
+		agregarALista(`V_{vendedorId}`, id) -- por si otro servidor borró la reserva mientras tanto
+
+		-- 5. Indexar para la búsqueda.
+		local okIndice = conReintentos(3, function()
+			obtenerIndice():SetAsync(id, resumen(publicacion), duracionSegundos(), precio)
+			return true
+		end)
+		if not okIndice then
+			warn(`[Subastas] {id} publicada pero no indexada; se puede cancelar desde "Mis publicaciones"`)
+		end
+		cache.hora = 0
+		avisar(player, `Publicaste {nombreItem(retenido)} por {precio} de oro (depósito: {deposito}).`, "Oro")
+		return NetworkBridge.Ok(resumen(publicacion))
+	end)()
+	operacionesPorId[id] = nil
+	return resultado
 end
 
 local function comprar(player: Player, id: string): Respuesta
@@ -616,60 +675,67 @@ local function comprar(player: Player, id: string): Respuesta
 	end
 	local precio = p.Precio
 	local compradorId = player.UserId
+	if operacionesPorId[id] then
+		return NetworkBridge.Fail("RATE_LIMITED")
+	end
+	operacionesPorId[id] = true
+	local resultado = (function(): Respuesta
+		-- El oro sale del perfil y queda anotado en el diario, sin pausas; después
+		-- se guarda el perfil antes de la transacción.
+		if not DataManager.SpendGold(player, precio) then
+			avisar(player, "No tenés oro suficiente.")
+			return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+		end
+		DataManager.RegistrarPendienteCompra(player, id, precio)
+		if not DataManager.SaveNowAsync(player, 8) then
+			DataManager.QuitarPendiente(player, "Compras", id)
+			DataManager.AddGold(player, precio)
+			avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
+			return NetworkBridge.Fail("INTERNAL_ERROR")
+		end
+		if not DataManager.PerfilActivo(player) then
+			return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
+		end
 
-	-- El oro sale del perfil y queda anotado en el diario, sin pausas; después
-	-- se guarda el perfil antes de la transacción.
-	if not DataManager.SpendGold(player, precio) then
-		avisar(player, "No tenés oro suficiente.")
-		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
-	end
-	DataManager.RegistrarPendienteCompra(player, id, precio)
-	if not DataManager.SaveNowAsync(player, 8) then
-		DataManager.QuitarPendiente(player, "Compras", id)
-		DataManager.AddGold(player, precio)
-		avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
-		return NetworkBridge.Fail("INTERNAL_ERROR")
-	end
-	if not DataManager.PerfilActivo(player) then
-		return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
-	end
+		local res, ganada = transicion(id, function(x)
+			return x.Estado == "Activa" and x.Expira > os.time() and x.Precio == precio
+		end, function(x)
+			x.Estado = "Vendida"
+			x.CompradorId = compradorId
+			x.Destinatario = compradorId
+			x.Neto = precio - math.floor(precio * CFG.Impuesto)
+			x.PendienteItem = true
+			x.PendienteOro = true
+		end)
+		if res == "Desconocido" then
+			-- No se sabe si se compró: NO se devuelve nada todavía. El diario lo
+			-- resuelve en cuanto el DataStore responda.
+			reconciliarDespues(player)
+			avisar(player, "La Casa de Subastas no responde. Si la compra no se concretó, te devolvemos el oro solo.")
+			return NetworkBridge.Fail("INTERNAL_ERROR")
+		elseif res == "Perdio" or not ganada then
+			DataManager.QuitarPendiente(player, "Compras", id)
+			devolverOro(player, precio, `subasta:{id}:reembolso:{compradorId}`, "Compra no realizada")
+			task.spawn(DataManager.SaveNowAsync, player, 8)
+			avisar(player, "Otro jugador la compró primero. Te devolvimos el oro.")
+			quitarDelIndice(id)
+			return NetworkBridge.Fail("NOT_FOUND")
+		end
 
-	local res, ganada = transicion(id, function(x)
-		return x.Estado == "Activa" and x.Expira > os.time() and x.Precio == precio
-	end, function(x)
-		x.Estado = "Vendida"
-		x.CompradorId = compradorId
-		x.Destinatario = compradorId
-		x.Neto = precio - math.floor(precio * CFG.Impuesto)
-		x.PendienteItem = true
-		x.PendienteOro = true
-	end)
-	if res == "Desconocido" then
-		-- No se sabe si se compró: NO se devuelve nada todavía. El diario lo
-		-- resuelve en cuanto el DataStore responda.
-		reconciliarDespues(player)
-		avisar(player, "La Casa de Subastas no responde. Si la compra no se concretó, te devolvemos el oro solo.")
-		return NetworkBridge.Fail("INTERNAL_ERROR")
-	elseif res == "Perdio" or not ganada then
+		-- Compra hecha: el diario se cierra y la lista C_ asegura la entrega.
 		DataManager.QuitarPendiente(player, "Compras", id)
-		devolverOro(player, precio, `subasta:{id}:reembolso:{compradorId}`, "Compra no realizada")
-		task.spawn(DataManager.SaveNowAsync, player, 8)
-		avisar(player, "Otro jugador la compró primero. Te devolvimos el oro.")
+		agregarALista(`C_{compradorId}`, id)
 		quitarDelIndice(id)
-		return NetworkBridge.Fail("NOT_FOUND")
-	end
-
-	-- Compra hecha: el diario se cierra y la lista C_ asegura la entrega.
-	DataManager.QuitarPendiente(player, "Compras", id)
-	agregarALista(`C_{compradorId}`, id)
-	quitarDelIndice(id)
-	local completo = entregarPendientes(ganada)
-	if completo then
-		quitarDeLista(`C_{compradorId}`, id)
-		quitarDeLista(`V_{ganada.VendedorId}`, id)
-	end
-	avisar(player, `Compraste {nombreItem(ganada.Item)}: llega a tu inventario por el buzón.`, "Oro")
-	return NetworkBridge.Ok(nil)
+		local completo = entregarPendientes(ganada)
+		if completo then
+			quitarDeLista(`C_{compradorId}`, id)
+			quitarDeLista(`V_{ganada.VendedorId}`, id)
+		end
+		avisar(player, `Compraste {nombreItem(ganada.Item)}: llega a tu inventario por el buzón.`, "Oro")
+		return NetworkBridge.Ok(nil)
+	end)()
+	operacionesPorId[id] = nil
+	return resultado
 end
 
 local function cancelar(player: Player, id: string): Respuesta
@@ -745,6 +811,30 @@ local function buscar(texto: string?, rareza: string?): Respuesta
 	return NetworkBridge.Ok(resultado)
 end
 
+-- Enfriamiento por jugador y por operación: cada pedido cuesta lecturas y
+-- escrituras de DataStore (presupuesto compartido con los perfiles).
+local ultimoPedido: { [Player]: { [string]: number } } = {}
+local ESPERAS: { [string]: number } = { Buscar = 1, Publicar = 2, Comprar = 2, Cancelar = 2, Mias = 10 }
+
+local function enfriado(player: Player, operacion: string): boolean
+	local porJugador = ultimoPedido[player]
+	if not porJugador then
+		porJugador = {}
+		ultimoPedido[player] = porJugador
+	end
+	local ahora = os.clock()
+	if ahora - (porJugador[operacion] or -math.huge) < (ESPERAS[operacion] or 1) then
+		return false
+	end
+	porJugador[operacion] = ahora
+	return true
+end
+
+-- Los ids de publicación son GUID: cualquier otra cosa se rechaza sin tocar el DataStore.
+local function esGuid(texto: string): boolean
+	return string.match(texto, "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$") ~= nil
+end
+
 -- Una operación de subasta por jugador a la vez.
 local function conCandado(player: Player, fn: () -> Respuesta): Respuesta
 	if ocupados[player] then
@@ -815,10 +905,10 @@ function AuctionManager.Init()
 	iniciado = true
 
 	local okStore, s = pcall(function()
-		return DataStoreService:GetDataStore(CFG.NombreStore)
+		return DataStoreService:GetDataStore(CFG.NombreStore .. (if RunService:IsStudio() then "_Studio" else ""))
 	end)
 	local okIndice, m = pcall(function()
-		return MemoryStoreService:GetSortedMap(CFG.NombreIndice)
+		return MemoryStoreService:GetSortedMap(CFG.NombreIndice .. (if RunService:IsStudio() then "_Studio" else ""))
 	end)
 	if not okStore or not okIndice then
 		warn("[Subastas] DataStore o MemoryStore no disponibles; la Casa de Subastas queda desactivada.")
@@ -843,6 +933,9 @@ function AuctionManager.Init()
 		local r = if rareza == nil or rareza == ""
 			then nil
 			else NetworkBridge.Guard.OneOf(rareza, ItemRarityConfig.Rarezas)
+		if not enfriado(player, "Buscar") then
+			return NetworkBridge.Fail("RATE_LIMITED")
+		end
 		return conCandado(player, function()
 			return buscar(filtro, r)
 		end)
@@ -854,6 +947,9 @@ function AuctionManager.Init()
 		if not u or not p then
 			return NetworkBridge.Fail("INVALID_ARGS")
 		end
+		if not enfriado(player, "Publicar") then
+			return NetworkBridge.Fail("RATE_LIMITED")
+		end
 		return conCandado(player, function()
 			return publicar(player, u, p)
 		end)
@@ -861,8 +957,11 @@ function AuctionManager.Init()
 
 	NetworkBridge.Server.OnInvoke("SubastaComprar", function(player: Player, id: unknown): Respuesta
 		local s2 = NetworkBridge.Guard.String(id, 64)
-		if not s2 then
+		if not s2 or not esGuid(s2) then
 			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		if not enfriado(player, "Comprar") then
+			return NetworkBridge.Fail("RATE_LIMITED")
 		end
 		return conCandado(player, function()
 			return comprar(player, s2)
@@ -871,8 +970,11 @@ function AuctionManager.Init()
 
 	NetworkBridge.Server.OnInvoke("SubastaCancelar", function(player: Player, id: unknown): Respuesta
 		local s2 = NetworkBridge.Guard.String(id, 64)
-		if not s2 then
+		if not s2 or not esGuid(s2) then
 			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		if not enfriado(player, "Cancelar") then
+			return NetworkBridge.Fail("RATE_LIMITED")
 		end
 		return conCandado(player, function()
 			return cancelar(player, s2)
@@ -880,6 +982,9 @@ function AuctionManager.Init()
 	end)
 
 	NetworkBridge.Server.OnInvoke("SubastaMias", function(player: Player): Respuesta
+		if not enfriado(player, "Mias") then
+			return NetworkBridge.Fail("RATE_LIMITED")
+		end
 		return conCandado(player, function()
 			return NetworkBridge.Ok(procesarJugador(player))
 		end)
@@ -897,6 +1002,7 @@ function AuctionManager.Init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		ocupados[player] = nil
+		ultimoPedido[player] = nil
 	end)
 	-- El cierre del servidor espera a las operaciones de subasta en curso.
 	game:BindToClose(function()

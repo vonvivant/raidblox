@@ -344,7 +344,10 @@ type EstadoAnim = {
 	Paso: number,
 }
 
-local animados: { [Model]: EstadoAnim } = {}
+-- Claves débiles: un modelo que se va del juego (otro jugador, streaming) no
+-- queda retenido acá.
+local animados: { [Model]: EstadoAnim } = setmetatable({}, { __mode = "k" }) :: any
+local conDestroying: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local function buscarMotor(modelo: Model, parte: string, nombre: string): Motor6D?
 	local p = modelo:FindFirstChild(parte)
@@ -389,9 +392,12 @@ local function estadoDe(modelo: Model): EstadoAnim?
 	local estado: EstadoAnim =
 		{ Articulaciones = articulaciones, Actual = {}, Anim = nil, Inicio = 0, Desde = {}, Paso = 1 }
 	animados[modelo] = estado
-	modelo.Destroying:Connect(function()
-		animados[modelo] = nil
-	end)
+	if not conDestroying[modelo] then
+		conDestroying[modelo] = true
+		modelo.Destroying:Connect(function()
+			animados[modelo] = nil
+		end)
+	end
 	return estado
 end
 
@@ -472,12 +478,12 @@ end
 RunService.RenderStepped:Connect(function()
 	local ahora = os.clock()
 	for modelo, estado in animados do
-		local anim = estado.Anim
-		if not anim then
-			continue
-		end
 		if not modelo.Parent then
 			animados[modelo] = nil
+			continue
+		end
+		local anim = estado.Anim
+		if not anim then
 			continue
 		end
 		local transcurrido = ahora - estado.Inicio

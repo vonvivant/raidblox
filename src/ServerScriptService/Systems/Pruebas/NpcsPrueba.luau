@@ -10,14 +10,16 @@
 -- en el perfil real (Studio y el juego publicado comparten el guardado).
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage.Shared.Types)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local DataManager = require(script.Parent.Parent.DataManager)
+local ConfigServidor = require(script.Parent.Parent.ConfigServidor)
+local NpcFactory = require(script.Parent.Parent.NpcFactory)
 
 local ORO_POR_CLIC = 10_000
 local PRECIO_MATERIAL = 1
@@ -31,6 +33,18 @@ local mercader: BasePart? = nil
 local ultimoClic: { [Player]: number } = {}
 local iniciado = false
 
+-- En un servidor publicado, solo el creador y los probadores anotados en
+-- ConfigServidor (lista que los clientes no ven). En Studio, todos.
+local function permitido(player: Player): boolean
+	if RunService:IsStudio() then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then
+		return true
+	end
+	return table.find(ConfigServidor.Probadores, player.UserId) ~= nil
+end
+
 local function avisar(player: Player, texto: string, tipo: string?)
 	NetworkBridge.Server.FireClient("Notificacion", player, texto, tipo or "Info")
 end
@@ -41,72 +55,16 @@ local function cerca(player: Player, parte: BasePart): boolean
 	return raiz ~= nil and raiz:IsA("BasePart") and (raiz.Position - parte.Position).Magnitude <= DISTANCIA_MAXIMA
 end
 
--- Crea un NPC quieto con cartel y ProximityPrompt. Devuelve su raíz.
-local function crearNpc(
-	nombre: string,
-	titulo: string,
-	posicion: Vector3,
-	color: Color3,
-	accion: string
-): (BasePart, ProximityPrompt)
-	local modelo: Model
-	local ok, resultado = pcall(function()
-		local descripcion = Instance.new("HumanoidDescription")
-		descripcion.HeadColor = Color3.fromRGB(234, 184, 146)
-		descripcion.TorsoColor = color
-		descripcion.LeftArmColor = color
-		descripcion.RightArmColor = color
-		descripcion.LeftLegColor = Color3.fromRGB(40, 40, 50)
-		descripcion.RightLegColor = Color3.fromRGB(40, 40, 50)
-		return Players:CreateHumanoidModelFromDescription(descripcion, Enum.HumanoidRigType.R15)
-	end)
-	if ok and typeof(resultado) == "Instance" and resultado:IsA("Model") then
-		modelo = resultado
-	else
-		modelo = Instance.new("Model")
-		local cuerpo = Instance.new("Part")
-		cuerpo.Name = "HumanoidRootPart"
-		cuerpo.Size = Vector3.new(2, 5, 1)
-		cuerpo.Color = color
-		cuerpo.Parent = modelo
-		modelo.PrimaryPart = cuerpo
-	end
-	modelo.Name = nombre
-	local raiz = modelo:FindFirstChild("HumanoidRootPart") :: BasePart
-	for _, d in modelo:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.Anchored = true
-		end
-	end
-	local humanoid = modelo:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.DisplayName = titulo
-		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
-		humanoid.NameDisplayDistance = 60
-		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
-	end
-	-- Mirando hacia el spawn.
-	local alto = if humanoid then humanoid.HipHeight + raiz.Size.Y / 2 else 2.5
-	local pos = posicion + Vector3.new(0, alto, 0)
-	modelo:PivotTo(CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0)))
-
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = accion
-	prompt.ObjectText = titulo
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = raiz
-	modelo.Parent = Workspace
-	return raiz, prompt
-end
-
 local function darOro(player: Player, banquero: BasePart)
 	local ahora = os.clock()
 	if ahora - (ultimoClic[player] or 0) < 0.5 or not cerca(player, banquero) then
 		return
 	end
 	ultimoClic[player] = ahora
+	if not permitido(player) then
+		avisar(player, "Este NPC es solo para los probadores del juego.", "Error")
+		return
+	end
 	if DataManager.AddGold(player, ORO_POR_CLIC) then
 		avisar(player, `+{ORO_POR_CLIC} de oro (pruebas)`, "Oro")
 	else
@@ -116,7 +74,7 @@ end
 
 local function comprar(player: Player, itemId: unknown, cantidad: unknown): Types.Respuesta
 	local m = mercader
-	if not Pruebas.Activas() or not m then
+	if not Pruebas.Activas() or not m or not permitido(player) then
 		return NetworkBridge.Fail("NOT_ALLOWED")
 	end
 	local id = NetworkBridge.Guard.OneOf(itemId, ItemCatalog)
@@ -154,13 +112,18 @@ function NpcsPrueba.Init()
 		return
 	end
 
-	local banquero, promptOro =
-		crearNpc("BanqueroPruebas", "Banquero de pruebas", POS_BANQUERO, Color3.fromRGB(230, 180, 40), "+10.000 de oro")
+	local banquero, promptOro = NpcFactory.Crear(
+		"BanqueroPruebas",
+		"Banquero de pruebas",
+		POS_BANQUERO,
+		Color3.fromRGB(230, 180, 40),
+		"+10.000 de oro"
+	)
 	promptOro.Triggered:Connect(function(player: Player)
 		darOro(player, banquero)
 	end)
 
-	local raizMercader, promptTienda = crearNpc(
+	local raizMercader, promptTienda = NpcFactory.Crear(
 		"MercaderPruebas",
 		"Mercader de materiales",
 		POS_MERCADER,

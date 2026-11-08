@@ -14,6 +14,7 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -510,7 +511,10 @@ end
 
 function DataManager.Init()
 	assert(store == nil, "DataManager.Init() se llamó dos veces")
-	store = ProfileStore.New(GameConfig.Datos.NombreStore, PLANTILLA)
+	-- Studio guarda en un store aparte: lo que se haga probando (oro del
+	-- Banquero, comandos de prueba) nunca llega a los perfiles reales.
+	local nombre = GameConfig.Datos.NombreStore .. (if RunService:IsStudio() then "_Studio" else "")
+	store = ProfileStore.New(nombre, PLANTILLA)
 
 	NetworkBridge.Server.OnInvoke("SolicitarDatos", function(player: Player): Types.Respuesta
 		local perfil = perfilActivo(player)
@@ -921,6 +925,53 @@ end
 
 -- Fija la clase. Las reglas de cuándo se permite (solo sin clase, o cambio
 -- pagado) las decide quien llama.
+------------------------------------------------------------------------
+-- Misiones. Las reglas (nivel, previas, objetivos) las valida MisionManager;
+-- estas funciones solo guardan y avisan al cliente.
+------------------------------------------------------------------------
+
+function DataManager.AceptarMision(player: Player, id: string): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or perfil.Data.MisionesActivas[id] then
+		return false
+	end
+	perfil.Data.MisionesActivas[id] = { AceptadaEn = os.time(), Objetivos = {} }
+	notificarCambio(player, perfil.Data, "Misiones")
+	return true
+end
+
+function DataManager.ProgresoMision(player: Player, id: string, objetivo: string, valor: number): boolean
+	local perfil = perfilActivo(player)
+	local mision = perfil and perfil.Data.MisionesActivas[id]
+	if not perfil or not mision then
+		return false
+	end
+	mision.Objetivos[objetivo] = valor
+	notificarCambio(player, perfil.Data, "Misiones")
+	return true
+end
+
+function DataManager.CompletarMision(player: Player, id: string): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not perfil.Data.MisionesActivas[id] then
+		return false
+	end
+	perfil.Data.MisionesActivas[id] = nil
+	perfil.Data.MisionesCompletadas[id] = os.time()
+	notificarCambio(player, perfil.Data, "Misiones")
+	return true
+end
+
+function DataManager.AbandonarMision(player: Player, id: string): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not perfil.Data.MisionesActivas[id] then
+		return false
+	end
+	perfil.Data.MisionesActivas[id] = nil
+	notificarCambio(player, perfil.Data, "Misiones")
+	return true
+end
+
 ------------------------------------------------------------------------
 -- Diario de subastas (v5). Lo usa AuctionManager: se escribe en el mismo
 -- bloque sin pausas en que sale el ítem o el oro, y se cierra al confirmar.

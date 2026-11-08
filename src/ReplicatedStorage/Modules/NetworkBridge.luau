@@ -55,6 +55,11 @@ local DEFINICIONES: { [string]: Definicion } = {
 	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
 	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Fase 5: misiones
+	MisionDialogo = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId)
+	MisionAceptar = { Tipo = "Function", Critico = false }, -- (misionId)
+	MisionEntregar = { Tipo = "Function", Critico = false }, -- (misionId)
+	MisionAbandonar = { Tipo = "Function", Critico = false }, -- (misionId)
 	-- Bandos y ajustes del jugador
 	BandoVolverNeutral = { Tipo = "Function", Critico = false },
 	GuardarAjuste = { Tipo = "Function", Critico = false }, -- (clave, valor)
@@ -64,8 +69,8 @@ local DEFINICIONES: { [string]: Definicion } = {
 	-- Fase 4: Casa de Subastas
 	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
 	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)
-	SubastaPublicar = { Tipo = "Function", Critico = false, Timeout = 25 }, -- (uid, precio)
-	SubastaComprar = { Tipo = "Function", Critico = false, Timeout = 25 }, -- (id)
+	SubastaPublicar = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (uid, precio)
+	SubastaComprar = { Tipo = "Function", Critico = false, Timeout = 50 }, -- (id)
 	SubastaCancelar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (id)
 	SubastaMias = { Tipo = "Function", Critico = false, Timeout = 30 },
 	-- Fase 4: comercio 1v1

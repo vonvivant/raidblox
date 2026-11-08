@@ -90,6 +90,12 @@ local function seleccionar(modelo: Model?)
 	objetivo = modelo
 	if modelo then
 		local enemigo = modelo:GetAttribute("Bando") == "Enemigos"
+		-- Un jugador es enemigo si es de otro bando (y no es Violeta).
+		local otro = Players:GetPlayerFromCharacter(modelo)
+		if otro then
+			local suyo, mio = otro:GetAttribute("Bando"), jugador:GetAttribute("Bando")
+			enemigo = suyo ~= "Violeta" and suyo ~= mio
+		end
 		local color = if enemigo then Color3.fromRGB(255, 70, 60) else Color3.fromRGB(90, 230, 120)
 		resaltado.OutlineColor = color
 		resaltado.FillColor = color

@@ -30,7 +30,11 @@ stateDiagram-v2
   último golpe) ni durante una partida de la Guerra.
 - En la Guerra, Rojos y Azules juegan para su reino; los Violeta se reparten para emparejar los equipos y, al aportar,
   quedan en ese bando.
-- Las curas de área y en un aliado no alcanzan a jugadores del bando rival.
+- Las curas de área y en un aliado no alcanzan a jugadores del bando rival. Un Violeta tampoco puede curar ni
+  potenciar a un jugador que está en contexto PvP (sería intocable y decisivo a la vez).
+- El daño en el tiempo entre jugadores se corta si dejan de poder pelear (por ejemplo, si la víctima sale de la zona).
+- En la Guerra no se puede atacar ni convertir a un compañero de equipo.
+- Volver a Violeta pide confirmación (dos clics).
 
 Módulos: `Systems/BandoManager` (reglas, arena de prueba, remote `BandoVolverNeutral`) y `CombatManager`
 (`puedeAtacar`, `enemigosEnRadio`, `aliadosEnRadio`; convierte al Violeta al concretar el ataque).
