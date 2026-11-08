@@ -1,67 +1,140 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <radialGradient id="fondo" cx="50%" cy="40%" r="75%">
-      <stop offset="0" stop-color="#3b2a6e"/>
-      <stop offset="0.55" stop-color="#1c1538"/>
-      <stop offset="1" stop-color="#0b0918"/>
+      <stop offset="0" stop-color="#3b2a6e"/><stop offset="0.55" stop-color="#1c1538"/><stop offset="1" stop-color="#0b0918"/>
     </radialGradient>
     <radialGradient id="brillo" cx="50%" cy="45%" r="45%">
-      <stop offset="0" stop-color="#ffb347" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ffb347" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffb347" stop-opacity="0.5"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="escudo" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2f6fd6"/>
-      <stop offset="1" stop-color="#16367a"/>
+      <stop offset="0" stop-color="#2f6fd6"/><stop offset="1" stop-color="#16367a"/>
     </linearGradient>
-    <linearGradient id="borde" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffe9a3"/>
-      <stop offset="0.5" stop-color="#e6a93a"/>
-      <stop offset="1" stop-color="#9c6418"/>
+    <linearGradient id="oro" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe9a3"/><stop offset="0.5" stop-color="#e6a93a"/><stop offset="1" stop-color="#9c6418"/>
+    </linearGradient>
+    <linearGradient id="plata" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#c9d2de"/><stop offset="1" stop-color="#7d8898"/>
     </linearGradient>
     <linearGradient id="hoja" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#f4f7fb"/>
-      <stop offset="0.5" stop-color="#c9d2de"/>
-      <stop offset="1" stop-color="#8794a6"/>
+      <stop offset="0" stop-color="#f4f7fb"/><stop offset="0.5" stop-color="#c9d2de"/><stop offset="1" stop-color="#8794a6"/>
     </linearGradient>
-    <linearGradient id="gema" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff7a7a"/>
-      <stop offset="1" stop-color="#a3121f"/>
+    <linearGradient id="madera" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b07a43"/><stop offset="0.5" stop-color="#8b5a2b"/><stop offset="1" stop-color="#5b3a1e"/>
     </linearGradient>
-    <linearGradient id="cinta" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#c8202f"/>
-      <stop offset="1" stop-color="#7a0f19"/>
-    </linearGradient>
+    <radialGradient id="cristal" cx="35%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#f1e6ff"/><stop offset="0.35" stop-color="#b47cff"/><stop offset="1" stop-color="#4b1aa8"/>
+    </radialGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#c79bff" stop-opacity="0.7"/><stop offset="1" stop-color="#c79bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rubi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a8a"/><stop offset="1" stop-color="#a3121f"/></linearGradient>
+    <linearGradient id="zafiro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9fe3ff"/><stop offset="1" stop-color="#0f5f9c"/></linearGradient>
+    <linearGradient id="amatista" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2ccff"/><stop offset="1" stop-color="#5b23b8"/></linearGradient>
+    <linearGradient id="esmeralda" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9ff5c0"/><stop offset="1" stop-color="#0d7a3c"/></linearGradient>
+    <linearGradient id="cinta" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8202f"/><stop offset="1" stop-color="#7a0f19"/></linearGradient>
+    <linearGradient id="cintaAzul" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6fd6"/><stop offset="1" stop-color="#16367a"/></linearGradient>
+    <g id="gema">
+      <polygon points="0,-17 13,-4 0,17 -13,-4" stroke="#1a0a06" stroke-width="3"/>
+      <polygon points="0,-17 13,-4 0,-4 -13,-4" fill="#ffffff" opacity="0.35"/>
+      <polygon points="-4,-10 0,-14 3,-8" fill="#ffffff" opacity="0.8"/>
+    </g>
   </defs>
 
   <rect width="512" height="512" fill="url(#fondo)"/>
   <circle cx="256" cy="225" r="230" fill="url(#brillo)"/>
 
-  <!-- Espadas cruzadas detrás del escudo -->
-  <g id="espada" transform="rotate(-38 256 230)">
+  <!-- Espada (arriba-izquierda), detrás del escudo -->
+  <g transform="rotate(-38 256 230)">
     <polygon points="248,40 264,40 270,330 242,330" fill="url(#hoja)" stroke="#4a5262" stroke-width="3"/>
-    <polygon points="256,22 248,40 264,40" fill="#f4f7fb" stroke="#4a5262" stroke-width="3"/>
-    <rect x="206" y="330" width="100" height="18" rx="6" fill="url(#borde)" stroke="#5a3a0c" stroke-width="3"/>
+    <line x1="256" y1="44" x2="256" y2="326" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+    <polygon points="256,20 248,40 264,40" fill="#f4f7fb" stroke="#4a5262" stroke-width="3"/>
+    <rect x="206" y="330" width="100" height="18" rx="6" fill="url(#oro)" stroke="#5a3a0c" stroke-width="3"/>
     <rect x="247" y="348" width="18" height="52" rx="4" fill="#5b3a1e" stroke="#2e1d0d" stroke-width="3"/>
-    <circle cx="256" cy="410" r="13" fill="url(#borde)" stroke="#5a3a0c" stroke-width="3"/>
+    <circle cx="256" cy="410" r="13" fill="url(#oro)" stroke="#5a3a0c" stroke-width="3"/>
   </g>
-  <use href="#espada" transform="translate(512 0) scale(-1 1)"/>
+
+  <!-- Báculo de mago (arriba-derecha), detrás del escudo -->
+  <g transform="rotate(38 256 230)">
+    <rect x="248" y="78" width="16" height="352" rx="7" fill="url(#madera)" stroke="#2e1d0d" stroke-width="3"/>
+    <rect x="244" y="150" width="24" height="9" rx="3" fill="url(#oro)" stroke="#5a3a0c" stroke-width="2"/>
+    <rect x="244" y="380" width="24" height="9" rx="3" fill="url(#oro)" stroke="#5a3a0c" stroke-width="2"/>
+    <circle cx="256" cy="430" r="10" fill="url(#oro)" stroke="#5a3a0c" stroke-width="3"/>
+    <!-- garras doradas -->
+    <path d="M248 88 Q222 70 230 40" fill="none" stroke="#5a3a0c" stroke-width="9" stroke-linecap="round"/>
+    <path d="M264 88 Q290 70 282 40" fill="none" stroke="#5a3a0c" stroke-width="9" stroke-linecap="round"/>
+    <path d="M248 88 Q222 70 230 40" fill="none" stroke="url(#oro)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M264 88 Q290 70 282 40" fill="none" stroke="url(#oro)" stroke-width="5" stroke-linecap="round"/>
+    <!-- cristal -->
+    <circle cx="256" cy="52" r="46" fill="url(#aura)"/>
+    <circle cx="256" cy="54" r="24" fill="url(#cristal)" stroke="#2a0d66" stroke-width="3"/>
+    <circle cx="248" cy="46" r="6" fill="#ffffff" opacity="0.85"/>
+  </g>
+  <!-- destellos del cristal -->
+  <g fill="#e9dcff">
+    <path d="M431 70 l3 9 9 3 -9 3 -3 9 -3 -9 -9 -3 9 -3z"/>
+    <path d="M466 118 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z"/>
+    <path d="M398 40 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z"/>
+  </g>
+
+  <!-- Medallas colgando a los costados -->
+  <g>
+    <polygon points="82,180 108,180 116,250 95,262 74,250" fill="url(#cinta)" stroke="#3a060c" stroke-width="3"/>
+    <rect x="90" y="180" width="10" height="72" fill="#f2f2f2" opacity="0.85"/>
+    <circle cx="95" cy="286" r="30" fill="url(#oro)" stroke="#5a3a0c" stroke-width="4"/>
+    <circle cx="95" cy="286" r="21" fill="none" stroke="#9c6418" stroke-width="2"/>
+    <path d="M95 270 l5 11 12 1 -9 8 3 12 -11 -7 -11 7 3 -12 -9 -8 12 -1z" fill="#fff2b8" stroke="#9c6418" stroke-width="1.5"/>
+  </g>
+  <g>
+    <polygon points="404,180 430,180 438,250 417,262 396,250" fill="url(#cintaAzul)" stroke="#0b1f4a" stroke-width="3"/>
+    <rect x="412" y="180" width="10" height="72" fill="#f2f2f2" opacity="0.85"/>
+    <circle cx="417" cy="286" r="30" fill="url(#plata)" stroke="#4a5262" stroke-width="4"/>
+    <circle cx="417" cy="286" r="21" fill="none" stroke="#7d8898" stroke-width="2"/>
+    <path d="M417 270 l5 11 12 1 -9 8 3 12 -11 -7 -11 7 3 -12 -9 -8 12 -1z" fill="#ffffff" stroke="#7d8898" stroke-width="1.5"/>
+  </g>
 
   <!-- Escudo -->
-  <path d="M256 92 L372 132 L366 262 Q356 352 256 410 Q156 352 146 262 L140 132 Z"
-        fill="url(#borde)" stroke="#3d2606" stroke-width="5"/>
-  <path d="M256 112 L354 146 L349 260 Q340 336 256 386 Q172 336 163 260 L158 146 Z"
-        fill="url(#escudo)"/>
-  <!-- Bloques (Blox) dentro del escudo -->
-  <g stroke="#0e2457" stroke-width="3">
-    <rect x="214" y="190" width="40" height="40" rx="4" fill="#4d8ff0"/>
-    <rect x="258" y="190" width="40" height="40" rx="4" fill="#3a78dc"/>
-    <rect x="236" y="234" width="40" height="40" rx="4" fill="#5b9cf6"/>
+  <path d="M256 92 L372 132 L366 262 Q356 352 256 410 Q156 352 146 262 L140 132 Z" fill="url(#oro)" stroke="#3d2606" stroke-width="5"/>
+  <path d="M256 112 L354 146 L349 260 Q340 336 256 386 Q172 336 163 260 L158 146 Z" fill="url(#escudo)"/>
+  <path d="M256 112 L354 146 L352 190 Q300 170 168 200 L158 146 Z" fill="#ffffff" opacity="0.07"/>
+
+  <!-- Arco con flechas -->
+  <g>
+    <path d="M232 168 Q168 250 232 332" fill="none" stroke="#2e1d0d" stroke-width="16" stroke-linecap="round"/>
+    <path d="M232 168 Q168 250 232 332" fill="none" stroke="url(#madera)" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="232" cy="168" r="7" fill="url(#oro)" stroke="#5a3a0c" stroke-width="2"/>
+    <circle cx="232" cy="332" r="7" fill="url(#oro)" stroke="#5a3a0c" stroke-width="2"/>
+    <rect x="193" y="238" width="14" height="24" rx="4" fill="#3b2412" stroke="#1a0f06" stroke-width="2"/>
+    <line x1="232" y1="170" x2="232" y2="330" stroke="#efe8d6" stroke-width="3"/>
+    <!-- tres flechas en abanico -->
+    <g id="flecha">
+      <line x1="226" y1="250" x2="318" y2="250" stroke="#2e1d0d" stroke-width="8" stroke-linecap="round"/>
+      <line x1="226" y1="250" x2="318" y2="250" stroke="#e0b06a" stroke-width="4" stroke-linecap="round"/>
+      <polygon points="318,240 342,250 318,260" fill="url(#plata)" stroke="#3a3f4a" stroke-width="2.5"/>
+      <polygon points="222,250 236,238 246,238 234,250" fill="#e23b4a" stroke="#5a0a12" stroke-width="2"/>
+      <polygon points="222,250 236,262 246,262 234,250" fill="#e23b4a" stroke="#5a0a12" stroke-width="2"/>
+    </g>
+    <use href="#flecha" transform="rotate(-24 230 250)"/>
+    <use href="#flecha" transform="rotate(24 230 250)"/>
   </g>
-  <!-- Gema -->
-  <polygon points="256,128 276,150 256,176 236,150" fill="url(#gema)" stroke="#4a060c" stroke-width="3"/>
-  <polygon points="256,134 266,150 256,150" fill="#ffd0d0" opacity="0.8"/>
-  <!-- Corona de raid: picos en la punta del escudo -->
-  <polygon points="236,300 246,318 256,296 266,318 276,300 272,334 240,334" fill="url(#borde)" stroke="#3d2606" stroke-width="3"/>
+
+  <!-- Gemas en el borde del escudo -->
+  <use href="#gema" transform="translate(256 136)" fill="url(#rubi)"/>
+  <use href="#gema" transform="translate(150 205) scale(0.85)" fill="url(#amatista)"/>
+  <use href="#gema" transform="translate(362 205) scale(0.85)" fill="url(#zafiro)"/>
+  <use href="#gema" transform="translate(256 362) scale(0.85)" fill="url(#esmeralda)"/>
+
+  <!-- Corona -->
+  <g>
+    <path d="M196 92 L188 38 L222 64 L256 22 L290 64 L324 38 L316 92 Z" fill="url(#oro)" stroke="#3d2606" stroke-width="5" stroke-linejoin="round"/>
+    <rect x="192" y="84" width="128" height="20" rx="5" fill="url(#oro)" stroke="#3d2606" stroke-width="4"/>
+    <circle cx="188" cy="36" r="7" fill="url(#oro)" stroke="#3d2606" stroke-width="3"/>
+    <circle cx="256" cy="20" r="8" fill="url(#oro)" stroke="#3d2606" stroke-width="3"/>
+    <circle cx="324" cy="36" r="7" fill="url(#oro)" stroke="#3d2606" stroke-width="3"/>
+    <use href="#gema" transform="translate(256 62) scale(0.7)" fill="url(#esmeralda)"/>
+    <circle cx="222" cy="94" r="5" fill="url(#rubi)" stroke="#3a060c" stroke-width="2"/>
+    <circle cx="256" cy="94" r="5" fill="url(#zafiro)" stroke="#06263d" stroke-width="2"/>
+    <circle cx="290" cy="94" r="5" fill="url(#rubi)" stroke="#3a060c" stroke-width="2"/>
+  </g>
 
   <!-- Cinta con el nombre -->
   <path d="M60 392 L452 392 L432 424 L452 456 L60 456 L80 424 Z" fill="url(#cinta)" stroke="#3a060c" stroke-width="5"/>
