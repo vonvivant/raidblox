@@ -99,6 +99,9 @@ Notas:
   vacío (la gente entra y sale mientras prueba). Para probar otras cosas sin ella: `GuerraConfig.ProbarEnStudio = false`.
 - Si algo falla en el juego publicado, apretá F9: la consola muestra los errores del servidor y del cliente.
 - Los comandos de prueba (`ServerStorage.RaidBloxDebug`) **no** existen en servidores publicados.
+- Junto a las estaciones de crafteo hay dos NPCs de prueba: el **Banquero** (+10.000 de oro por clic) y el
+  **Mercader de materiales** (cualquier material a 1 de oro, de a 1, 10 o 99). Solo aparecen con `ModoPruebas` o en
+  Studio, y lo que dan se guarda en el perfil real.
 - Cuando estén los mapas reales: `ModoPruebas = false`.
 
 ## Probar la Fase 2 en Studio

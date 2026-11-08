@@ -55,6 +55,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
 	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas())
+	TiendaPruebaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
+	TiendaPruebaComprar = { Tipo = "Function", Critico = false }, -- (itemId, cantidad)
 	-- Fase 4: Casa de Subastas
 	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
 	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)

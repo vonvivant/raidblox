@@ -21,6 +21,7 @@ local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
 local AuctionManager = require(Systems.Economia.AuctionManager)
 local TradeManager = require(Systems.Economia.TradeManager)
 local DebugStudio = require(Systems.DebugStudio)
+local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -53,7 +54,8 @@ if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
 end
 
--- 8. Comandos de prueba (solo en Studio).
+-- 8. Herramientas de prueba: comandos (solo Studio) y NPCs de oro y materiales.
 DebugStudio.Init()
+NpcsPrueba.Init()
 
 print(`[RaidBlox] Servidor iniciado - Fase 4 (zona: {zona or "sin configurar"})`)
