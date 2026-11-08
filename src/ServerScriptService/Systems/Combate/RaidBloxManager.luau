@@ -13,7 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local RaidBloxConfig = require(ReplicatedStorage.Configs.RaidBloxConfig)
@@ -227,7 +227,7 @@ local function alMorir(jefe: Jefe)
 	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre)
 	NetworkBridge.Server.FireAll("AnuncioGlobal", `¡{jefe.Def.Nombre} fue derrotado!`, COLOR_ANUNCIO)
 
-	local espera = if RunService:IsStudio() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion
+	local espera = if Pruebas.Activas() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion
 	task.delay(espera, aparecer, jefe.Id, jefe.Def)
 end
 

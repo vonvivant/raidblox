@@ -17,6 +17,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -456,8 +457,8 @@ for orden, id in ClassConfig.Orden do
 	boton.Parent = grilla
 end
 
--- En Studio se puede cambiar de clase para probar todas.
-if RunService:IsStudio() then
+-- En pruebas se puede cambiar de clase para probar todas.
+if Pruebas.Activas() then
 	local botonClase = Instance.new("TextButton")
 	botonClase.Position = UDim2.fromScale(0.01, 0.15)
 	botonClase.Size = UDim2.fromScale(0.08, 0.04)
@@ -465,7 +466,7 @@ if RunService:IsStudio() then
 	botonClase.TextColor3 = Color3.new(1, 1, 1)
 	botonClase.Font = Enum.Font.GothamBold
 	botonClase.TextScaled = true
-	botonClase.Text = "Clase [Studio]"
+	botonClase.Text = "Cambiar clase"
 	botonClase.Parent = gui
 	botonClase.Activated:Connect(function()
 		selector.Visible = not selector.Visible

@@ -14,7 +14,7 @@ local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
@@ -245,7 +245,7 @@ function RecoleccionManager.Init()
 	assert(not iniciado, "RecoleccionManager.Init() se llamó dos veces")
 	iniciado = true
 
-	if RunService:IsStudio() and #CollectionService:GetTagged(TAG_NODO) == 0 then
+	if Pruebas.Activas() and #CollectionService:GetTagged(TAG_NODO) == 0 then
 		crearNodoPrueba("VetaHierro", Vector3.new(0, 0, 0))
 		crearNodoPrueba("VetaHierro", Vector3.new(8, 0, -6))
 		crearNodoPrueba("VetaPlata", Vector3.new(16, 0, 0))

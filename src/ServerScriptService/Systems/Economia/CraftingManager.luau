@@ -16,7 +16,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -278,7 +278,7 @@ function CraftingManager.Init()
 	assert(not iniciado, "CraftingManager.Init() se llamó dos veces")
 	iniciado = true
 
-	if RunService:IsStudio() and #CollectionService:GetTagged(TAG_ESTACION) == 0 then
+	if Pruebas.Activas() and #CollectionService:GetTagged(TAG_ESTACION) == 0 then
 		crearEstacionPrueba("Yunque", Vector3.new(0, 0, 0), Color3.fromRGB(60, 60, 65), Enum.Material.Metal)
 		crearEstacionPrueba("MesaAlquimia", Vector3.new(10, 0, 0), Color3.fromRGB(110, 60, 140), Enum.Material.Wood)
 		crearEstacionPrueba("Telar", Vector3.new(20, 0, 0), Color3.fromRGB(150, 110, 70), Enum.Material.WoodPlanks)

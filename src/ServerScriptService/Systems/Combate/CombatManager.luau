@@ -19,6 +19,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -1062,8 +1063,8 @@ function CombatManager.Init()
 		if not id or not datos then
 			return NetworkBridge.Fail("INVALID_ARGS")
 		end
-		-- Elegir es gratis la primera vez; en Studio se puede cambiar libremente para probar.
-		if datos.Clase ~= "SinClase" and not RunService:IsStudio() then
+		-- Elegir es gratis la primera vez; en pruebas se puede cambiar libremente.
+		if datos.Clase ~= "SinClase" and not Pruebas.Activas() then
 			return NetworkBridge.Fail("NOT_ALLOWED")
 		end
 		DataManager.SetClase(player, id :: any)

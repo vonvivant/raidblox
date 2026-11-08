@@ -3,6 +3,11 @@
 -- no pongas acá nada secreto (listas de admins, claves, webhooks).
 
 local GameConfig = {
+	-- Contenido de prueba también en servidores publicados (zona de práctica,
+	-- estaciones, nodos, Casa de Subastas, arena de la Guerra y cambio libre de
+	-- clase). Para probar con amigos. Apagalo cuando estén los mapas reales.
+	ModoPruebas = true,
+
 	Datos = {
 		NombreStore = "RaidBlox_Jugadores_v1",
 		VersionEsquema = 3,

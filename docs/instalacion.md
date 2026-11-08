@@ -83,6 +83,23 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
    Cada cambio aparece en la consola del cliente (`Cambió Oro: 500`, etc.).
 3. Pará y volvé a darle Play: el oro, la madera y el nivel tienen que seguir ahí.
 
+## Probar con amigos (juego publicado)
+
+Casi todo el contenido de prueba (zona de práctica con enemigos y el Gólem, estaciones de crafteo, nodos de
+recolección, Casa de Subastas y arena de la Guerra) se crea solo en Studio... salvo que `GameConfig.ModoPruebas` esté
+en `true`: en ese caso también aparece en los servidores publicados, y se puede cambiar de clase libremente.
+
+1. Con Rojo conectado, *Archivo → Publicar en Roblox*.
+2. *Archivo → Configuración de experiencia → Permisos*: dejá el juego para amigos o agregá a cada uno.
+3. Entrá desde Roblox (no desde Studio) y que tus amigos se unan a tu servidor.
+
+Notas:
+- El progreso es el mismo que en Studio (comparten el guardado).
+- La Guerra arranca sola con 2 jugadores y lleva a todos a la arena. Para probar otras cosas sin ella:
+  `GuerraConfig.ProbarEnStudio = false`.
+- Los comandos de prueba (`ServerStorage.RaidBloxDebug`) **no** existen en servidores publicados.
+- Cuando estén los mapas reales: `ModoPruebas = false`.
+
 ## Probar la Fase 2 en Studio
 
 **Portales (2.1).** Al darle Play aparecen dos portales cerca del spawn: *Bosque Susurrante* (nivel 1+) y *Reino de Fuego* (nivel 20+).

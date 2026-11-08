@@ -30,6 +30,7 @@ local MemoryStoreService = game:GetService("MemoryStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -678,7 +679,7 @@ function AuctionManager.Init()
 	opciones.UseCache = false
 	opcionesSinCache = opciones
 
-	if RunService:IsStudio() and #CollectionService:GetTagged(TAG_CASA) == 0 then
+	if Pruebas.Activas() and #CollectionService:GetTagged(TAG_CASA) == 0 then
 		crearTablonPrueba()
 	end
 	for _, objeto in CollectionService:GetTagged(TAG_CASA) do

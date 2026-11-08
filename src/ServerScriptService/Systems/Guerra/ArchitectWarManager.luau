@@ -20,6 +20,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Teams = game:GetService("Teams")
 
 local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
@@ -71,13 +72,18 @@ local function enStudio(): boolean
 	return RunService:IsStudio()
 end
 
+-- Studio o ModoPruebas: arena generada y requisitos reducidos.
+local function modoPrueba(): boolean
+	return Pruebas.Activas()
+end
+
 local function requisitos(etapa: number): { [string]: number }
 	local def = GuerraConfig.Etapas[etapa]
 	local resultado: { [string]: number } = {}
 	if not def then
 		return resultado
 	end
-	local divisor = if enStudio() then GuerraConfig.DivisorRequisitosEnStudio else 1
+	local divisor = if modoPrueba() then GuerraConfig.DivisorRequisitosEnStudio else 1
 	for recurso, cantidad in def.Requisitos do
 		resultado[recurso] = math.max(1, math.ceil(cantidad / divisor))
 	end
@@ -573,7 +579,7 @@ function ArchitectWarManager.DebeActivarse(): boolean
 	if workspace:FindFirstChild(GuerraConfig.NombreCarpetaMapa) then
 		return true
 	end
-	return enStudio() and GuerraConfig.ProbarEnStudio
+	return modoPrueba() and GuerraConfig.ProbarEnStudio
 end
 
 local function conectarPrompts(m: ArenaGuerra.Mapa)
@@ -625,7 +631,7 @@ function ArchitectWarManager.Init()
 	assert(not iniciado, "ArchitectWarManager.Init() se llamó dos veces")
 	iniciado = true
 
-	local m = ArenaGuerra.Obtener(enStudio() and GuerraConfig.ProbarEnStudio)
+	local m = ArenaGuerra.Obtener(modoPrueba() and GuerraConfig.ProbarEnStudio)
 	if not m then
 		warn("[Guerra] No se encontró un mapa válido; la Guerra de Arquitectos queda desactivada.")
 		return
