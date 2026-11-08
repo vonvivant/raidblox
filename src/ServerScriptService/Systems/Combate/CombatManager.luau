@@ -856,6 +856,33 @@ function CombatManager.Jugadores(): { Combatiente }
 	return lista
 end
 
+-- Recupera un porcentaje de vida o maná de un jugador (pociones).
+-- Devuelve false si no hacía falta (ya estaba lleno) o está muerto.
+function CombatManager.RecuperarJugador(player: Player, recurso: "Vida" | "Mana", porcentaje: number): boolean
+	local c = porJugador[player]
+	if not c or not vivo(c) then
+		return false
+	end
+	if recurso == "Vida" then
+		-- Cura directa: no dispara CuraAplicada (una poción no genera amenaza)
+		-- y no se gasta si falta menos de 1 punto de vida.
+		local h = c.Humanoid
+		local real = math.min(math.floor(h.MaxHealth * porcentaje / 100), math.floor(h.MaxHealth - h.Health))
+		if real < 1 then
+			return false
+		end
+		h.Health += real
+		emitir(c.Raiz.Position, "Cura", c.Modelo, real, false)
+		return true
+	end
+	if c.Mana >= c.Stats.ManaMax then
+		return false
+	end
+	c.Mana = math.min(c.Stats.ManaMax, c.Mana + c.Stats.ManaMax * porcentaje / 100)
+	sincronizarMana(c)
+	return true
+end
+
 -- Golpe cuerpo a cuerpo de un NPC (se puede hacer parry).
 function CombatManager.AtaqueNpc(npc: Combatiente, objetivo: Combatiente, multiplicador: number)
 	if not vivo(npc) or not vivo(objetivo) then

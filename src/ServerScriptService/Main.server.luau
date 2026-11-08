@@ -15,6 +15,11 @@ local CombatManager = require(Systems.Combate.CombatManager)
 local LootManager = require(Systems.Combate.LootManager)
 local EnemyManager = require(Systems.Combate.EnemyManager)
 local RaidBloxManager = require(Systems.Combate.RaidBloxManager)
+local InventarioManager = require(Systems.Economia.InventarioManager)
+local CraftingManager = require(Systems.Economia.CraftingManager)
+local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
+local AuctionManager = require(Systems.Economia.AuctionManager)
+local TradeManager = require(Systems.Economia.TradeManager)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -35,9 +40,16 @@ local zona = ZoneManager.ZonaActual()
 EnemyManager.Init(zona)
 RaidBloxManager.Init(zona)
 
--- 6. Modos de juego según el place.
+-- 6. Economía: inventario, profesiones, subastas y comercio.
+InventarioManager.Init()
+CraftingManager.Init()
+RecoleccionManager.Init()
+AuctionManager.Init()
+TradeManager.Init()
+
+-- 7. Modos de juego según el place.
 if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
 end
 
-print(`[RaidBlox] Servidor iniciado - Fase 3 (zona: {zona or "sin configurar"})`)
+print(`[RaidBlox] Servidor iniciado - Fase 4 (zona: {zona or "sin configurar"})`)

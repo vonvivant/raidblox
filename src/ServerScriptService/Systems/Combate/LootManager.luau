@@ -20,6 +20,7 @@ local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
 local EnemigosConfig = require(ReplicatedStorage.Configs.EnemigosConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
+local Buzon = require(script.Parent.Parent.Buzon)
 
 type Rareza = Types.Rareza
 type ItemMeta = Types.ItemMeta
@@ -44,7 +45,6 @@ local DISTANCIA_RECOGIDA = 14
 local DURACION_BOLSA = 120
 local azar = Random.new()
 local pendientes: { [Player]: { [string]: Pendiente } } = {}
-local enviosEnCurso = 0 -- envíos al buzón que todavía no terminaron (para el cierre)
 local iniciado = false
 
 local RAREZAS: { [string]: Rareza } = {
@@ -153,28 +153,9 @@ local function nombreItem(item: ItemGenerado): string
 	return if def then def.Nombre else item.ItemId
 end
 
--- Envía un ítem al buzón con reintentos (espera creciente). El cierre del
--- servidor espera a que terminen todos los envíos en curso.
+-- Envía un ítem al buzón (reintentos, id fijo y espera al cierre: módulo Buzon).
 local function enviarAlBuzon(userId: number, item: ItemGenerado, origen: string)
-	enviosEnCurso += 1
-	task.spawn(function()
-		local espera = 1
-		local enviado = false
-		for _ = 1, 5 do
-			local okLlamada, resultado =
-				pcall(DataManager.EnviarItemOffline, userId, item.ItemId, item.Cantidad, item.Rareza, item.Meta, origen)
-			if okLlamada and resultado then
-				enviado = true
-				break
-			end
-			task.wait(espera)
-			espera *= 2
-		end
-		if not enviado then
-			warn(`[Botin] No se pudo enviar {item.ItemId} x{item.Cantidad} al buzón de {userId}`)
-		end
-		enviosEnCurso -= 1
-	end)
+	Buzon.EnviarItem(userId, item, origen)
 end
 
 -- Entrega sin bolsa: inventario o, si está lleno, buzón.
@@ -285,14 +266,6 @@ function LootManager.Init()
 		end
 		for _, p in delJugador do
 			enviarAlBuzon(player.UserId, p.Item, p.Origen)
-		end
-	end)
-
-	-- Al apagarse el servidor, espera (hasta 25 s) a que lleguen los envíos al buzón.
-	game:BindToClose(function()
-		local limite = os.clock() + 25
-		while enviosEnCurso > 0 and os.clock() < limite do
-			task.wait(0.2)
 		end
 	end)
 
