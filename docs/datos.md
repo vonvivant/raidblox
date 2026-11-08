@@ -4,7 +4,7 @@
 para tener **session locking**: un perfil solo puede estar abierto en un servidor a la vez, así nadie duplica ítems
 entrando rápido a otro servidor.
 
-## Esquema del perfil (versión 2)
+## Esquema del perfil (versión 3)
 
 ```mermaid
 classDiagram
@@ -23,6 +23,11 @@ classDiagram
         SkinEstructura SkinEstructuraEquipada
         string[] RecibosProcesados
         string[] MensajesProcesados
+        boolean KitInicialEntregado
+    }
+    class ProgresoProfesion {
+        number Nivel
+        number Xp
     }
     class Estadisticas {
         number VidaActual
@@ -42,6 +47,7 @@ classDiagram
         ItemInstancia? ArmaSecundaria
         ItemInstancia? Accesorio1
         ItemInstancia? Accesorio2
+        ItemInstancia? Herramienta
     }
     class ItemInstancia {
         string Uid
@@ -59,6 +65,7 @@ classDiagram
     DatosJugador *-- Inventario
     DatosJugador *-- Equipamiento
     DatosJugador *-- "0..*" ProgresoMision : MisionesActivas
+    DatosJugador *-- "0..5" ProgresoProfesion : Profesiones
     Inventario *-- "0..*" ItemInstancia
     Equipamiento o-- "0..6" ItemInstancia
 ```
@@ -129,7 +136,8 @@ flowchart TD
 
 - Para agregar un campo nuevo con valor por defecto alcanza con sumarlo a `PLANTILLA`: `Reconcile` lo completa.
 - Para **transformar** datos existentes, subí `GameConfig.Datos.VersionEsquema` y agregá `MIGRACIONES[n]`.
-- Migración actual: `[1]` (v1 → v2) agrega honor, títulos y skins de estructura.
+- Migraciones actuales: `[1]` (v1 → v2) agrega honor, títulos y skins de estructura; `[2]` (v2 → v3) agrega
+  profesiones y el kit inicial.
 
 ## Buzón offline
 
@@ -171,5 +179,9 @@ sequenceDiagram
 | `EnviarOroOffline(userId, n, motivo)` | `boolean` | Buzón entre servidores |
 | `AddHonor`, `AddTitulo`, `UnlockSkinEstructura`, `SetSkinEstructura` | `boolean` | Fase 2 |
 | `AddPremium`, `SpendPremium`, `ReciboYaProcesado`, `MarcarRecibo` | — | Solo para monetización |
+| `SetClase`, `EquiparItem`, `DesequiparItem` | `boolean` | Fase 3 |
+| `EnviarItemOffline(userId, itemId, n, rareza, meta, motivo)` | `boolean` | Buzón de ítems |
+| `MoverRanura`, `DividirPila`, `QuitarDeRanura`, `AgregarInstancia`, `BuscarPorUid`, `RanurasLibres`, `RanurasNecesarias` | — | Fase 4: síncronas, todo o nada |
+| `NivelProfesion`, `AddXpProfesion`, `MarcarKitInicial` | — | Profesiones |
 
 Señales: `PerfilCargado(player, datos)` y `DatosCambiados(player, seccion)`.

@@ -35,6 +35,11 @@ Cómo cargar el proyecto en Roblox Studio y qué probar en cada fase. Para el di
 | `CombatClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 | `CombatEffectsClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 | `Health` (vacío) | **Script** | StarterPlayer > StarterCharacterScripts |
+| `Configs/ProfesionesConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Modules/EstadoCliente`, `Modules/UIKit`, `Modules/ItemInfo` | ModuleScript | ReplicatedStorage > Modules |
+| `Systems/Buzon` | ModuleScript | ServerScriptService > Systems |
+| `Systems/Economia/*` (5 módulos) | ModuleScript | ServerScriptService > Systems > Economia (Folder) |
+| `InventarioUI`, `CrafteoUI`, `SubastaUI`, `ComercioUI` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 
 Las carpetas (`Shared`, `Configs`, `Modules`, `Systems`, `Packages`) son objetos **Folder**.
 `ProfileStore` es la librería de loleris (licencia Apache 2.0, incluida en `ProfileStore.LICENSE.txt`).
@@ -62,7 +67,7 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
 
 ## Cómo comprobar que funciona
 
-1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 3 (zona: Pruebas)`
+1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 4 (zona: Pruebas)`
    y, del cliente, `Datos cargados: nivel 1, oro 0`.
 2. En la barra de comandos (lado servidor) podés probar la API:
    ```lua
@@ -104,6 +109,11 @@ dos castillos holográficos, nodos de recursos en el medio y depósitos.
 
 Elegí una clase en el selector y andá hacia −Z del spawn: hay muñecos de práctica, lobos, bandidos y el RaidBlox
 Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-en-studio).
+
+## Probar la Fase 4 en Studio
+
+Abrí la mochila con I. Cerca del spawn hay estaciones de crafteo, nodos de recolección y la Casa de Subastas. La guía
+completa está en [economia.md](economia.md#probar-en-studio).
 
 ## API del servidor (resumen)
 

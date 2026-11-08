@@ -6,8 +6,8 @@
 flowchart LR
     F1[Fase 1<br/>Datos, red, anti-cheat]:::hecho --> F2[Fase 2<br/>Zonas, Guerra de Arquitectos]:::hecho
     F2 --> F3[Fase 3<br/>Combate, 8 clases,<br/>RaidBlox, rarezas]:::hecho
-    F3 --> F4[Fase 4<br/>Inventario, crafteo,<br/>subastas, comercio]:::siguiente
-    F4 --> F5[Fase 5<br/>Voz, misiones,<br/>hermandades, dungeons]
+    F3 --> F4[Fase 4<br/>Inventario, crafteo,<br/>subastas, comercio]:::hecho
+    F4 --> F5[Fase 5<br/>Voz, misiones,<br/>hermandades, dungeons]:::siguiente
     F5 --> F6[Fase 6<br/>Monetización<br/>y cosméticos]
     F6 --> F7[Fase 7<br/>HUD, combat text,<br/>minimapa, admin]
 
@@ -20,8 +20,8 @@ flowchart LR
 | 1 | DataManager (ProfileStore), NetworkBridge, AntiCheat | ✅ |
 | 2 | ZoneManager, pantalla de carga, Guerra de Arquitectos | ✅ |
 | 3 | CombatManager (FSM, tab-targeting, parry), 8 clases, EnemyManager, RaidBloxManager, rarezas, botín | ✅ |
-| 4 | Inventario drag & drop, CraftingManager, AuctionManager, comercio 1v1 | ⏳ |
-| 5 | VoiceChannelManager, misiones, hermandades, dungeons instanciadas | — |
+| 4 | Inventario drag & drop, profesiones (crafteo y recolección), AuctionManager, comercio 1v1 | ✅ |
+| 5 | VoiceChannelManager, misiones, hermandades, dungeons instanciadas | ⏳ |
 | 6 | Gamepasses, DevProducts, pase de batalla, transmog, mascotas | — |
 | 7 | HUD, target frame, combat text, minimapa, panel de administración | — |
 
@@ -46,13 +46,20 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 | Stats y efectos del ítem guardados en su `Meta` | Cada copia es única y no cambia si se rebalancea la config |
 | Vida/maná actuales no se guardan | Se aparece con vida y maná completos (simplifica la persistencia) |
 | Parry solo contra golpes cuerpo a cuerpo de NPCs | Las zonas rojas de los jefes se esquivan saliendo |
+| Subastas: DataStore como verdad, MemoryStore como índice | MemoryStore es rápido pero no durable; la compra la arbitra `UpdateAsync` |
+| Entregas de subasta por el buzón | Llegan aunque el destinatario esté offline o en otro servidor |
+| Vencimientos procesados al entrar el vendedor | No hace falta un proceso global que recorra todas las publicaciones |
+| Comercio sin custodia intermedia | Los ítems no salen del inventario hasta el intercambio síncrono final: nada queda "en el aire" |
+| Herramientas en un slot de equipo propio | "Requiere herramienta equipada" sin afectar las stats de combate |
+| `EstadoCliente` como único receptor de datos | Ninguna interfaz pierde el snapshot inicial por cargar tarde |
 
 ## Pendientes conocidos
 
-- **Fase 4:** interfaz de inventario y equipo (la lógica `EquiparItem`/`DesequiparItem` ya existe en el servidor).
-  Registrar los remotes nuevos en `NetworkBridge` (`DEFINICIONES`). Monturas con `AntiCheat.SetVelocidadPermitida`
-  y el atributo `Montado`.
-- **Fase 4:** el buzón de ítems reintenta recién al volver a entrar si el inventario estaba lleno.
+- **Fase 5/6:** monturas con `AntiCheat.SetVelocidadPermitida` y el atributo `Montado`.
+- El buzón de ítems reintenta recién al volver a entrar si el inventario estaba lleno.
+- **Fase 6:** el pase "Subasta Extra" sube `GameConfig.Subastas.MaxPublicaciones` por jugador (hoy es global).
+- La búsqueda de subastas lee las 200 publicaciones más baratas del índice; con mucho volumen conviene un índice por
+  tipo de ítem.
 - **Fase 5:** el grupo (party) todavía no existe: el botín y las curas en área usan "todos los jugadores cercanos".
 - **Fase 7:** `CombateUI`, `RaidBloxUI` y los números flotantes son versiones de prueba; el HUD definitivo los reemplaza.
 - **Fase 6:** en `ProcessReceipt`, devolver `PurchaseGranted` solo si `DataManager.SaveNowAsync` confirma el guardado

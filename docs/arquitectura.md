@@ -26,28 +26,39 @@ src/
 │   │   ├── ClassConfig.luau          8 clases, stats por nivel y habilidades
 │   │   ├── ItemRarityConfig.luau     Rarezas, efectos secundarios y pasivas
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
-│   │   └── RaidBloxConfig.luau       Jefes de mundo
+│   │   ├── RaidBloxConfig.luau       Jefes de mundo
+│   │   └── ProfesionesConfig.luau    Profesiones, recetas, estaciones y nodos
 │   └── Modules/
 │       ├── NetworkBridge.luau        Remotes, rate limiting, timeout y validadores (Guard)
 │       ├── Signal.luau               Eventos tipados entre módulos del mismo lado
 │       ├── PantallaCarga.luau        Construcción de la pantalla de carga temática
-│       └── Avisos.luau               Mensajes cortos en pantalla
+│       ├── Avisos.luau               Mensajes cortos en pantalla
+│       ├── EstadoCliente.luau        Espejo local de los datos (cliente)
+│       ├── UIKit.luau                Piezas de interfaz compartidas (cliente)
+│       └── ItemInfo.luau             Descripción de ítems (cliente)
 ├── ServerScriptService/
 │   ├── Main.server.luau              Arranque del servidor
 │   ├── Packages/ProfileStore.luau    Librería de persistencia (Apache 2.0)
 │   └── Systems/
 │       ├── DataManager.luau          Perfiles, oro, ítems, XP, honor, buzón
+│       ├── Buzon.luau                Envíos durables al buzón (ids fijos, reintentos)
 │       ├── AntiCheat.luau            Speedhack y vuelo
 │       ├── ZoneManager.luau          Portales y TeleportService
 │       ├── Guerra/
 │       │   ├── ArenaGuerra.luau      Mapa, planos holográficos y construcción
 │       │   └── ArchitectWarManager.luau  Lógica de la partida
-│       └── Combate/
-│           ├── Estadisticas.luau     Stats por clase, nivel y equipo
-│           ├── CombatManager.luau    Máquina de estados, habilidades, parry
-│           ├── EnemyManager.luau     IA por amenaza y recompensas
-│           ├── RaidBloxManager.luau  Jefes de mundo
-│           └── LootManager.luau      Rarezas y botín personal
+│       ├── Combate/
+│       │   ├── Estadisticas.luau     Stats por clase, nivel y equipo
+│       │   ├── CombatManager.luau    Máquina de estados, habilidades, parry
+│       │   ├── EnemyManager.luau     IA por amenaza y recompensas
+│       │   ├── RaidBloxManager.luau  Jefes de mundo
+│       │   └── LootManager.luau      Rarezas y botín personal
+│       └── Economia/
+│           ├── InventarioManager.luau   Acciones de inventario y pociones
+│           ├── CraftingManager.luau     Estaciones y recetas
+│           ├── RecoleccionManager.luau  Nodos y minijuego
+│           ├── AuctionManager.luau      Casa de Subastas
+│           └── TradeManager.luau        Comercio 1v1
 └── StarterPlayer/
     ├── StarterCharacterScripts/Health.server.luau  Reemplaza la regeneración por defecto de Roblox
     └── StarterPlayerScripts/
@@ -55,7 +66,11 @@ src/
         ├── TeleportClient.client.luau    Pantalla de carga y avisos
         ├── GuerraUI.client.luau          Interfaz de la Guerra de Arquitectos
         ├── CombatClient.client.luau      Targeting, barra de acción, selector de clase
-        └── CombatEffectsClient.client.luau  Números flotantes, barra del jefe, botín
+        ├── CombatEffectsClient.client.luau  Números flotantes, barra del jefe, botín
+        ├── InventarioUI.client.luau      Mochila, equipo y detalles
+        ├── CrafteoUI.client.luau         Recetas y minijuego de recolección
+        ├── SubastaUI.client.luau         Casa de Subastas
+        └── ComercioUI.client.luau        Comercio 1v1
 ```
 
 Convención de Rojo: `.server.luau` → `Script`, `.client.luau` → `LocalScript`, `.luau` → `ModuleScript`.
@@ -90,6 +105,10 @@ flowchart TD
         EnemyManager
         RaidBloxManager
         LootManager
+        Buzon
+        AuctionManager
+        TradeManager
+        CraftingManager
     end
 
     subgraph Client[Cliente]
@@ -134,6 +153,14 @@ flowchart TD
     EnemyManager --> LootManager
     RaidBloxManager --> EnemyManager
     LootManager --> DataManager
+    LootManager --> Buzon
+    Buzon --> DataManager
+    Main --> AuctionManager
+    Main --> TradeManager
+    Main --> CraftingManager
+    AuctionManager --> Buzon
+    TradeManager --> Buzon
+    CraftingManager --> Buzon
 
     ClientMain --> NetworkBridge
     TeleportClient --> NetworkBridge
@@ -189,7 +216,11 @@ sequenceDiagram
 | `UsarHabilidad`, `Parry`, `RecogerBotin` | Event | C → S | Combate y botín (ver [combate](combate.md)) |
 | `ElegirClase`, `EquiparItem`, `DesequiparItem` | Function | C → S | Clase y equipamiento |
 | `CombateEvento`, `HabilidadEstado`, `RaidBloxEstado`, `AnuncioGlobal`, `BotinSoltado`, `BotinRetirado` | Event | S → C | Efectos y estado de combate |
-| `MoverItem`, `UsarItem` | Event | C → S | Reservados para la Fase 4 |
+| `MoverItem`, `UsarItem`, `DividirPila`, `DestruirItem` | Event / Function | C → S | Inventario |
+| `CraftearIniciar`, `RecoleccionGolpe` | Function / Event | C → S | Crafteo y recolección |
+| `SubastaBuscar`, `SubastaPublicar`, `SubastaComprar`, `SubastaCancelar`, `SubastaMias` | Function | C → S | Casa de Subastas |
+| `ComercioSolicitar`, `ComercioResponder`, `ComercioOfertar`, `ComercioBloquear`, `ComercioConfirmar`, `ComercioCancelar` | Event | C → S | Comercio 1v1 |
+| `CrafteoAbrir`, `CrafteoEstado`, `MinijuegoRecoleccion`, `SubastaAbrir`, `ComercioInvitacion`, `ComercioEstado` | Event | S → C | Estado de economía |
 
 La recolección y el depósito de la Guerra no usan remotes: van por `ProximityPrompt`, cuyos eventos se reciben en el servidor.
 
