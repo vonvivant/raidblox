@@ -157,7 +157,10 @@ local function golpe(player: Player, token: string, tiempoCliente: number?)
 	if tiempoCliente then
 		local retraso = t - tiempoCliente
 		if retraso >= -0.2 and retraso <= MJ.LatenciaMaxima then
-			momento = tiempoCliente
+			-- La hora del cliente no puede ser más vieja que su latencia real
+			-- (medida por el servidor): así no se "estira" la zona verde.
+			local ida = math.clamp(player:GetNetworkPing(), 0, MJ.LatenciaMaxima)
+			momento = math.max(tiempoCliente, t - (ida * 2 + 0.08))
 			tol = 0.05 -- solo el error de sincronización del reloj
 		end
 	end

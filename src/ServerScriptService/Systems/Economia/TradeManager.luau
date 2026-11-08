@@ -238,6 +238,10 @@ local function ejecutar(sesion: Sesion)
 	print(
 		`[Comercio] {a.UserId} -> {b.UserId}: {#quitadosA} ítems + {oa.Oro} oro | {b.UserId} -> {a.UserId}: {#quitadosB} ítems + {ob.Oro} oro`
 	)
+	-- Se guardan los dos perfiles enseguida: achica la ventana en la que una
+	-- caída del servidor podría dejar a uno con lo viejo y al otro con lo nuevo.
+	task.spawn(DataManager.SaveNowAsync, sesion.A, 8)
+	task.spawn(DataManager.SaveNowAsync, sesion.B, 8)
 	terminar(sesion, true, "¡Comercio completado!")
 end
 

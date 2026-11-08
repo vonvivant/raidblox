@@ -75,6 +75,17 @@ export type Ajustes = {
 	ChatVisible: boolean,
 }
 
+-- v5: diario de operaciones de subasta en curso. Se escribe en el mismo
+-- instante en que sale el ítem o el oro del perfil, así un guardado nunca deja
+-- el perfil "sin el ítem" y sin rastro de adónde fue. Al entrar se reconcilia
+-- contra la subasta (DataStore) y se cierra o se devuelve.
+export type PendienteSubasta = { Item: ItemInstancia, Deposito: number, Creado: number }
+export type PendienteCompra = { Precio: number, Creado: number }
+export type Pendientes = {
+	Subastas: { [string]: PendienteSubasta },
+	Compras: { [string]: PendienteCompra },
+}
+
 export type DatosJugador = {
 	Version: number,
 	Nivel: number,
@@ -105,6 +116,11 @@ export type DatosJugador = {
 	KitInicialEntregado: boolean,
 	-- v4: bando y ajustes del jugador
 	Ajustes: Ajustes,
+	-- v5: diario de subastas, ids de mensajes de subasta ya entregados (con su
+	-- os.time(), se podan a los 30 días) y contador de guardados.
+	Pendientes: Pendientes,
+	MensajesSubasta: { [string]: number },
+	SecuenciaGuardado: number,
 }
 
 -- Secciones del perfil que se sincronizan al cliente.

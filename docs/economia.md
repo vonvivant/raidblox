@@ -170,6 +170,23 @@ que reintentar nunca entrega dos veces. Si algo falla o el servidor se apaga, la
 vendedor o el comprador vuelven a entrar, o al abrir "Mis publicaciones". La búsqueda lee hasta 1000 publicaciones
 (5 páginas de 200) y las lecturas de `L_`, `V_` y `C_` no usan la caché del DataStore.
 
+### Diario de operaciones (datos v5)
+
+Guardar el perfil antes de escribir en la subasta no alcanza si el perfil no recuerda **qué** salió. Por eso, en el
+mismo bloque sin pausas en que se retienen el ítem y el depósito (publicar) o el oro (comprar), se anota la operación
+en `DatosJugador.Pendientes` (`Subastas[id]` o `Compras[id]`, con la hora). Ese diario se guarda junto con el resto.
+
+- Si la operación se confirma, la entrada se borra.
+- Si se sabe que no se hizo, se devuelve todo (directo al perfil, o por el buzón con id fijo) y se borra.
+- Si no se sabe (el DataStore no respondió), **no se devuelve nada**: al volver a entrar, o 95 s después, se
+  reconcilia contra `L_<id>`. Si la publicación existe, el ítem está ahí; si la compra figura a tu nombre, el ítem
+  llega por `C_`; si no, se devuelve. Antes de 90 s no se da nada por perdido, porque la operación podría seguir en
+  vuelo en otro servidor.
+
+Las transiciones devuelven **tres** resultados: ganó, perdió o desconocido. Solo "perdió" permite devolver oro. Los ids
+de los mensajes de subasta se recuerdan 30 días (`MensajesSubasta`), así un reintento tardío nunca entrega dos veces, y
+`SaveNowAsync` solo confirma un guardado que incluye el último cambio (contador `SecuenciaGuardado`).
+
 ### Compra simultánea (dos jugadores, dos servidores)
 
 ```mermaid

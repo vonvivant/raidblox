@@ -194,9 +194,16 @@ local function quitarDelIndice(id: string)
 	cache.hora = 0
 end
 
--- Transición atómica. Devuelve la publicación si ESTA llamada ganó (también si
--- un reintento encuentra que un intento anterior propio ya se había escrito).
-local function transicion(id: string, condicion: (Publicacion) -> boolean, aplicar: (Publicacion) -> ()): Publicacion?
+-- Resultado de una transición: "Gano" (esta llamada escribió), "Perdio" (no se
+-- escribió: otro llegó antes o el estado no lo permitía) o "Desconocido" (el
+-- DataStore falló y no se pudo saber). Solo "Perdio" permite devolver algo.
+type Resultado = "Gano" | "Perdio" | "Desconocido"
+
+local function transicion(
+	id: string,
+	condicion: (Publicacion) -> boolean,
+	aplicar: (Publicacion) -> ()
+): (Resultado, Publicacion?)
 	local token = HttpService:GenerateGUID(false)
 	local yaEscrito: Publicacion? = nil
 	local ok, resultado = conReintentos(3, function()
@@ -213,11 +220,26 @@ local function transicion(id: string, condicion: (Publicacion) -> boolean, aplic
 			return actual
 		end)
 	end)
-	local p = resultado :: Publicacion?
-	if ok and p and p.Token == token then
-		return p
+	if yaEscrito then
+		return "Gano", yaEscrito
 	end
-	return yaEscrito
+	local p = resultado :: Publicacion?
+	if ok then
+		if p and p.Token == token then
+			return "Gano", p
+		end
+		return "Perdio", nil
+	end
+	-- Falló: puede que alguno de los intentos se haya escrito igual. El token
+	-- queda en la publicación (ninguna otra transición la cambia después), así
+	-- que releyendo se sabe.
+	local okLeer, actual = leer(id)
+	if okLeer and actual and actual.Token == token then
+		return "Gano", actual
+	elseif okLeer then
+		return "Perdio", nil
+	end
+	return "Desconocido", nil
 end
 
 local function quitarFlag(id: string, flag: "PendienteItem" | "PendienteOro")
@@ -261,12 +283,131 @@ local function entregarPendientes(p: Publicacion): boolean
 	return completo
 end
 
+-- Devoluciones: primero directo al perfil (sin pausas); si no entra, por el
+-- buzón con un id fijo (un reintento nunca entrega dos veces). true si quedó
+-- entregado o encaminado con éxito.
+local function devolverItem(player: Player, item: ItemInstancia, idFijo: string, motivo: string): boolean
+	if DataManager.AgregarInstancia(player, item) then
+		return true
+	end
+	return Buzon.EnviarItemAsync(player.UserId, item, motivo, idFijo)
+end
+
+local function devolverOro(player: Player, cantidad: number, idFijo: string, motivo: string): boolean
+	if DataManager.AddGold(player, cantidad) then
+		return true
+	end
+	return Buzon.EnviarOroAsync(player.UserId, cantidad, motivo, idFijo)
+end
+
+-- Cierra en el diario una publicación que no llegó a crearse y devuelve todo.
+local function devolverPublicacion(player: Player, id: string, item: ItemInstancia, deposito: number)
+	-- El diario se borra en el mismo bloque sin pausas en que vuelven ítem y
+	-- oro al perfil; si alguno va por el buzón, se borra al confirmarse.
+	DataManager.QuitarPendiente(player, "Subastas", id)
+	local okItem = devolverItem(player, item, `subasta:{id}:rollback`, "Subasta no publicada")
+	local okOro = devolverOro(player, deposito, `subasta:{id}:deposito`, "Depósito devuelto")
+	if not okItem or not okOro then
+		-- No se pudo devolver todo: se vuelve a anotar para reintentar al entrar.
+		DataManager.RegistrarPendienteSubasta(
+			player,
+			id,
+			if okItem then { Uid = item.Uid, ItemId = item.ItemId, Cantidad = 0, Rareza = item.Rareza } else item,
+			if okOro then 0 else deposito
+		)
+	end
+	quitarDeLista(`V_{player.UserId}`, id)
+end
+
+------------------------------------------------------------------------
+-- Reconciliación del diario (al entrar y cuando una operación quedó en duda)
+------------------------------------------------------------------------
+
+local ESPERA_DIARIO = 90 -- s: antes de esto, una operación podría seguir en vuelo en otro servidor
+
+local reconciliar: (Player) -> ()
+
+local function reconciliarDespues(player: Player)
+	task.delay(ESPERA_DIARIO + 5, function()
+		if player.Parent == Players and DataManager.PerfilActivo(player) then
+			reconciliar(player)
+		end
+	end)
+end
+
+reconciliar = function(player: Player)
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return
+	end
+	local ahora = os.time()
+	local pendientes = false
+
+	for id, pend in table.clone(datos.Pendientes.Subastas) do
+		local ok, p = leer(id)
+		if not ok then
+			pendientes = true
+			continue
+		end
+		if p and p.VendedorId == player.UserId then
+			-- La publicación existe: el ítem está en ella.
+			DataManager.QuitarPendiente(player, "Subastas", id)
+			agregarALista(`V_{player.UserId}`, id)
+		elseif ahora - pend.Creado < ESPERA_DIARIO then
+			pendientes = true -- puede estar creándose todavía
+		else
+			local item = pend.Item
+			if item.Cantidad > 0 or pend.Deposito > 0 then
+				local okItem = item.Cantidad <= 0
+					or devolverItem(player, item, `subasta:{id}:rollback`, "Subasta no publicada")
+				local okOro = pend.Deposito <= 0
+					or devolverOro(player, pend.Deposito, `subasta:{id}:deposito`, "Depósito devuelto")
+				if okItem and okOro then
+					DataManager.QuitarPendiente(player, "Subastas", id)
+				else
+					pendientes = true
+				end
+			else
+				DataManager.QuitarPendiente(player, "Subastas", id)
+			end
+			quitarDeLista(`V_{player.UserId}`, id)
+		end
+	end
+
+	for id, pend in table.clone(datos.Pendientes.Compras) do
+		local ok, p = leer(id)
+		if not ok then
+			pendientes = true
+			continue
+		end
+		if p and p.Estado == "Vendida" and p.CompradorId == player.UserId then
+			-- La compra se concretó: el ítem llega por la lista C_.
+			DataManager.QuitarPendiente(player, "Compras", id)
+			agregarALista(`C_{player.UserId}`, id)
+		elseif ahora - pend.Creado < ESPERA_DIARIO and (not p or p.Estado == "Activa") then
+			pendientes = true -- la transición podría seguir en vuelo
+		else
+			if devolverOro(player, pend.Precio, `subasta:{id}:reembolso:{player.UserId}`, "Compra no realizada") then
+				DataManager.QuitarPendiente(player, "Compras", id)
+			else
+				pendientes = true
+			end
+		end
+	end
+
+	if pendientes then
+		reconciliarDespues(player)
+	end
+end
+
 ------------------------------------------------------------------------
 -- Procesamiento por jugador (vencimientos y entregas pendientes)
 ------------------------------------------------------------------------
 
-local function procesarJugador(userId: number): { { [string]: any } }
+local function procesarJugador(player: Player): { { [string]: any } }
+	local userId = player.UserId
 	local resultado: { { [string]: any } } = {}
+	local datos = DataManager.GetData(player)
 
 	local okV, ids = leerLista(`V_{userId}`)
 	if okV then
@@ -276,21 +417,30 @@ local function procesarJugador(userId: number): { { [string]: any } }
 				continue
 			end
 			if not p then
-				quitarDeLista(`V_{userId}`, id) -- reserva de una publicación que nunca se creó
+				-- Reserva sin publicación: se borra solo si el diario no dice que
+				-- se está creando (podría estar en vuelo en otro servidor).
+				if not (datos and datos.Pendientes.Subastas[id]) then
+					quitarDeLista(`V_{userId}`, id)
+				end
 				continue
 			end
 			local actual: Publicacion = p
 			if actual.Estado == "Activa" and actual.Expira <= os.time() then
-				local vencida = transicion(id, function(x)
+				local res, vencida = transicion(id, function(x)
 					return x.Estado == "Activa" and x.Expira <= os.time()
 				end, function(x)
 					x.Estado = "Expirada"
 					x.Destinatario = x.VendedorId
 					x.PendienteItem = true
 				end)
-				if vencida then
+				if res == "Gano" and vencida then
 					actual = vencida
 					quitarDelIndice(id)
+				elseif res == "Perdio" then
+					local okR, releida = leer(id) -- otro la vendió o la venció primero
+					if okR and releida then
+						actual = releida
+					end
 				end
 			end
 			local completo = entregarPendientes(actual)
@@ -317,27 +467,6 @@ end
 ------------------------------------------------------------------------
 -- Operaciones
 ------------------------------------------------------------------------
-
--- Publicaciones cuya creación quedó en duda por una caída del DataStore: se
--- verifican en segundo plano hasta saber si existen.
-local function verificarCreacion(player: Player, id: string, item: ItemInstancia, deposito: number)
-	task.spawn(function()
-		for _ = 1, 20 do
-			task.wait(30)
-			local ok, p = leer(id)
-			if ok then
-				if not p then
-					-- Nunca se creó: se devuelve todo por el buzón (ids fijos).
-					Buzon.EnviarItem(player.UserId, item, "Subasta no publicada", `subasta:{id}:rollback`)
-					Buzon.EnviarOro(player.UserId, deposito, "Depósito devuelto", `subasta:{id}:deposito`)
-					quitarDeLista(`V_{player.UserId}`, id)
-				end
-				return -- si existe, es una publicación válida y el ítem está en ella
-			end
-		end
-		warn(`[Subastas] No se pudo verificar la publicación {id} de {player.UserId}`)
-	end)
-end
 
 local function publicar(player: Player, uid: string, precio: number): Respuesta
 	local id = HttpService:GenerateGUID(false)
@@ -368,7 +497,7 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 	end
 	local reserva = reservar()
 	if reserva == "lleno" then
-		procesarJugador(vendedorId) -- limpia publicaciones terminadas y reintenta
+		procesarJugador(player) -- limpia publicaciones terminadas y reintenta
 		reserva = reservar()
 	end
 	if reserva == "lleno" then
@@ -378,7 +507,8 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
 
-	-- 2. Buscar el ítem por Uid y retenerlo junto con el depósito (sin pausas).
+	-- 2. Buscar el ítem por Uid y retenerlo junto con el depósito, anotándolo en
+	--    el diario del perfil, todo sin pausas.
 	local clave, item = DataManager.BuscarPorUid(player, uid)
 	local datos = DataManager.GetData(player)
 	local deposito = math.max(1, math.floor(precio * CFG.Deposito))
@@ -391,22 +521,26 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 		avisar(player, `Necesitás {deposito} de oro para el depósito.`)
 		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
 	end
+	if not DataManager.SpendGold(player, deposito) then
+		quitarDeLista(`V_{vendedorId}`, id)
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
 	local retenido = DataManager.QuitarDeRanura(player, clave, item.Cantidad)
-	if not retenido or not DataManager.SpendGold(player, deposito) then
-		if retenido then
-			Buzon.DarItem(player, retenido, "Subasta no publicada")
-		end
+	if not retenido then
+		DataManager.AddGold(player, deposito)
 		quitarDeLista(`V_{vendedorId}`, id)
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
+	DataManager.RegistrarPendienteSubasta(player, id, retenido, deposito)
 
-	-- 3. Guardar el perfil ANTES de crear la publicación.
+	-- 3. Guardar el perfil (con el diario) ANTES de crear la publicación.
 	if not DataManager.SaveNowAsync(player, 8) then
-		Buzon.DarItem(player, retenido, "Subasta no publicada")
-		Buzon.DarOro(player, deposito, "Depósito devuelto")
-		quitarDeLista(`V_{vendedorId}`, id)
+		devolverPublicacion(player, id, retenido, deposito)
 		avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
 		return NetworkBridge.Fail("INTERNAL_ERROR")
+	end
+	if not DataManager.PerfilActivo(player) then
+		return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
 	end
 
 	-- 4. Crear la publicación (UpdateAsync con token: se sabe si se escribió).
@@ -438,20 +572,20 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 			confirmada = true
 		elseif okLeer and not existente then
 			-- Definitivamente no se creó: se devuelve todo.
-			Buzon.DarItem(player, retenido, "Subasta no publicada")
-			Buzon.DarOro(player, deposito, "Depósito devuelto")
-			quitarDeLista(`V_{vendedorId}`, id)
+			devolverPublicacion(player, id, retenido, deposito)
 			return NetworkBridge.Fail("INTERNAL_ERROR")
 		else
-			-- No se sabe: se verifica en segundo plano antes de devolver nada.
-			verificarCreacion(player, id, retenido, deposito)
+			-- No se sabe: el diario queda anotado y se revisa más tarde.
+			reconciliarDespues(player)
 			avisar(
 				player,
-				"La Casa de Subastas tiene problemas; si la publicación no aparece, tu ítem volverá por el buzón."
+				"La Casa de Subastas tiene problemas; si la publicación no aparece, tu ítem y el depósito vuelven solos."
 			)
 			return NetworkBridge.Fail("INTERNAL_ERROR")
 		end
 	end
+	DataManager.QuitarPendiente(player, "Subastas", id)
+	agregarALista(`V_{vendedorId}`, id) -- por si otro servidor borró la reserva mientras tanto
 
 	-- 5. Indexar para la búsqueda.
 	local okIndice = conReintentos(3, function()
@@ -483,18 +617,24 @@ local function comprar(player: Player, id: string): Respuesta
 	local precio = p.Precio
 	local compradorId = player.UserId
 
-	-- El oro se retiene y se guarda el perfil antes de la transacción.
+	-- El oro sale del perfil y queda anotado en el diario, sin pausas; después
+	-- se guarda el perfil antes de la transacción.
 	if not DataManager.SpendGold(player, precio) then
 		avisar(player, "No tenés oro suficiente.")
 		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
 	end
+	DataManager.RegistrarPendienteCompra(player, id, precio)
 	if not DataManager.SaveNowAsync(player, 8) then
-		Buzon.DarOro(player, precio, "Compra no realizada")
+		DataManager.QuitarPendiente(player, "Compras", id)
+		DataManager.AddGold(player, precio)
 		avisar(player, "No se pudo guardar tu progreso; intentá de nuevo.")
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
+	if not DataManager.PerfilActivo(player) then
+		return NetworkBridge.Fail("DATA_NOT_LOADED") -- se fue: el diario lo resuelve al volver
+	end
 
-	local ganada = transicion(id, function(x)
+	local res, ganada = transicion(id, function(x)
 		return x.Estado == "Activa" and x.Expira > os.time() and x.Precio == precio
 	end, function(x)
 		x.Estado = "Vendida"
@@ -504,15 +644,23 @@ local function comprar(player: Player, id: string): Respuesta
 		x.PendienteItem = true
 		x.PendienteOro = true
 	end)
-	if not ganada then
-		Buzon.DarOro(player, precio, "Compra no realizada")
+	if res == "Desconocido" then
+		-- No se sabe si se compró: NO se devuelve nada todavía. El diario lo
+		-- resuelve en cuanto el DataStore responda.
+		reconciliarDespues(player)
+		avisar(player, "La Casa de Subastas no responde. Si la compra no se concretó, te devolvemos el oro solo.")
+		return NetworkBridge.Fail("INTERNAL_ERROR")
+	elseif res == "Perdio" or not ganada then
+		DataManager.QuitarPendiente(player, "Compras", id)
+		devolverOro(player, precio, `subasta:{id}:reembolso:{compradorId}`, "Compra no realizada")
 		task.spawn(DataManager.SaveNowAsync, player, 8)
 		avisar(player, "Otro jugador la compró primero. Te devolvimos el oro.")
 		quitarDelIndice(id)
 		return NetworkBridge.Fail("NOT_FOUND")
 	end
 
-	-- Registro para reintentar la entrega del ítem si algo falla.
+	-- Compra hecha: el diario se cierra y la lista C_ asegura la entrega.
+	DataManager.QuitarPendiente(player, "Compras", id)
 	agregarALista(`C_{compradorId}`, id)
 	quitarDelIndice(id)
 	local completo = entregarPendientes(ganada)
@@ -526,14 +674,17 @@ end
 
 local function cancelar(player: Player, id: string): Respuesta
 	local vendedorId = player.UserId
-	local cancelada = transicion(id, function(x)
+	local res, cancelada = transicion(id, function(x)
 		return x.Estado == "Activa" and x.VendedorId == vendedorId
 	end, function(x)
 		x.Estado = "Cancelada"
 		x.Destinatario = vendedorId
 		x.PendienteItem = true
 	end)
-	if not cancelada then
+	if res == "Desconocido" then
+		avisar(player, "La Casa de Subastas no responde; probá de nuevo en un rato.")
+		return NetworkBridge.Fail("INTERNAL_ERROR")
+	elseif res ~= "Gano" or not cancelada then
 		return NetworkBridge.Fail("NOT_FOUND")
 	end
 	quitarDelIndice(id)
@@ -730,7 +881,7 @@ function AuctionManager.Init()
 
 	NetworkBridge.Server.OnInvoke("SubastaMias", function(player: Player): Respuesta
 		return conCandado(player, function()
-			return NetworkBridge.Ok(procesarJugador(player.UserId))
+			return NetworkBridge.Ok(procesarJugador(player))
 		end)
 	end)
 
@@ -738,7 +889,8 @@ function AuctionManager.Init()
 	DataManager.PerfilCargado:Connect(function(player: Player)
 		task.spawn(function()
 			conCandado(player, function()
-				procesarJugador(player.UserId)
+				reconciliar(player) -- primero el diario: operaciones que quedaron a medias
+				procesarJugador(player)
 				return NetworkBridge.Ok(nil)
 			end)
 		end)

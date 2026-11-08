@@ -10,7 +10,7 @@ local GameConfig = {
 
 	Datos = {
 		NombreStore = "RaidBlox_Jugadores_v1",
-		VersionEsquema = 4,
+		VersionEsquema = 5,
 		MaxRecibosGuardados = 50,
 		MaxMensajesGuardados = 100,
 		-- Si el perfil no carga en este tiempo (caída de DataStores), se expulsa al jugador.

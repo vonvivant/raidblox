@@ -116,6 +116,9 @@ local PLANTILLA: DatosJugador = {
 		ChatTamano = "Normal",
 		ChatVisible = true,
 	},
+	Pendientes = { Subastas = {}, Compras = {} },
+	MensajesSubasta = {},
+	SecuenciaGuardado = 0,
 }
 
 -- MIGRACIONES[n] transforma datos de la versión n a la n+1.
@@ -145,6 +148,13 @@ local MIGRACIONES: { [number]: (any) -> any } = {
 		end
 		datos.Ajustes = datos.Ajustes
 			or { Genero = "Avatar", ChatPosicion = "Izquierda", ChatTamano = "Normal", ChatVisible = true }
+		return datos
+	end,
+	-- v4 -> v5: diario de subastas y dedupe largo de mensajes de subasta.
+	[4] = function(datos)
+		datos.Pendientes = datos.Pendientes or { Subastas = {}, Compras = {} }
+		datos.MensajesSubasta = datos.MensajesSubasta or {}
+		datos.SecuenciaGuardado = datos.SecuenciaGuardado or 0
 		return datos
 	end,
 }
@@ -264,10 +274,14 @@ local function procesarMensaje(player: Player, perfil: Perfil, mensaje: unknown,
 	end
 	local id = m.Id :: string
 	local vistos = perfil.Data.MensajesProcesados
+	-- Los envíos de la subasta pueden reintentarse días después (al volver a
+	-- entrar el vendedor o el comprador): sus ids se recuerdan 30 días, no solo
+	-- los últimos 100 mensajes.
+	local esSubasta = string.sub(id, 1, 8) == "subasta:"
 
 	-- Idempotencia: MessageAsync puede reintentar una escritura que sí se hizo,
 	-- y el mismo mensaje llegaría dos veces.
-	if table.find(vistos, id) then
+	if table.find(vistos, id) or (esSubasta and perfil.Data.MensajesSubasta[id] ~= nil) then
 		procesado()
 		return
 	end
@@ -275,11 +289,17 @@ local function procesarMensaje(player: Player, perfil: Perfil, mensaje: unknown,
 	if m.Tipo == "Oro" then
 		local cantidad = if typeof(m.Cantidad) == "number" then m.Cantidad :: number else 0
 		if esEnteroPositivo(cantidad) then
-			local antes = perfil.Data.Oro
-			perfil.Data.Oro = math.min(MAX_ORO, antes + cantidad)
-			if antes + cantidad > MAX_ORO then
-				warn(`[DataManager] {player.UserId} llegó al tope de oro; se perdieron {antes + cantidad - MAX_ORO}`)
+			if perfil.Data.Oro + cantidad > MAX_ORO then
+				-- No se destruye oro: queda en el buzón hasta que haya lugar.
+				NetworkBridge.Server.FireClient(
+					"Notificacion",
+					player,
+					"Tenés oro esperando en el buzón, pero llegaste al tope de oro.",
+					"Error"
+				)
+				return
 			end
+			perfil.Data.Oro += cantidad
 			notificarCambio(player, perfil.Data, "Oro")
 			local motivo = if typeof(m.Motivo) == "string" then m.Motivo :: string else "Buzón"
 			NetworkBridge.Server.FireClient("Notificacion", player, `+{cantidad} de oro ({motivo})`, "Oro")
@@ -330,6 +350,9 @@ local function procesarMensaje(player: Player, perfil: Perfil, mensaje: unknown,
 		return
 	end
 
+	if esSubasta then
+		perfil.Data.MensajesSubasta[id] = os.time()
+	end
 	table.insert(vistos, id)
 	while #vistos > GameConfig.Datos.MaxMensajesGuardados do
 		table.remove(vistos, 1)
@@ -467,6 +490,13 @@ local function alEntrarJugador(player: Player)
 		procesarMensaje(player, perfil, mensaje, procesado)
 	end)
 	player:SetAttribute("Bando", perfil.Data.Faccion) -- visible para todos (color del nombre, PvP)
+	-- Poda de los ids de mensajes de subasta de más de 30 días.
+	local limiteSubasta = os.time() - 30 * 86400
+	for idMensaje, cuando in perfil.Data.MensajesSubasta do
+		if cuando < limiteSubasta then
+			perfil.Data.MensajesSubasta[idMensaje] = nil
+		end
+	end
 	DataManager.PerfilCargado:Fire(player, perfil.Data)
 	NetworkBridge.Server.FireClient("DatosIniciales", player, snapshotCliente(perfil.Data))
 end
@@ -534,9 +564,15 @@ function DataManager.SaveNowAsync(player: Player, timeout: number?): boolean
 	if not perfil then
 		return false
 	end
+	-- Contador de secuencia: un guardado que ya estaba en curso (y no incluye
+	-- el último cambio) no cuenta como confirmación.
+	perfil.Data.SecuenciaGuardado += 1
+	local secuencia = perfil.Data.SecuenciaGuardado
 	local guardado = false
-	local conexion = perfil.OnAfterSave:Connect(function()
-		guardado = true
+	local conexion = perfil.OnAfterSave:Connect(function(datosGuardados: any)
+		if typeof(datosGuardados) == "table" and (datosGuardados.SecuenciaGuardado or 0) >= secuencia then
+			guardado = true
+		end
 	end)
 	perfil:Save()
 	local limite = os.clock() + (timeout or 10)
@@ -885,6 +921,46 @@ end
 
 -- Fija la clase. Las reglas de cuándo se permite (solo sin clase, o cambio
 -- pagado) las decide quien llama.
+------------------------------------------------------------------------
+-- Diario de subastas (v5). Lo usa AuctionManager: se escribe en el mismo
+-- bloque sin pausas en que sale el ítem o el oro, y se cierra al confirmar.
+------------------------------------------------------------------------
+
+function DataManager.RegistrarPendienteSubasta(
+	player: Player,
+	id: string,
+	item: ItemInstancia,
+	deposito: number
+): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.Pendientes.Subastas[id] = { Item = item, Deposito = deposito, Creado = os.time() }
+	return true
+end
+
+function DataManager.RegistrarPendienteCompra(player: Player, id: string, precio: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.Pendientes.Compras[id] = { Precio = precio, Creado = os.time() }
+	return true
+end
+
+function DataManager.QuitarPendiente(player: Player, tipo: "Subastas" | "Compras", id: string)
+	local perfil = perfilActivo(player)
+	if perfil then
+		perfil.Data.Pendientes[tipo][id] = nil
+	end
+end
+
+-- ¿Sigue cargado el perfil del jugador? (si se fue, no hay que tocar nada más)
+function DataManager.PerfilActivo(player: Player): boolean
+	return perfilActivo(player) ~= nil
+end
+
 -- Cambia el bando (Violeta, Rojo o Azul). Lo usa BandoManager: este módulo no
 -- decide cuándo se puede cambiar, solo lo guarda y avisa.
 function DataManager.SetFaccion(player: Player, bando: Types.Bando): boolean

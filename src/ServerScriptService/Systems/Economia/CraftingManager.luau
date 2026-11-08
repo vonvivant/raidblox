@@ -299,15 +299,29 @@ function CraftingManager.Init()
 	-- Si el servidor se apaga con trabajos en curso, los materiales vuelven por
 	-- el buzón (el trabajo se descarta, así no se entrega además el resultado).
 	game:BindToClose(function()
+		-- Primero directo al inventario (entra en el último guardado del perfil);
+		-- si no se puede, por el buzón con id fijo, esperando a que termine.
+		local enviando = 0
 		for player, trabajo in table.clone(trabajos) do
 			trabajos[player] = nil
 			for itemId, cantidad in trabajo.Receta.Materiales do
-				Buzon.EnviarItem(
-					player.UserId,
-					{ ItemId = itemId, Cantidad = cantidad, Rareza = "Comun" },
-					"Crafteo interrumpido"
-				)
+				if not DataManager.AddItem(player, itemId, cantidad) then
+					enviando += 1
+					task.spawn(function()
+						Buzon.EnviarItemAsync(
+							player.UserId,
+							{ ItemId = itemId, Cantidad = cantidad, Rareza = "Comun" },
+							"Crafteo interrumpido",
+							`crafteo:{player.UserId}:{math.floor(trabajo.Fin * 1000)}:{itemId}`
+						)
+						enviando -= 1
+					end)
+				end
 			end
+		end
+		local limite = os.clock() + 25
+		while enviando > 0 and os.clock() < limite do
+			task.wait(0.1)
 		end
 	end)
 end

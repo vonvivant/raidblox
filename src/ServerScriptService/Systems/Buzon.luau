@@ -33,9 +33,17 @@ local function registrarCierre()
 	end
 	cierreRegistrado = true
 	game:BindToClose(function()
+		-- Otros cierres (botín, crafteo) pueden lanzar envíos un instante
+		-- después: se espera a que no haya ninguno en curso durante 1 s seguido.
 		local limite = os.clock() + 25
-		while enCurso > 0 and os.clock() < limite do
-			task.wait(0.2)
+		local quietoDesde = os.clock()
+		while os.clock() < limite do
+			if enCurso > 0 then
+				quietoDesde = os.clock()
+			elseif os.clock() - quietoDesde >= 1 then
+				break
+			end
+			task.wait(0.1)
 		end
 	end)
 end
