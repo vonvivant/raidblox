@@ -164,8 +164,12 @@ end
 
 local function difundirEstado(jefe: Jefe)
 	local c = jefe.Npc.Combatiente
+	-- La barra gigante solo aparece si el jefe está peleando (y estás en su
+	-- radio) o si te acercás mucho: si no, parece que lo tuvieras seleccionado.
+	local peleando = workspace:GetServerTimeNow() - c.UltimoCombate < 8
+	local radio = if peleando then RaidBloxConfig.RadioHUD else math.min(40, RaidBloxConfig.RadioHUD)
 	local cerca: { [Player]: boolean } = {}
-	for _, jugador in jugadoresCerca(c.Raiz.Position, RaidBloxConfig.RadioHUD) do
+	for _, jugador in jugadoresCerca(c.Raiz.Position, radio) do
 		local player = jugador.Player
 		if player then
 			cerca[player] = true

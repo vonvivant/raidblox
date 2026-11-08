@@ -4,10 +4,11 @@
 -- * Al activar una estación, el servidor abre la ventana con sus recetas. Cada
 --   receta muestra materiales (tenés/necesitás) y el nivel requerido.
 -- * Minijuego de recolección: una barra se llena y hay que golpear dentro de la
---   zona verde con E, A (gamepad), clic o el botón "¡Golpear!". El servidor
+--   zona verde con la misma tecla de la recolección (E, o X/A del gamepad) o tocando "¡Golpear!" en el celular. El servidor
 --   valida el momento con su propio reloj.
 
 local ContextActionService = game:GetService("ContextActionService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -210,7 +211,7 @@ marcadorMJ.ZIndex = 3
 marcadorMJ.Parent = barraMJ
 local botonMJ = UIKit.Boton(
 	minijuego,
-	"¡Golpear!",
+	"¡Golpear! (E)",
 	UDim2.new(0.28, -10, 0.5, 0),
 	UDim2.new(0.72, 0, 0.3, 0),
 	UIKit.Colores.BotonPrimario
@@ -256,13 +257,16 @@ NetworkBridge.Client.OnEvent("MinijuegoRecoleccion", function(datos: any)
 	zonaMJ.Size = UDim2.fromScale((datos.ZonaFin - datos.ZonaInicio) / duracion, 1)
 	minijuego.Visible = true
 	golpeLigado = true
+	-- Mientras dura el minijuego, los ProximityPrompt se apagan para que la
+	-- misma tecla que abrió la recolección (E / X del gamepad) sirva para golpear.
+	ProximityPromptService.Enabled = false
 	ContextActionService:BindActionAtPriority("GolpeRecoleccion", function(_, estado: Enum.UserInputState)
 		if estado == Enum.UserInputState.Begin and actual then
 			golpear()
 			return Enum.ContextActionResult.Sink
 		end
 		return Enum.ContextActionResult.Pass
-	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.E, Enum.KeyCode.ButtonA)
+	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.E, Enum.KeyCode.ButtonX, Enum.KeyCode.ButtonA)
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -289,5 +293,6 @@ RunService.RenderStepped:Connect(function()
 	if not actual and golpeLigado then
 		golpeLigado = false
 		ContextActionService:UnbindAction("GolpeRecoleccion")
+		ProximityPromptService.Enabled = true
 	end
 end)

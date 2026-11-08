@@ -185,17 +185,32 @@ local function combatienteEnPantalla(posicion: Vector2): Model?
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = if jugador.Character then { jugador.Character } else {}
 	local resultado = Workspace:Raycast(rayo.Origin, rayo.Direction * 300, params)
-	if not resultado then
-		return nil
-	end
-	local modelo: Instance? = resultado.Instance
-	while modelo and modelo ~= Workspace do
-		if modelo:IsA("Model") and modelo:GetAttribute("Bando") ~= nil then
-			return modelo
+	if resultado then
+		local modelo: Instance? = resultado.Instance
+		while modelo and modelo ~= Workspace do
+			if modelo:IsA("Model") and modelo:GetAttribute("Bando") ~= nil then
+				return modelo
+			end
+			modelo = modelo.Parent
 		end
-		modelo = modelo.Parent
 	end
-	return nil
+	-- El rayo no tocó a nadie (personajes chicos o lejanos): se elige el
+	-- combatiente vivo más cercano al punto tocado en pantalla, hasta 60 px.
+	local mejor: Model? = nil
+	local mejorDistancia = 60
+	for _, modelo in enemigosCercanos() do
+		local cabeza = modelo:FindFirstChild("Head") or modelo:FindFirstChild("HumanoidRootPart")
+		if cabeza and cabeza:IsA("BasePart") then
+			local punto, visible = camara:WorldToViewportPoint(cabeza.Position)
+			if visible then
+				local d = (Vector2.new(punto.X, punto.Y) - posicion).Magnitude
+				if d < mejorDistancia then
+					mejor, mejorDistancia = modelo, d
+				end
+			end
+		end
+	end
+	return mejor
 end
 
 ------------------------------------------------------------------------
