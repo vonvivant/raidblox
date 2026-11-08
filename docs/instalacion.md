@@ -38,6 +38,8 @@ Cómo cargar el proyecto en Roblox Studio y qué probar en cada fase. Para el di
 | `Configs/ProfesionesConfig` | ModuleScript | ReplicatedStorage > Configs |
 | `Modules/EstadoCliente`, `Modules/UIKit`, `Modules/ItemInfo` | ModuleScript | ReplicatedStorage > Modules |
 | `Systems/Buzon` | ModuleScript | ServerScriptService > Systems |
+| `Systems/BandoManager`, `Systems/AparienciaManager` | ModuleScript | ServerScriptService > Systems |
+| `Systems/Pruebas/NpcsPrueba` | ModuleScript | ServerScriptService > Systems > Pruebas |
 | `Systems/Economia/*` (5 módulos) | ModuleScript | ServerScriptService > Systems > Economia (Folder) |
 | `InventarioUI`, `CrafteoUI`, `SubastaUI`, `ComercioUI` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 

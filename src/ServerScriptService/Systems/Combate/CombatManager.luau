@@ -614,13 +614,28 @@ local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo
 			GcdHasta = c.BloqueoHasta,
 		})
 	end
-	emitir(c.Raiz.Position, "Habilidad", c.Modelo, hab.Nombre)
+	-- Visual para los clientes cercanos: animación, proyectil, impacto o área.
+	local centroArea: Vector3? = nil
+	if hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
+		centroArea = if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position
+	end
+	local alcanzados: { Model } = {}
+	for _, o in objetivos do
+		table.insert(alcanzados, o.Modelo)
+	end
+	emitir(c.Raiz.Position, "Accion", c.Modelo, hab.Id, {
+		Objetivo = if objetivo then objetivo.Modelo else nil,
+		Centro = centroArea,
+		Radio = hab.Radio,
+		Alcanzados = alcanzados,
+	})
 end
 
 -- Cancela un casteo en curso y avisa al jugador.
 local function cancelarCasteo(c: Combatiente, motivo: string)
 	c.Casteo = nil
 	c.Estado = "Idle"
+	emitir(c.Raiz.Position, "CasteoFin", c.Modelo, nil)
 	local player = c.Player
 	avisar(player, motivo)
 	if player then
@@ -704,6 +719,7 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 		PosInicio = c.Raiz.Position,
 		Fin = t + hab.TiempoCasteo,
 	}
+	emitir(c.Raiz.Position, "Casteo", c.Modelo, hab.Id, { Duracion = hab.TiempoCasteo })
 	if player then
 		NetworkBridge.Server.FireClient("HabilidadEstado", player, {
 			Indice = indice,
@@ -961,6 +977,7 @@ function CombatManager.AtaqueNpc(npc: Combatiente, objetivo: Combatiente, multip
 		* npc.MultiplicadorDanio
 		* (if critico then ClassConfig.MultiplicadorCritico else 1)
 	marcarCombate(npc)
+	emitir(npc.Raiz.Position, "Accion", npc.Modelo, "AtaqueNpc", { Objetivo = objetivo.Modelo })
 	aplicarDanio(npc, objetivo, bruto * (1 - defensa / (defensa + 100)), "Fisico", critico, true, bruto)
 end
 

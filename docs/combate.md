@@ -278,3 +278,26 @@ Pasos:
 5. Recogé las bolsas de botín; las de rareza Épica o mayor tienen un haz de luz.
 6. Para equipar un ítem, usá la Mochila (I). Desde la barra de comandos (vista de Servidor):
    `game.ServerStorage.RaidBloxDebug:Invoke("EquiparItem", "<Uid>")` (el Uid sale de `Invoke("Ver")`).
+## Animaciones y efectos visuales
+
+El servidor no anima nada: al resolver una habilidad manda a los jugadores cercanos un `CombateEvento` de tipo
+`Accion` (id de la habilidad, objetivo, centro y radio del área, y a quiénes alcanzó). También manda `Casteo` (con la
+duración) y `CasteoFin`. Los ataques de los enemigos llegan como la acción `AtaqueNpc`, y su aviso "¡!" hace que
+levanten el arma antes de golpear.
+
+`VisualesCombate` (cliente) dibuja todo según `Configs/VisualConfig`:
+
+| Campo | Qué hace |
+|---|---|
+| `Anim` | Animación por código (Motor6D.C0 de brazos y torso, R15 y R6): Tajo, Golpe, Estocada, Pesado, Giro, Grito, Pisotón, Guardia, Lanzar, Bendecir, Disparo, Zarpazo. |
+| `AnimCasteo` | En bucle mientras castea: Conjurar, Apuntar, Rezo. |
+| `AnimacionId` | Opcional: una animación subida desde el Animation Editor reemplaza a la de código. |
+| `Arma` | Estela del arma durante el golpe. |
+| `Proyectil` | Orbe, Flecha o Espina que viaja hasta el objetivo; al llegar, el impacto. |
+| `Impacto` | Chispas, Explosión, Veneno, Hielo, Raíces, Curación o Escudo sobre cada alcanzado. |
+| `Area` | Onda, Meteoro, Lluvia de flechas, Torbellino, Aura o Humo. |
+| `Haz` | Rayo de luz al objetivo (curas, provocación). |
+| `Casteo` | Círculo mágico bajo los pies mientras castea. |
+
+Además, quien recibe daño parpadea en blanco. Las partículas usan solo texturas que trae Roblox (`rbxasset://`), y
+todos los efectos son locales y se borran solos.
