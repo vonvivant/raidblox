@@ -27,6 +27,14 @@ Cómo cargar el proyecto en Roblox Studio y qué probar en cada fase. Para el di
 | `Systems/Guerra/ArchitectWarManager` | ModuleScript | ServerScriptService > Systems > Guerra (Folder) |
 | `TeleportClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 | `GuerraUI` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
+| `Configs/ClassConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Configs/ItemRarityConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Configs/EnemigosConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Configs/RaidBloxConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Systems/Combate/*` (5 módulos) | ModuleScript | ServerScriptService > Systems > Combate (Folder) |
+| `CombatClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
+| `CombatEffectsClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
+| `Health` (vacío) | **Script** | StarterPlayer > StarterCharacterScripts |
 
 Las carpetas (`Shared`, `Configs`, `Modules`, `Systems`, `Packages`) son objetos **Folder**.
 `ProfileStore` es la librería de loleris (licencia Apache 2.0, incluida en `ProfileStore.LICENSE.txt`).
@@ -54,7 +62,7 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
 
 ## Cómo comprobar que funciona
 
-1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 2`
+1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 3 (zona: Pruebas)`
    y, del cliente, `Datos cargados: nivel 1, oro 0`.
 2. En la barra de comandos (lado servidor) podés probar la API:
    ```lua
@@ -91,6 +99,11 @@ dos castillos holográficos, nodos de recursos en el medio y depósitos.
 
 **Mapa propio.** Si armás la arena a mano, seguí la convención del comentario de `ArenaGuerra` (carpeta
 `GuerraArquitectos` con `Base_Azul`, `Base_Rojo` y `Recursos`). Si existe, se usa esa en vez de generar una.
+
+## Probar la Fase 3 en Studio
+
+Elegí una clase en el selector y andá hacia −Z del spawn: hay muñecos de práctica, lobos, bandidos y el RaidBlox
+Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-en-studio).
 
 ## API del servidor (resumen)
 
