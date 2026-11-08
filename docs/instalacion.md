@@ -95,8 +95,9 @@ en `true`: en ese caso también aparece en los servidores publicados, y se puede
 
 Notas:
 - El progreso es el mismo que en Studio (comparten el guardado).
-- La Guerra arranca sola con 2 jugadores y lleva a todos a la arena. Para probar otras cosas sin ella:
-  `GuerraConfig.ProbarEnStudio = false`.
+- Con `ModoPruebas`, la Guerra arranca con 1 jugador, usa los requisitos reducidos y no se cancela si un equipo queda
+  vacío (la gente entra y sale mientras prueba). Para probar otras cosas sin ella: `GuerraConfig.ProbarEnStudio = false`.
+- Si algo falla en el juego publicado, apretá F9: la consola muestra los errores del servidor y del cliente.
 - Los comandos de prueba (`ServerStorage.RaidBloxDebug`) **no** existen en servidores publicados.
 - Cuando estén los mapas reales: `ModoPruebas = false`.
 

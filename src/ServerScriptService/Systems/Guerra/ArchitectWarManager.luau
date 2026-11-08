@@ -188,7 +188,9 @@ local function snapshot(): { [string]: any }
 		TotalEtapas = TOTAL_ETAPAS,
 		Equipos = listaEquipos,
 		Ganador = ganador,
-		JugadoresMinimos = if enStudio() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos,
+		JugadoresMinimos = if modoPrueba()
+			then GuerraConfig.JugadoresMinimosEnStudio
+			else GuerraConfig.JugadoresMinimos,
 	}
 end
 
@@ -274,6 +276,9 @@ local function alRecolectar(player: Player, nodo: BasePart, pp: ProximityPrompt)
 		presiones[pp] = nil
 	end
 	if not puedeInteractuar(player, nodo) then
+		if fase ~= "EnCurso" then
+			avisar(player, "La partida todavía no empezó: esperá la cuenta regresiva.")
+		end
 		return
 	end
 	local recurso = nodo:GetAttribute("Recurso")
@@ -287,10 +292,16 @@ local function alRecolectar(player: Player, nodo: BasePart, pp: ProximityPrompt)
 	local ahora = os.clock()
 	if def.Duracion > 0 then
 		if not inicio then
+			warn(`[Guerra] {player.Name}: recolección sin inicio de presión registrado`)
+			avisar(player, "Mantené presionado hasta que se complete el círculo.")
 			return
 		end
 		local transcurrido = ahora - inicio
 		if transcurrido < def.Duracion * 0.8 or transcurrido > def.Duracion + 1.5 then
+			warn(
+				`[Guerra] {player.Name}: presión de {string.format("%.2f", transcurrido)} s (se esperaban {def.Duracion})`
+			)
+			avisar(player, "Mantené presionado hasta que se complete el círculo.")
 			return
 		end
 	end
@@ -439,6 +450,7 @@ end
 
 local function alDepositar(player: Player, estado: EstadoEquipo)
 	if fase ~= "EnCurso" then
+		avisar(player, "La partida todavía no empezó: esperá la cuenta regresiva.")
 		return
 	end
 	if player.Team ~= estado.Team then
@@ -446,6 +458,7 @@ local function alDepositar(player: Player, estado: EstadoEquipo)
 		return
 	end
 	if not cerca(player, estado.Base.Deposito) then
+		avisar(player, "Acercate más al depósito.")
 		return
 	end
 
@@ -510,7 +523,7 @@ local function iniciarPartida()
 end
 
 local function minimoJugadores(): number
-	return if enStudio() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos
+	return if modoPrueba() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos
 end
 
 local function algunEquipoVacio(): boolean
@@ -555,7 +568,7 @@ local function tick(): nil
 		if cantidad == 0 then
 			reiniciar()
 			fase = "Esperando"
-		elseif not enStudio() and algunEquipoVacio() then
+		elseif not modoPrueba() and algunEquipoVacio() then
 			-- Evita ganar solo (por ejemplo, con una cuenta alternativa que se va).
 			terminarPartida(nil, true)
 		elseif ahora >= finPartida then
@@ -604,9 +617,10 @@ local function conectarPrompts(m: ArenaGuerra.Mapa)
 			local presiones = inicioPresion[player]
 			local visto = presiones and presiones[pp]
 			if presiones and visto then
-				-- Triggered puede llegar justo después: se limpia con margen, y solo
-				-- si nadie empezó una presión nueva mientras tanto.
-				task.delay(0.1, function()
+				-- Con latencia real, Triggered puede llegar un rato después que
+				-- HoldEnded: se limpia con margen amplio, y solo si nadie empezó una
+				-- presión nueva mientras tanto.
+				task.delay(1, function()
 					if presiones[pp] == visto then
 						presiones[pp] = nil
 					end
