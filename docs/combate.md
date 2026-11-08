@@ -276,6 +276,5 @@ Pasos:
 3. Mientras casteás (Mago: Bola de Fuego), moverte cancela el hechizo.
 4. Acercate al Gólem: aparece la barra gigante. Salí de las zonas rojas. Al 20% entra en Furia.
 5. Recogé las bolsas de botín; las de rareza Épica o mayor tienen un haz de luz.
-6. Para equipar un ítem desde la barra de comandos (servidor):
-   `require(game.ServerScriptService.Systems.DataManager).EquiparItem(p, "<Uid>")`.
-   La interfaz de inventario llega en la Fase 4.
+6. Para equipar un ítem, usá la Mochila (I). Desde la barra de comandos (vista de Servidor):
+   `game.ServerStorage.RaidBloxDebug:Invoke("EquiparItem", "<Uid>")` (el Uid sale de `Invoke("Ver")`).

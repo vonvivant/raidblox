@@ -20,6 +20,7 @@ local CraftingManager = require(Systems.Economia.CraftingManager)
 local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
 local AuctionManager = require(Systems.Economia.AuctionManager)
 local TradeManager = require(Systems.Economia.TradeManager)
+local DebugStudio = require(Systems.DebugStudio)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -51,5 +52,8 @@ TradeManager.Init()
 if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
 end
+
+-- 8. Comandos de prueba (solo en Studio).
+DebugStudio.Init()
 
 print(`[RaidBlox] Servidor iniciado - Fase 4 (zona: {zona or "sin configurar"})`)

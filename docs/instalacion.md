@@ -69,14 +69,17 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
 
 1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 4 (zona: Pruebas)`
    y, del cliente, `Datos cargados: nivel 1, oro 0`.
-2. En la barra de comandos (lado servidor) podés probar la API:
+2. En la barra de comandos (vista de **Servidor**: *Prueba → Cambiar vista de cliente*) podés probar la API.
+   Ojo: un `require` desde la barra de comandos crea **otra copia** de los módulos, sin tu perfil. Por eso en Studio
+   el juego expone `ServerStorage.RaidBloxDebug`, que ejecuta las funciones de `DataManager` con la copia real:
    ```lua
-   local DM = require(game.ServerScriptService.Systems.DataManager)
-   local p = game.Players:GetPlayers()[1]
-   DM.AddGold(p, 500)
-   DM.AddItem(p, "Madera", 150)   -- llena una pila de 99 y abre otra de 51
-   DM.AddExperience(p, 1000)       -- sube varios niveles
+   local D = game.ServerStorage.RaidBloxDebug
+   D:Invoke("AddGold", 500)
+   D:Invoke("AddItem", "Madera", 150)   -- llena una pila de 99 y abre otra de 51
+   D:Invoke("AddExperience", 1000)       -- sube varios niveles
+   D:Invoke("Ver")                       -- imprime todos tus datos
    ```
+   Se aplica al primer jugador. Para otro: `D:Invoke("@NombreDeUsuario", "AddGold", 500)`.
    Cada cambio aparece en la consola del cliente (`Cambió Oro: 500`, etc.).
 3. Pará y volvé a darle Play: el oro, la madera y el nivel tienen que seguir ahí.
 
