@@ -45,7 +45,19 @@ local DEFINICIONES: { [string]: Definicion } = {
 	SolicitarDatos = { Tipo = "Function", Critico = false },
 	MoverItem = { Tipo = "Event", Critico = true }, -- Fase 4
 	UsarItem = { Tipo = "Event", Critico = true }, -- Fase 4
-	Atacar = { Tipo = "Event", Critico = true }, -- Fase 3
+	-- Fase 3: combate y botín
+	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice 1..4, modeloObjetivo?)
+	Parry = { Tipo = "Event", Critico = true },
+	RecogerBotin = { Tipo = "Event", Critico = true }, -- (idBotin)
+	ElegirClase = { Tipo = "Function", Critico = false }, -- (clase)
+	EquiparItem = { Tipo = "Function", Critico = false }, -- (uid)
+	DesequiparItem = { Tipo = "Function", Critico = false }, -- (slot)
+	CombateEvento = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (tipo, modelo, valor, extra)
+	HabilidadEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado de cooldown/casteo)
+	RaidBloxEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (barra del jefe)
+	AnuncioGlobal = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (texto, color)
+	BotinSoltado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (id, posicion, info)
+	BotinRetirado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (id)
 }
 
 local NOMBRE_CARPETA = "Remotes"
