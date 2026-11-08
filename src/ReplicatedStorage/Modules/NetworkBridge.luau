@@ -30,6 +30,7 @@ type Definicion = {
 	Tipo: TipoRemote,
 	Critico: boolean, -- críticos: 10 req/s; normales: límite más bajo
 	SoloServidorACliente: boolean?, -- el cliente nunca debería dispararlo
+	Timeout: number?, -- RemoteFunctions lentas (DataStore): segundos; por defecto GameConfig.Red.TimeoutInvoke
 }
 
 -- Registro central de remotes. Agregar acá cada remote nuevo de las próximas fases.
@@ -43,8 +44,33 @@ local DEFINICIONES: { [string]: Definicion } = {
 	GuerraCarga = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (recursos que lleva el jugador)
 	-- Cliente -> servidor
 	SolicitarDatos = { Tipo = "Function", Critico = false },
-	MoverItem = { Tipo = "Event", Critico = true }, -- Fase 4
-	UsarItem = { Tipo = "Event", Critico = true }, -- Fase 4
+	-- Fase 4: inventario
+	MoverItem = { Tipo = "Event", Critico = true }, -- (desde, hacia)
+	UsarItem = { Tipo = "Event", Critico = true }, -- (ranura)
+	DividirPila = { Tipo = "Event", Critico = true }, -- (desde, cantidad)
+	DestruirItem = { Tipo = "Function", Critico = false }, -- (ranura)
+	-- Fase 4: crafteo y recolección
+	CraftearIniciar = { Tipo = "Function", Critico = false }, -- (recetaId)
+	CrafteoAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estacion)
+	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
+	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
+	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Fase 4: Casa de Subastas
+	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
+	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)
+	SubastaPublicar = { Tipo = "Function", Critico = false, Timeout = 25 }, -- (uid, precio)
+	SubastaComprar = { Tipo = "Function", Critico = false, Timeout = 25 }, -- (id)
+	SubastaCancelar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (id)
+	SubastaMias = { Tipo = "Function", Critico = false, Timeout = 30 },
+	-- Fase 4: comercio 1v1
+	ComercioSolicitar = { Tipo = "Event", Critico = false }, -- (jugador)
+	ComercioResponder = { Tipo = "Event", Critico = false }, -- (jugador, acepta)
+	ComercioOfertar = { Tipo = "Event", Critico = false }, -- (uids, oro)
+	ComercioBloquear = { Tipo = "Event", Critico = false },
+	ComercioConfirmar = { Tipo = "Event", Critico = false },
+	ComercioCancelar = { Tipo = "Event", Critico = false },
+	ComercioInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (jugador)
+	ComercioEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	-- Fase 3: combate y botín
 	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice 1..4, modeloObjetivo?)
 	Parry = { Tipo = "Event", Critico = true },
@@ -337,7 +363,7 @@ function Server.OnInvoke(nombre: string, handler: (Player, ...unknown) -> Respue
 			return NetworkBridge.Fail("RATE_LIMITED")
 		end
 		local args = table.pack(...)
-		local ok, resultado = ejecutarConTimeout(GameConfig.Red.TimeoutInvoke, function(): Respuesta
+		local ok, resultado = ejecutarConTimeout(def.Timeout or GameConfig.Red.TimeoutInvoke, function(): Respuesta
 			return handler(player, table.unpack(args, 1, args.n))
 		end)
 		if ok then
@@ -403,7 +429,8 @@ function Client.Invoke(nombre: string, ...: any): Respuesta
 	assert(remote:IsA("RemoteFunction"), `[NetworkBridge] {nombre} no es una RemoteFunction`)
 	local args = table.pack(...)
 	-- Margen extra sobre el timeout del servidor para el viaje de ida y vuelta.
-	local ok, resultado = ejecutarConTimeout(GameConfig.Red.TimeoutInvoke + 2, function(): any
+	local def = definicionDe(nombre)
+	local ok, resultado = ejecutarConTimeout((def.Timeout or GameConfig.Red.TimeoutInvoke) + 2, function(): any
 		return remote:InvokeServer(table.unpack(args, 1, args.n))
 	end)
 	if not ok then

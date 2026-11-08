@@ -8,7 +8,18 @@ export type Clase = "SinClase" | "Tanque" | "Guerrero" | "Mago" | "Arquero" | "A
 
 export type SkinEstructura = "Ninguna" | "Gotica" | "Hielo" | "Jade"
 
-export type SlotEquipo = "Casco" | "Pechera" | "ArmaPrincipal" | "ArmaSecundaria" | "Accesorio1" | "Accesorio2"
+export type SlotEquipo =
+	"Casco"
+	| "Pechera"
+	| "ArmaPrincipal"
+	| "ArmaSecundaria"
+	| "Accesorio1"
+	| "Accesorio2"
+	| "Herramienta"
+
+export type Profesion = "Herreria" | "Alquimia" | "Sastreria" | "Mineria" | "Herboristeria"
+
+export type ProgresoProfesion = { Nivel: number, Xp: number }
 
 -- Metadatos de un ítem único (durabilidad, encantamientos, stats rolleados...).
 -- Solo valores JSON simples: nada de Instances, Vector3 o Color3.
@@ -45,6 +56,7 @@ export type Equipamiento = {
 	ArmaSecundaria: ItemInstancia?,
 	Accesorio1: ItemInstancia?,
 	Accesorio2: ItemInstancia?,
+	Herramienta: ItemInstancia?, -- pico, hoz... (no suma stats de combate)
 }
 
 export type ProgresoMision = {
@@ -77,6 +89,9 @@ export type DatosJugador = {
 	TituloEquipado: string?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
+	-- v3: profesiones y economía
+	Profesiones: { [string]: ProgresoProfesion },
+	KitInicialEntregado: boolean,
 }
 
 -- Secciones del perfil que se sincronizan al cliente.
@@ -91,6 +106,7 @@ export type SeccionDatos =
 	| "Honor"
 	| "Cosmeticos"
 	| "Clase"
+	| "Profesiones"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =

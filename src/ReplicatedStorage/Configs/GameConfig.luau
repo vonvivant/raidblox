@@ -5,7 +5,7 @@
 local GameConfig = {
 	Datos = {
 		NombreStore = "RaidBlox_Jugadores_v1",
-		VersionEsquema = 2,
+		VersionEsquema = 3,
 		MaxRecibosGuardados = 50,
 		MaxMensajesGuardados = 100,
 		-- Si el perfil no carga en este tiempo (caída de DataStores), se expulsa al jugador.
@@ -41,6 +41,30 @@ local GameConfig = {
 		-- Canales normales (abrir menús, consultas).
 		RateNormal = 5,
 		BurstNormal = 8,
+	},
+
+	Subastas = {
+		NombreStore = "RaidBlox_Subastas_v1",
+		NombreIndice = "RaidBlox_SubastasIndice_v1", -- MemoryStore SortedMap
+		Deposito = 0.05, -- se cobra (y se quema) al publicar
+		Impuesto = 0.10, -- se retiene (y se quema) del precio al vender
+		MaxPublicaciones = 5, -- 15 con el pase "Subasta Extra" (Fase 6)
+		DuracionHoras = 48,
+		DuracionEnStudioMinutos = 30,
+		PrecioMinimo = 1,
+		PrecioMaximo = 100_000_000,
+		CacheBusquedaSegundos = 3,
+	},
+
+	Comercio = {
+		DistanciaMaxima = 15, -- studs: más lejos, se cancela
+		EsperaConfirmacion = 3, -- segundos entre que ambos bloquean y se puede confirmar
+		MaxItemsPorLado = 8,
+		ExpiraInvitacion = 20, -- segundos
+	},
+
+	Consumibles = {
+		CooldownPociones = 10, -- segundos compartidos entre pociones
 	},
 
 	AntiCheat = {

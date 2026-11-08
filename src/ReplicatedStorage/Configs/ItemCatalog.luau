@@ -5,7 +5,9 @@
 
 local Types = require(script.Parent.Parent.Shared.Types)
 
-export type TipoItem = "Material" | "Consumible" | "Equipo" | "Cosmetico"
+export type TipoItem = "Material" | "Consumible" | "Equipo" | "Herramienta" | "Cosmetico"
+
+export type TipoHerramienta = "Pico" | "Hoz"
 
 export type DefinicionItem = {
 	Nombre: string,
@@ -16,6 +18,9 @@ export type DefinicionItem = {
 	PrecioVenta: number, -- oro que paga un NPC
 	Atributos: { Fuerza: number?, Agilidad: number?, Inteligencia: number? }?,
 	SoloRaidBlox: boolean?, -- ítems Únicos: solo caen de jefes RaidBlox
+	Herramienta: TipoHerramienta?, -- solo Tipo "Herramienta" (se equipa en el slot Herramienta)
+	Consumo: { Recurso: "Vida" | "Mana", Porcentaje: number }?, -- solo consumibles
+	Descripcion: string?,
 }
 
 local ItemCatalog: { [string]: DefinicionItem } = {
@@ -28,6 +33,78 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		Apilable = true,
 		MaxStack = 20,
 		PrecioVenta = 5,
+		Consumo = { Recurso = "Vida", Porcentaje = 35 },
+		Descripcion = "Recupera 35% de la vida.",
+	},
+	PocionMana = {
+		Nombre = "Poción de Maná",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 5,
+		Consumo = { Recurso = "Mana", Porcentaje = 35 },
+		Descripcion = "Recupera 35% del maná.",
+	},
+	-- Recolección
+	MineralHierro = { Nombre = "Mineral de Hierro", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
+	MineralPlata = { Nombre = "Mineral de Plata", Tipo = "Material", Apilable = true, PrecioVenta = 6 },
+	HierbaSanadora = { Nombre = "Hierba Sanadora", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
+	FlorLunar = { Nombre = "Flor Lunar", Tipo = "Material", Apilable = true, PrecioVenta = 3 },
+	Lino = { Nombre = "Lino", Tipo = "Material", Apilable = true, PrecioVenta = 1 },
+	-- Producción
+	LingotePlata = { Nombre = "Lingote de Plata", Tipo = "Material", Apilable = true, PrecioVenta = 15 },
+	TelaLino = { Nombre = "Tela de Lino", Tipo = "Material", Apilable = true, PrecioVenta = 4 },
+	-- Herramientas
+	PicoHierro = {
+		Nombre = "Pico de Hierro",
+		Tipo = "Herramienta",
+		Apilable = false,
+		SlotEquipo = "Herramienta",
+		Herramienta = "Pico",
+		PrecioVenta = 8,
+		Descripcion = "Equipalo para minar vetas.",
+	},
+	HozHierro = {
+		Nombre = "Hoz de Hierro",
+		Tipo = "Herramienta",
+		Apilable = false,
+		SlotEquipo = "Herramienta",
+		Herramienta = "Hoz",
+		PrecioVenta = 8,
+		Descripcion = "Equipala para recolectar hierbas y lino.",
+	},
+	-- Equipos fabricables
+	CascoHierro = {
+		Nombre = "Casco de Hierro",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Casco",
+		PrecioVenta = 20,
+		Atributos = { Fuerza = 3, Agilidad = 1 },
+	},
+	TunicaLino = {
+		Nombre = "Túnica de Lino",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Pechera",
+		PrecioVenta = 18,
+		Atributos = { Inteligencia = 4 },
+	},
+	CapaSeda = {
+		Nombre = "Capa de Seda",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Accesorio1",
+		PrecioVenta = 60,
+		Atributos = { Agilidad = 3, Inteligencia = 3 },
+	},
+	AnilloPlata = {
+		Nombre = "Anillo de Plata",
+		Tipo = "Equipo",
+		Apilable = false,
+		SlotEquipo = "Accesorio1",
+		PrecioVenta = 45,
+		Atributos = { Fuerza = 2, Inteligencia = 3 },
 	},
 	EspadaHierro = {
 		Nombre = "Espada de Hierro",
