@@ -17,13 +17,14 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
+local EventosCliente = require(game:GetService("ReplicatedStorage").Modules.EventosCliente)
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local ClassConfig = require(ReplicatedStorage.Configs.ClassConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
+local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
@@ -118,16 +119,36 @@ local function enemigosCercanos(): { Model }
 	end
 	local lista: { { modelo: Model, d: number } } = {}
 	local carpeta = Workspace:FindFirstChild("Enemigos")
-	if not carpeta then
-		return {}
-	end
-	for _, modelo in carpeta:GetChildren() do
+	for _, modelo in if carpeta then carpeta:GetChildren() else {} do
 		if modelo:IsA("Model") and combatienteVivo(modelo) then
 			local otra = modelo:FindFirstChild("HumanoidRootPart")
 			if otra and otra:IsA("BasePart") then
 				local d = (otra.Position - raiz.Position).Magnitude
 				if d <= ALCANCE_TAB then
 					table.insert(lista, { modelo = modelo, d = d })
+				end
+			end
+		end
+	end
+	-- Jugadores de otro bando (el Violeta es intocable). Si vale el PvP en ese
+	-- lugar lo decide el servidor al atacar.
+	local miBando = jugador:GetAttribute("Bando")
+	for _, otro in Players:GetPlayers() do
+		local bando = otro:GetAttribute("Bando")
+		local personajeOtro = otro.Character
+		if
+			otro ~= jugador
+			and personajeOtro
+			and typeof(bando) == "string"
+			and bando ~= "Violeta"
+			and bando ~= miBando
+			and combatienteVivo(personajeOtro)
+		then
+			local otra = personajeOtro:FindFirstChild("HumanoidRootPart")
+			if otra and otra:IsA("BasePart") then
+				local d = (otra.Position - raiz.Position).Magnitude
+				if d <= ALCANCE_TAB then
+					table.insert(lista, { modelo = personajeOtro, d = d })
 				end
 			end
 		end
@@ -292,7 +313,7 @@ end
 
 -- Marco del jugador (vida y maná).
 local marcoJugador = Instance.new("Frame")
-marcoJugador.Position = UDim2.fromScale(0.01, 0.2)
+marcoJugador.Position = UDim2.fromScale(0.01, 0.5) -- debajo del chat de Roblox
 marcoJugador.Size = UDim2.fromScale(0.2, 0.08)
 marcoJugador.BackgroundTransparency = 1
 marcoJugador.Parent = gui
@@ -305,7 +326,7 @@ local barraMana, textoMana =
 
 -- Marco del objetivo.
 local marcoObjetivo = Instance.new("Frame")
-marcoObjetivo.Position = UDim2.fromScale(0.01, 0.3)
+marcoObjetivo.Position = UDim2.fromScale(0.01, 0.59)
 marcoObjetivo.Size = UDim2.fromScale(0.2, 0.06)
 marcoObjetivo.BackgroundTransparency = 1
 marcoObjetivo.Visible = false
@@ -457,21 +478,11 @@ for orden, id in ClassConfig.Orden do
 	boton.Parent = grilla
 end
 
--- En pruebas se puede cambiar de clase para probar todas.
-if Pruebas.Activas() then
-	local botonClase = Instance.new("TextButton")
-	botonClase.Position = UDim2.fromScale(0.01, 0.15)
-	botonClase.Size = UDim2.fromScale(0.08, 0.04)
-	botonClase.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
-	botonClase.TextColor3 = Color3.new(1, 1, 1)
-	botonClase.Font = Enum.Font.GothamBold
-	botonClase.TextScaled = true
-	botonClase.Text = "Cambiar clase"
-	botonClase.Parent = gui
-	botonClase.Activated:Connect(function()
-		selector.Visible = not selector.Visible
-	end)
-end
+-- El panel Personaje abre el selector (en pruebas se puede cambiar libremente;
+-- fuera de pruebas el servidor solo deja elegir la primera vez).
+EventosCliente.AbrirSelectorClase:Connect(function()
+	selector.Visible = not selector.Visible
+end)
 
 local function revisarClase()
 	local clase = jugador:GetAttribute("Clase")
@@ -550,6 +561,9 @@ RunService.RenderStepped:Connect(function()
 	local def = claseActual()
 	local nivel = if personaje then personaje:GetAttribute("Nivel") else nil
 	tituloJugador.Text = `{jugador.DisplayName} - {if def then def.Nombre else "Sin clase"} Nv. {nivel or "?"}`
+	local bando = jugador:GetAttribute("Bando")
+	local colorBando = if typeof(bando) == "string" then (GameConfig.Bandos.Colores :: any)[bando] else nil
+	tituloJugador.TextColor3 = if colorBando then colorBando else Color3.new(1, 1, 1)
 
 	-- Objetivo.
 	if objetivo and not combatienteVivo(objetivo) then

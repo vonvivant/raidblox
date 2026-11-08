@@ -90,7 +90,7 @@ local PLANTILLA: DatosJugador = {
 	Nivel = 1,
 	Experiencia = 0,
 	Clase = "SinClase",
-	Faccion = "Ninguna",
+	Faccion = "Violeta",
 	Estadisticas = table.clone(GameConfig.EstadisticasIniciales),
 	Oro = 0,
 	MonedasPremium = 0,
@@ -110,6 +110,12 @@ local PLANTILLA: DatosJugador = {
 	SkinEstructuraEquipada = "Ninguna",
 	Profesiones = {},
 	KitInicialEntregado = false,
+	Ajustes = {
+		Genero = "Avatar",
+		ChatPosicion = "Izquierda",
+		ChatTamano = "Normal",
+		ChatVisible = true,
+	},
 }
 
 -- MIGRACIONES[n] transforma datos de la versión n a la n+1.
@@ -130,6 +136,15 @@ local MIGRACIONES: { [number]: (any) -> any } = {
 		if datos.KitInicialEntregado == nil then
 			datos.KitInicialEntregado = false
 		end
+		return datos
+	end,
+	-- v3 -> v4: bandos (la facción "Ninguna" pasa a ser Violeta) y ajustes.
+	[3] = function(datos)
+		if datos.Faccion ~= "Rojo" and datos.Faccion ~= "Azul" then
+			datos.Faccion = "Violeta"
+		end
+		datos.Ajustes = datos.Ajustes
+			or { Genero = "Avatar", ChatPosicion = "Izquierda", ChatTamano = "Normal", ChatVisible = true }
 		return datos
 	end,
 }
@@ -205,6 +220,10 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.Profesiones
 	elseif seccion == "Clase" then
 		return datos.Clase
+	elseif seccion == "Faccion" then
+		return datos.Faccion
+	elseif seccion == "Ajustes" then
+		return datos.Ajustes
 	elseif seccion == "Honor" then
 		return datos.PuntosHonor
 	elseif seccion == "Cosmeticos" then
@@ -385,6 +404,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		SkinsEstructura = d.SkinsEstructura,
 		SkinEstructuraEquipada = d.SkinEstructuraEquipada,
 		Profesiones = d.Profesiones,
+		Ajustes = d.Ajustes,
 	}
 end
 
@@ -446,6 +466,7 @@ local function alEntrarJugador(player: Player)
 	perfil:MessageHandler(function(mensaje: unknown, procesado: () -> ())
 		procesarMensaje(player, perfil, mensaje, procesado)
 	end)
+	player:SetAttribute("Bando", perfil.Data.Faccion) -- visible para todos (color del nombre, PvP)
 	DataManager.PerfilCargado:Fire(player, perfil.Data)
 	NetworkBridge.Server.FireClient("DatosIniciales", player, snapshotCliente(perfil.Data))
 end
@@ -864,6 +885,38 @@ end
 
 -- Fija la clase. Las reglas de cuándo se permite (solo sin clase, o cambio
 -- pagado) las decide quien llama.
+-- Cambia el bando (Violeta, Rojo o Azul). Lo usa BandoManager: este módulo no
+-- decide cuándo se puede cambiar, solo lo guarda y avisa.
+function DataManager.SetFaccion(player: Player, bando: Types.Bando): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.Faccion = bando
+	player:SetAttribute("Bando", bando)
+	notificarCambio(player, perfil.Data, "Faccion")
+	return true
+end
+
+local VALORES_AJUSTES: { [string]: { [any]: boolean } } = {
+	Genero = { Avatar = true, Masculino = true, Femenino = true },
+	ChatPosicion = { Izquierda = true, Derecha = true },
+	ChatTamano = { Chico = true, Normal = true, Grande = true },
+	ChatVisible = { [true] = true, [false] = true },
+}
+
+-- Cambia un ajuste del jugador. Valida clave y valor contra una lista cerrada.
+function DataManager.SetAjuste(player: Player, clave: string, valor: any): boolean
+	local perfil = perfilActivo(player)
+	local permitidos = VALORES_AJUSTES[clave]
+	if not perfil or not permitidos or not permitidos[valor] then
+		return false
+	end
+	(perfil.Data.Ajustes :: any)[clave] = valor
+	notificarCambio(player, perfil.Data, "Ajustes")
+	return true
+end
+
 function DataManager.SetClase(player: Player, clase: Types.Clase): boolean
 	local perfil = perfilActivo(player)
 	if not perfil then

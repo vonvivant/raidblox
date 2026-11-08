@@ -55,6 +55,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
 	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Bandos y ajustes del jugador
+	BandoVolverNeutral = { Tipo = "Function", Critico = false },
+	GuardarAjuste = { Tipo = "Function", Critico = false }, -- (clave, valor)
 	-- Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas())
 	TiendaPruebaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
 	TiendaPruebaComprar = { Tipo = "Function", Critico = false }, -- (itemId, cantidad)

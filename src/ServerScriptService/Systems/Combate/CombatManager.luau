@@ -24,9 +24,11 @@ local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage.Shared.Types)
 local ClassConfig = require(ReplicatedStorage.Configs.ClassConfig)
+local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Signal = require(ReplicatedStorage.Modules.Signal)
 local DataManager = require(script.Parent.Parent.DataManager)
+local BandoManager = require(script.Parent.Parent.BandoManager)
 local Estadisticas = require(script.Parent.Estadisticas)
 
 type Habilidad = ClassConfig.Habilidad
@@ -458,6 +460,21 @@ local function esOfensiva(hab: Habilidad): boolean
 end
 
 -- Combatientes de un bando dentro de un radio.
+-- Bandos de jugadores (Rojo/Azul/Violeta): un jugador puede ser enemigo de
+-- otro jugador solo con las reglas de PvP de BandoManager.
+local function puedeAtacar(c: Combatiente, o: Combatiente): boolean
+	if c.Bando ~= o.Bando then
+		return true -- jugador contra NPC
+	end
+	local pc, po = c.Player, o.Player
+	return pc ~= nil and po ~= nil and BandoManager.PuedeAtacar(pc, po)
+end
+
+local function sonRivales(c: Combatiente, o: Combatiente): boolean
+	local pc, po = c.Player, o.Player
+	return pc ~= nil and po ~= nil and BandoManager.SonRivales(pc, po)
+end
+
 local function enRadio(centro: Vector3, radio: number, bando: Bando): { Combatiente }
 	local lista: { Combatiente } = {}
 	for _, c in combatientes do
@@ -472,6 +489,33 @@ local function bandoOpuesto(b: Bando): Bando
 	return if b == "Jugadores" then "Enemigos" else "Jugadores"
 end
 
+-- Enemigos de un combatiente en un radio: los del bando opuesto y, para
+-- jugadores, los jugadores rivales con los que vale el PvP en ese momento.
+local function enemigosEnRadio(c: Combatiente, centro: Vector3, radio: number): { Combatiente }
+	local lista = enRadio(centro, radio, bandoOpuesto(c.Bando))
+	local pc = c.Player
+	if pc then
+		for _, o in enRadio(centro, radio, c.Bando) do
+			local po = o.Player
+			if po and BandoManager.SonHostiles(pc, po) then
+				table.insert(lista, o)
+			end
+		end
+	end
+	return lista
+end
+
+-- Aliados en un radio: mismo bando, sin los jugadores rivales.
+local function aliadosEnRadio(c: Combatiente, centro: Vector3, radio: number): { Combatiente }
+	local lista: { Combatiente } = {}
+	for _, o in enRadio(centro, radio, c.Bando) do
+		if not sonRivales(c, o) then
+			table.insert(lista, o)
+		end
+	end
+	return lista
+end
+
 ------------------------------------------------------------------------
 -- Habilidades: validación, casteo y ejecución
 ------------------------------------------------------------------------
@@ -484,7 +528,7 @@ local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatie
 	if tipo == "Propio" then
 		return true, c, nil
 	elseif tipo == "Aliado" or (tipo == "AreaAliados" and centro == "Objetivo") then
-		if pedido == nil or pedido.Bando ~= c.Bando or not vivo(pedido) then
+		if pedido == nil or pedido.Bando ~= c.Bando or sonRivales(c, pedido) or not vivo(pedido) then
 			return true, c, nil -- sin aliado válido: se lanza sobre uno mismo
 		end
 		if distancia(c, pedido) > alcance then
@@ -492,7 +536,16 @@ local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatie
 		end
 		return true, pedido, nil
 	elseif tipo == "Enemigo" or (tipo == "AreaEnemigos" and centro == "Objetivo") then
-		if pedido == nil or pedido.Bando == c.Bando or not vivo(pedido) then
+		if pedido == nil or not puedeAtacar(c, pedido) or not vivo(pedido) then
+			if pedido and pedido.Player and c.Player and pedido ~= c then
+				local bp = BandoManager.De(pedido.Player)
+				return false,
+					nil,
+					if bp == "Violeta"
+						then "Ese jugador es neutral (Violeta): no se lo puede atacar."
+						elseif BandoManager.De(c.Player) == bp then "Es de tu mismo bando."
+						else "Solo se puede pelear entre bandos en zonas PvP o en la Guerra."
+			end
 			return false, nil, "Necesitás un enemigo seleccionado."
 		end
 		if CombatManager.EsInvisible(pedido) then
@@ -527,10 +580,22 @@ local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo
 	local objetivos: { Combatiente } = {}
 	if hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
 		local centro = if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position
-		local bando: Bando = if hab.Objetivo == "AreaEnemigos" then bandoOpuesto(c.Bando) else c.Bando
-		objetivos = enRadio(centro, hab.Radio or 10, bando)
+		objetivos = if hab.Objetivo == "AreaEnemigos"
+			then enemigosEnRadio(c, centro, hab.Radio or 10)
+			else aliadosEnRadio(c, centro, hab.Radio or 10)
 	elseif objetivo then
 		objetivos = { objetivo }
+	end
+
+	-- Un Violeta que ataca a un jugador toma el bando contrario al de su víctima.
+	local pc = c.Player
+	if pc and esOfensiva(hab) then
+		for _, o in objetivos do
+			local po = o.Player
+			if po then
+				BandoManager.AlAtacar(pc, po)
+			end
+		end
 	end
 
 	for _, o in objetivos do
@@ -1000,6 +1065,12 @@ end
 function CombatManager.Init()
 	assert(not iniciado, "CombatManager.Init() se llamó dos veces")
 	iniciado = true
+
+	-- Para "volver a neutral": no se puede si peleó hace poco.
+	BandoManager.SetEnCombate(function(player: Player): boolean
+		local c = porJugador[player]
+		return c ~= nil and ahora() - c.UltimoCombate < GameConfig.Bandos.EsperaFueraDeCombate
+	end)
 
 	local function alEntrar(player: Player)
 		player.CharacterAdded:Connect(function(personaje: Model)

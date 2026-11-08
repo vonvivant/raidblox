@@ -13,7 +13,7 @@ classDiagram
         number Nivel
         number Experiencia
         Clase Clase
-        string Faccion
+        string Faccion "Violeta | Rojo | Azul (v4)"
         number Oro
         number MonedasPremium
         number PuntosHonor

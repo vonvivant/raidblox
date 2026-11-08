@@ -8,6 +8,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Systems = ServerScriptService.Systems
 local DataManager = require(Systems.DataManager)
+local BandoManager = require(Systems.BandoManager)
+local AparienciaManager = require(Systems.AparienciaManager)
 local AntiCheat = require(Systems.AntiCheat)
 local ZoneManager = require(Systems.ZoneManager)
 local ArchitectWarManager = require(Systems.Guerra.ArchitectWarManager)
@@ -35,7 +37,10 @@ AntiCheat.Init()
 -- 4. Mundo: portales y teletransporte.
 ZoneManager.Init()
 
--- 5. Combate: motor, botín, enemigos y jefes de la zona de este place.
+-- 5. Bandos (PvP) y apariencia; después el combate: motor, botín, enemigos y
+-- jefes de la zona de este place.
+BandoManager.Init(ZoneManager.ZonaActual())
+AparienciaManager.Init()
 CombatManager.Init()
 LootManager.Init()
 local zona = ZoneManager.ZonaActual()

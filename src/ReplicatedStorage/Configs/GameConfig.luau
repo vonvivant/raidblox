@@ -10,11 +10,26 @@ local GameConfig = {
 
 	Datos = {
 		NombreStore = "RaidBlox_Jugadores_v1",
-		VersionEsquema = 3,
+		VersionEsquema = 4,
 		MaxRecibosGuardados = 50,
 		MaxMensajesGuardados = 100,
 		-- Si el perfil no carga en este tiempo (caída de DataStores), se expulsa al jugador.
 		TimeoutCarga = 60,
+	},
+
+	-- Bandos: Violeta (neutral, no se lo puede atacar), Rojo y Azul.
+	Bandos = {
+		-- Volver a Violeta cuesta oro (más adelante puede pasar a Robux).
+		CostoVolverNeutral = 5000,
+		-- Espera desde el último combate para poder volver a Violeta.
+		EsperaFueraDeCombate = 10,
+		Colores = {
+			Violeta = Color3.fromRGB(170, 110, 255),
+			Rojo = Color3.fromRGB(235, 70, 70),
+			Azul = Color3.fromRGB(70, 140, 255),
+		},
+		-- Etiqueta de las partes que marcan zonas PvP dentro de un place.
+		TagZonaPvP = "ZonaPvP",
 	},
 
 	Inventario = {

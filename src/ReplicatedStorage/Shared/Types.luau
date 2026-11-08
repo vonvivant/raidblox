@@ -64,12 +64,23 @@ export type ProgresoMision = {
 	Objetivos: { [string]: number }, -- objetivoId -> progreso actual
 }
 
+-- v4: bandos. Violeta es neutral (no se lo puede atacar); Rojo y Azul pelean
+-- entre sí en zonas PvP y en la Guerra de Arquitectos.
+export type Bando = "Violeta" | "Rojo" | "Azul"
+export type Genero = "Avatar" | "Masculino" | "Femenino"
+export type Ajustes = {
+	Genero: Genero, -- "Avatar" = tal cual el avatar de Roblox del jugador
+	ChatPosicion: "Izquierda" | "Derecha",
+	ChatTamano: "Chico" | "Normal" | "Grande",
+	ChatVisible: boolean,
+}
+
 export type DatosJugador = {
 	Version: number,
 	Nivel: number,
 	Experiencia: number,
 	Clase: Clase,
-	Faccion: string,
+	Faccion: Bando,
 	Estadisticas: Estadisticas,
 	Oro: number,
 	-- Moneda premium comprada con Robux. Solo la modifica MonetizationManager
@@ -92,6 +103,8 @@ export type DatosJugador = {
 	-- v3: profesiones y economía
 	Profesiones: { [string]: ProgresoProfesion },
 	KitInicialEntregado: boolean,
+	-- v4: bando y ajustes del jugador
+	Ajustes: Ajustes,
 }
 
 -- Secciones del perfil que se sincronizan al cliente.
@@ -107,6 +120,8 @@ export type SeccionDatos =
 	| "Cosmeticos"
 	| "Clase"
 	| "Profesiones"
+	| "Faccion"
+	| "Ajustes"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =

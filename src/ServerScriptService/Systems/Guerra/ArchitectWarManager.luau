@@ -26,7 +26,9 @@ local Teams = game:GetService("Teams")
 local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
+local BandoManager = require(script.Parent.Parent.BandoManager)
 local AntiCheat = require(script.Parent.Parent.AntiCheat)
 local ArenaGuerra = require(script.Parent.ArenaGuerra)
 
@@ -210,8 +212,19 @@ local function ponerEnEquipo(player: Player, estado: EstadoEquipo)
 	equipoPorUsuario[player.UserId] = estado.Def.Id
 end
 
+-- Equipo que corresponde por bando: Rojo y Azul juegan para su reino.
+local function equipoDeBando(player: Player): EstadoEquipo?
+	local bando = BandoManager.De(player)
+	return if bando ~= "Violeta" then equipos[bando] else nil
+end
+
 local function asignarEquipo(player: Player)
-	-- Si ya jugaba esta partida y volvió a entrar, vuelve a su equipo.
+	local porBando = equipoDeBando(player)
+	if porBando then
+		ponerEnEquipo(player, porBando)
+		return
+	end
+	-- Violeta: si ya jugaba esta partida y volvió a entrar, vuelve a su equipo.
 	local previo = equipoPorUsuario[player.UserId]
 	if previo and equipos[previo] then
 		ponerEnEquipo(player, equipos[previo])
@@ -230,11 +243,19 @@ local function asignarEquipo(player: Player)
 end
 
 local function rebalancear()
-	-- Reparte en orden alternado para que los equipos queden parejos.
+	-- Rojos y azules van a su reino; los violetas se reparten para emparejar.
 	table.clear(equipoPorUsuario)
-	for i, player in Players:GetPlayers() do
-		local id = ordenEquipos[((i - 1) % #ordenEquipos) + 1]
-		ponerEnEquipo(player, equipos[id])
+	local violetas: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		local porBando = equipoDeBando(player)
+		if porBando then
+			ponerEnEquipo(player, porBando)
+		else
+			table.insert(violetas, player)
+		end
+	end
+	for _, player in violetas do
+		asignarEquipo(player)
 	end
 end
 
@@ -476,6 +497,10 @@ local function alDepositar(player: Player, estado: EstadoEquipo)
 		avisar(player, "No llevás recursos. Recolectá en el centro del mapa.")
 		return
 	end
+	-- Un Violeta que aporta a un reino pasa a ese bando.
+	if BandoManager.De(player) == "Violeta" then
+		BandoManager.Unirse(player, estado.Def.Id :: any)
+	end
 	local uid = player.UserId
 	estado.AportesEtapa[uid] = (estado.AportesEtapa[uid] or 0) + entregado
 	estado.AportesTotal[uid] = (estado.AportesTotal[uid] or 0) + entregado
@@ -573,6 +598,13 @@ local function tick(): nil
 			terminarPartida(nil, true)
 		elseif ahora >= finPartida then
 			resolverPorTiempo()
+		end
+	end
+	-- Marca quién está jugando la partida: ahí vale el PvP entre bandos.
+	for _, player in Players:GetPlayers() do
+		local jugando = fase == "EnCurso" and equipoDe(player) ~= nil
+		if player:GetAttribute("EnGuerra") ~= jugando then
+			player:SetAttribute("EnGuerra", jugando)
 		end
 	end
 	difundir()
@@ -684,6 +716,23 @@ function ArchitectWarManager.Init()
 		alEntrar(player)
 	end
 	Players.PlayerAdded:Connect(alEntrar)
+	-- Si alguien cambia de bando (atacando o aportando), pasa al equipo de su reino.
+	DataManager.DatosCambiados:Connect(function(player: Player, seccion: Types.SeccionDatos)
+		if seccion ~= "Faccion" then
+			return
+		end
+		local porBando = equipoDeBando(player)
+		if porBando and player.Team ~= porBando.Team then
+			ponerEnEquipo(player, porBando)
+		end
+	end)
+	-- El bando se conoce recién cuando carga el perfil: se reasigna entonces.
+	DataManager.PerfilCargado:Connect(function(player: Player)
+		local porBando = equipoDeBando(player)
+		if porBando and player.Team ~= porBando.Team then
+			ponerEnEquipo(player, porBando)
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		cargas[player] = nil
 		inicioPresion[player] = nil
