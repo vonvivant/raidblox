@@ -102,7 +102,7 @@ local Clases: { [string]: DefinicionClase } = {
 			{
 				Id = "GolpeDefensivo",
 				Nombre = "Golpe Defensivo",
-				Descripcion = "Golpe básico con el escudo.",
+				Descripcion = "Golpe básico con el arma, sin bajar el escudo de la otra mano.",
 				CostoMana = 0,
 				Cooldown = 1.5,
 				Rango = 8,
