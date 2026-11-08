@@ -1,0 +1,15 @@
+# Generados por herramientas
+sourcemap.json
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Entornos y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
