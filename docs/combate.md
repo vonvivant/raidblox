@@ -123,7 +123,7 @@ RaidBlox además resisten la mitad de la duración. Así nadie (ni un jefe) pued
 
 | Clase | Rol | Habilidades (1 · 2 · 3 · 4) | Mecánica propia |
 | --- | --- | --- | --- |
-| Tanque | Defensor | Golpe de Escudo · Provocación · Terremoto · Muralla | Amenaza ×3, provoca |
+| Tanque | Defensor | Golpe Defensivo · Provocación · Terremoto · Muralla | Amenaza ×3, provoca |
 | Guerrero | Daño cuerpo a cuerpo | Tajo · Golpe Brutal · Torbellino · Grito de Guerra | Aura de ataque al grupo |
 | Mago | Daño mágico a distancia | Proyectil Arcano · Bola de Fuego · Nova de Escarcha · Meteoro | Casteos largos, área |
 | Arquero | Daño físico a distancia | Disparo · Disparo Certero · Flecha Venenosa · Lluvia de Flechas | Daño en el tiempo |

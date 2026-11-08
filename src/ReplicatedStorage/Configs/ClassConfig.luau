@@ -100,8 +100,8 @@ local Clases: { [string]: DefinicionClase } = {
 		MultiplicadorAmenaza = 3,
 		Habilidades = {
 			{
-				Id = "GolpeEscudo",
-				Nombre = "Golpe de Escudo",
+				Id = "GolpeDefensivo",
+				Nombre = "Golpe Defensivo",
 				Descripcion = "Golpe básico con el escudo.",
 				CostoMana = 0,
 				Cooldown = 1.5,
