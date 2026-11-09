@@ -49,7 +49,7 @@ Las carpetas (`Shared`, `Configs`, `Modules`, `Systems`, `Packages`) son objetos
 ## Opción A: Rojo (recomendada)
 
 1. Instalá Rojo (https://rojo.space) y su plugin de Studio.
-2. En la raíz del repo: `rojo serve`.
+2. En la raíz del repo: `rojo serve` (en Windows, si `rojo.exe` está en la carpeta del repo y no instalado en el PATH: `./rojo.exe serve`).
 3. En Studio: plugin Rojo > Connect. Los archivos se sincronizan solos.
 
 Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están configurados.

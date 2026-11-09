@@ -77,7 +77,7 @@ flowchart LR
 ## Inicio rápido
 
 1. Instalá [Rojo](https://rojo.space) y su plugin de Studio (o cargá los scripts a mano: ver [instalación](docs/instalacion.md)).
-2. `rojo serve` en la raíz del repo y conectá desde Studio.
+2. `rojo serve` en la raíz del repo (o `./rojo.exe serve` si tenés el ejecutable en la carpeta) y conectá desde Studio.
 3. Publicá el place y activá *Game Settings > Security > Enable Studio Access to API Services*.
 4. Play: en Output tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 4 (zona: Pruebas)`.
 
