@@ -35,6 +35,7 @@ local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local DataManager = require(script.Parent.DataManager)
 local AntiCheat = require(script.Parent.AntiCheat)
 local GrupoManager = require(script.Parent.GrupoManager)
+local Bonos = require(script.Parent.Monetizacion.Bonos)
 local CombatManager = require(script.Parent.Combate.CombatManager)
 local EnemyManager = require(script.Parent.Combate.EnemyManager)
 
@@ -607,8 +608,8 @@ victoria = function(inst: Instancia)
 	quitarEnemigos(inst) -- invocaciones que hayan quedado
 	local r = inst.Def.Recompensa
 	for player in inst.Jugadores do
-		DataManager.AddGold(player, r.Oro)
-		DataManager.AddExperience(player, r.Xp)
+		DataManager.AddGold(player, Bonos.Oro(player, r.Oro))
+		DataManager.AddExperience(player, Bonos.Xp(player, r.Xp))
 		avisar(player, `¡Completaste {inst.Def.Nombre}! +{r.Oro} de oro y +{r.Xp} de experiencia.`, "Oro")
 	end
 	-- Portal de salida para irse antes.

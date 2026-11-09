@@ -23,6 +23,7 @@ local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local DataManager = require(script.Parent.DataManager)
 local Buzon = require(script.Parent.Buzon)
+local Bonos = require(script.Parent.Monetizacion.Bonos)
 local NpcFactory = require(script.Parent.NpcFactory)
 local EnemyManager = require(script.Parent.Combate.EnemyManager)
 
@@ -151,14 +152,14 @@ local function entregar(player: Player, id: string): Respuesta
 	-- Recompensas.
 	local r = mision.Recompensas
 	if r.Xp > 0 then
-		local niveles = DataManager.AddExperience(player, r.Xp)
+		local niveles = DataManager.AddExperience(player, Bonos.Xp(player, r.Xp))
 		if niveles > 0 then
 			local nuevo = DataManager.GetData(player)
 			avisar(player, `¡Subiste al nivel {if nuevo then nuevo.Nivel else "?"}!`, "Oro")
 		end
 	end
 	if r.Oro > 0 then
-		Buzon.DarOro(player, r.Oro, `Misión: {mision.Nombre}`)
+		Buzon.DarOro(player, Bonos.Oro(player, r.Oro), `Misión: {mision.Nombre}`)
 	end
 	local items: { MisionesConfig.RecompensaItem } = r.Items or {}
 	for i, item in items do

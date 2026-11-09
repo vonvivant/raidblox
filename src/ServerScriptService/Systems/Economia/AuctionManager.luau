@@ -40,6 +40,7 @@ local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
 local Buzon = require(script.Parent.Parent.Buzon)
+local PasesManager = require(script.Parent.Parent.Monetizacion.PasesManager)
 
 type ItemInstancia = Types.ItemInstancia
 type Respuesta = Types.Respuesta
@@ -527,6 +528,7 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 		end
 	end
 	operacionesPorId[id] = true
+	local maxPublicaciones = PasesManager.LimitePublicaciones(player) -- 15 con el pase
 	local resultado = (function(): Respuesta
 		-- 1. Reservar un lugar en la lista del vendedor (el límite se verifica de forma atómica).
 		local function reservar(): string
@@ -539,7 +541,7 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 						estado = "ok"
 						return nil
 					end
-					if #actual >= CFG.MaxPublicaciones then
+					if #actual >= maxPublicaciones then
 						estado = "lleno"
 						return nil
 					end
@@ -557,7 +559,7 @@ local function publicar(player: Player, uid: string, precio: number): Respuesta
 			reserva = reservar()
 		end
 		if reserva == "lleno" then
-			avisar(player, `Ya tenés {CFG.MaxPublicaciones} publicaciones activas.`)
+			avisar(player, `Ya tenés {maxPublicaciones} publicaciones activas.`)
 			return NetworkBridge.Fail("NOT_ALLOWED")
 		elseif reserva ~= "ok" then
 			return NetworkBridge.Fail("INTERNAL_ERROR")

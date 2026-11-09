@@ -66,6 +66,11 @@ local DEFINICIONES: { [string]: Definicion } = {
 	-- Pruebas: editor de la piedra del castillo
 	EditorPiedraAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Actual, Original})
 	EditorPiedraGuardar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (valores)
+	-- Fase 6: tienda, pases y monturas
+	TiendaInfo = { Tipo = "Function", Critico = false, Timeout = 15 },
+	TiendaComprarPase = { Tipo = "Function", Critico = false }, -- (clave)
+	TiendaGuardarTitulo = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (texto)
+	MonturaAlternar = { Tipo = "Function", Critico = false }, -- (id)
 	-- Fase 5: mazmorras
 	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },

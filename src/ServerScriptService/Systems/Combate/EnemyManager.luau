@@ -23,6 +23,7 @@ local DataManager = require(script.Parent.Parent.DataManager)
 local CombatManager = require(script.Parent.CombatManager)
 local Estadisticas = require(script.Parent.Estadisticas)
 local LootManager = require(script.Parent.LootManager)
+local Bonos = require(script.Parent.Parent.Monetizacion.Bonos)
 
 type Combatiente = CombatManager.Combatiente
 
@@ -360,7 +361,7 @@ function EnemyManager.Recompensar(
 			continue
 		end
 		if xp > 0 then
-			local niveles = DataManager.AddExperience(player, xp)
+			local niveles = DataManager.AddExperience(player, Bonos.Xp(player, xp))
 			if niveles > 0 then
 				local datos = DataManager.GetData(player)
 				local nivel = if datos then datos.Nivel else 0
@@ -368,7 +369,7 @@ function EnemyManager.Recompensar(
 			end
 		end
 		if oro > 0 then
-			DataManager.AddGold(player, oro)
+			DataManager.AddGold(player, Bonos.Oro(player, oro))
 		end
 		local items = LootManager.TirarTabla(botin)
 		if #items > 0 then

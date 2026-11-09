@@ -1036,6 +1036,16 @@ function DataManager.PendientesBanco(player: Player): { [string]: Types.Pendient
 	return if banco then table.clone(banco) else {}
 end
 
+-- Título escrito por el jugador (ya filtrado por quien llama). nil lo borra.
+function DataManager.SetTituloPersonalizado(player: Player, texto: string?): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.TituloPersonalizado = texto
+	return true
+end
+
 -- ¿Sigue cargado el perfil del jugador? (si se fue, no hay que tocar nada más)
 function DataManager.PerfilActivo(player: Player): boolean
 	return perfilActivo(player) ~= nil

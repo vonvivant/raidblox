@@ -121,6 +121,7 @@ export type DatosJugador = {
 	PuntosHonor: number,
 	Titulos: { string },
 	TituloEquipado: string?,
+	TituloPersonalizado: string?, -- pase "Título Personalizado" (texto ya filtrado)
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía
