@@ -304,15 +304,17 @@ todos los efectos son locales y se borran solos.
 
 ## Modo apuntado (mira)
 
-Hay dos formas de elegir a quién le pegás, y se alternan con **Q** (o clic en
-el stick derecho del joystick):
+Hay dos formas de elegir a quién le pegás. Arranca en el modo de siempre y la
+mira es optativa: se prende y apaga con el botón **🎯 Mira** o con **Q** (clic
+en el stick derecho del joystick).
 
-- **Apuntado** (en PC arranca así): mira en el centro, cámara sobre el hombro y
+- **Apuntado**: mira en el centro, cámara sobre el hombro y
   el personaje mira hacia donde mira la cámara. **Clic izquierdo** = ataque
   básico; 1-4 = habilidades. El mouse se suelta solo al abrir una ventana o
-  escribir, y mientras tengas apretado **Alt**. La mira se pone roja sobre un
+  escribir, y mientras tengas apretado **Alt** o **Ctrl** (así también podés tocar
+el botón 🎯 Mira para apagarla). La mira se pone roja sobre un
   enemigo (verde sobre un aliado) y muestra una X al pegar.
-- **Objetivo** (en celular arranca así): el de siempre, con Tab o clic.
+- **Objetivo** (el de siempre): con Tab o clic.
 
 El cliente solo manda el **punto del mundo bajo la mira**; el servidor decide
 (`resolverApuntado` en `CombatManager`):

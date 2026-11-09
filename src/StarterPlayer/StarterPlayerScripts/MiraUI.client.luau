@@ -1,12 +1,12 @@
 --!strict
 -- MiraUI: modo apuntado con mira en el centro de la pantalla.
 --
--- * Q (o clic en el stick derecho) alterna entre apuntado y objetivo con Tab.
---   En PC arranca en apuntado; en celular, con objetivo.
+-- * Es optativo: arranca en el modo de siempre (objetivo con Tab o clic). El
+--   botón "🎯 Mira" o la tecla Q (clic en el stick derecho) lo prenden y apagan.
 -- * Apuntado: cámara sobre el hombro, el mouse queda fijo en el centro y el
 --   personaje mira hacia donde mira la cámara. Clic izquierdo = ataque básico.
 -- * El mouse se suelta solo al abrir una ventana o escribir, y mientras
---   tengas apretado Alt.
+--   tengas apretado Alt o Ctrl.
 -- * La mira se pone roja sobre un enemigo y muestra una X al pegar.
 
 local Players = game:GetService("Players")
@@ -85,6 +85,19 @@ end
 local ayuda = UIKit.Texto(gui, "", UDim2.fromOffset(320, 18), UDim2.new(0.5, -160, 1, -26))
 ayuda.TextTransparency = 0.35
 
+-- Botón para prender y apagar la mira (con la mira puesta, se toca con Alt o Ctrl apretado).
+local boton = Instance.new("TextButton")
+boton.Name = "BotonMira"
+boton.Position = UDim2.fromScale(0.38, 0.455)
+boton.Size = UDim2.fromScale(0.08, 0.038)
+boton.BackgroundColor3 = UIKit.Colores.Boton
+boton.TextColor3 = Color3.new(1, 1, 1)
+boton.Font = Enum.Font.GothamBold
+boton.TextScaled = true
+boton.Text = "🎯 Mira: NO"
+UIKit.Esquinas(boton, 6)
+boton.Parent = gui
+
 local function colorMira(color: Color3)
 	for _, t in trazos do
 		t.BackgroundColor3 = color
@@ -126,6 +139,8 @@ end
 local function debeSoltarse(): boolean
 	return UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
 		or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
+		or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+		or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
 		or UserInputService:GetFocusedTextBox() ~= nil
 		or hayVentanaAbierta()
 end
@@ -151,9 +166,9 @@ local function aplicarModo()
 		UserInputService.MouseIconEnabled = true
 		ajustesJuego.RotationType = Enum.RotationType.MovementRelative
 	end
-	ayuda.Text = if activo
-		then "Q: modo objetivo (Tab)   ·   Alt: soltar el mouse"
-		else (if UserInputService.MouseEnabled then "Q: modo apuntado (mira)" else "")
+	ayuda.Text = if activo then "Q: volver al modo de siempre   ·   Alt o Ctrl: soltar el mouse" else ""
+	boton.Text = if activo then "🎯 Mira: SÍ" else "🎯 Mira: NO"
+	boton.BackgroundColor3 = if activo then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
 end
 
 RunService:BindToRenderStep("MiraRaidBlox", Enum.RenderPriority.Camera.Value + 1, function()
@@ -241,6 +256,8 @@ local function alternar()
 	)
 end
 
+boton.Activated:Connect(alternar)
+
 ContextActionService:BindAction("MiraRaidBlox", function(_, estado: Enum.UserInputState)
 	if estado == Enum.UserInputState.Begin and UserInputService:GetFocusedTextBox() == nil then
 		alternar()
@@ -248,6 +265,6 @@ ContextActionService:BindAction("MiraRaidBlox", function(_, estado: Enum.UserInp
 	return Enum.ContextActionResult.Pass
 end, false, Enum.KeyCode.Q, Enum.KeyCode.ButtonR3)
 
--- En PC arranca en apuntado; en celular (sin mouse), con objetivo.
-Apuntado.SetActivo(UserInputService.MouseEnabled and not UserInputService.TouchEnabled)
+-- Arranca en el modo de siempre: la mira es optativa.
+Apuntado.SetActivo(false)
 aplicarModo()
