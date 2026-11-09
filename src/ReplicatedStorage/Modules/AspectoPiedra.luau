@@ -50,7 +50,7 @@ AspectoPiedra.Materiales = {
 
 AspectoPiedra.Rangos = {
 	Reflejo = { 0, 1 },
-	Transparencia = { 0, 0.8 },
+	Transparencia = { 0, 0.5 }, -- más de 0,5 y la piedra casi no se ve
 	Densidad = { 0.1, 20 },
 	Friccion = { 0, 2 },
 	Elasticidad = { 0, 1 },
