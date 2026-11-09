@@ -1030,6 +1030,7 @@ local VALORES_AJUSTES: { [string]: { [any]: boolean } } = {
 	ChatPosicion = { Izquierda = true, Derecha = true },
 	ChatTamano = { Chico = true, Normal = true, Grande = true },
 	ChatVisible = { [true] = true, [false] = true },
+	CanalVoz = { Proximidad = true, Grupo = true, Hermandad = true, Zona = true },
 }
 
 -- Cambia un ajuste del jugador. Valida clave y valor contra una lista cerrada.

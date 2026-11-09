@@ -22,6 +22,13 @@
     },
     "Teams": {
       "$className": "Teams"
+    },
+    "VoiceChatService": {
+      "$className": "VoiceChatService",
+      "$properties": {
+        "EnableDefaultVoice": false,
+        "UseAudioApi": "Enabled"
+      }
     }
   }
 }

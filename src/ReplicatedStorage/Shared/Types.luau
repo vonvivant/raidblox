@@ -68,11 +68,14 @@ export type ProgresoMision = {
 -- entre sí en zonas PvP y en la Guerra de Arquitectos.
 export type Bando = "Violeta" | "Rojo" | "Azul"
 export type Genero = "Avatar" | "Masculino" | "Femenino"
+export type CanalVoz = "Proximidad" | "Grupo" | "Hermandad" | "Zona"
+
 export type Ajustes = {
 	Genero: Genero, -- "Avatar" = tal cual el avatar de Roblox del jugador
 	ChatPosicion: "Izquierda" | "Derecha",
 	ChatTamano: "Chico" | "Normal" | "Grande",
 	ChatVisible: boolean,
+	CanalVoz: CanalVoz?, -- sin valor = "Proximidad"
 }
 
 -- v5: diario de operaciones de subasta en curso. Se escribe en el mismo

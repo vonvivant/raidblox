@@ -24,6 +24,13 @@ local GameConfig = {
 		EsperaEntreInvitaciones = 2, -- s, por jugador
 	},
 
+	-- Chat de voz (API de audio: AudioDeviceInput + Wire).
+	Voz = {
+		DistanciaMaxima = 80, -- studs: proximidad se apaga del todo a esta distancia
+		Canales = { "Proximidad", "Grupo", "Hermandad", "Zona" },
+		UmbralHablando = 0.015, -- RmsLevel del AudioAnalyzer para mostrar el parlante
+	},
+
 	-- Hermandades (guilds), persistentes entre servidores.
 	Hermandades = {
 		CostoCreacion = 10000, -- oro

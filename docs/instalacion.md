@@ -183,3 +183,11 @@ completa está en [economia.md](economia.md#probar-en-studio).
 - **`MonedasRobux` pasó a llamarse `MonedasPremium`** y no se puede modificar desde la API general.
 - **Anti-noclip**: se detecta levitación (más de 3 s en el aire). Atravesar paredes no se chequea con rayos porque
   da falsos positivos al doblar esquinas. Igual no sirve de nada, porque cada acción valiosa valida la distancia en el servidor.
+
+## Chat de voz
+
+`default.project.json` pone `VoiceChatService.EnableDefaultVoice = false` y
+`UseAudioApi = Enabled` (el juego arma sus propios canales). Si Rojo no los
+aplica, ponelos a mano: **Explorador → VoiceChatService → Propiedades**. Además
+activá la voz en **Configuración del juego → Comunicación**. Detalle en
+[voz.md](voz.md).

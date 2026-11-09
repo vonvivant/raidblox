@@ -25,6 +25,7 @@ local TradeManager = require(Systems.Economia.TradeManager)
 local MisionManager = require(Systems.MisionManager)
 local GrupoManager = require(Systems.GrupoManager)
 local HermandadManager = require(Systems.HermandadManager)
+local VozManager = require(Systems.VozManager)
 local DebugStudio = require(Systems.DebugStudio)
 local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
 
@@ -60,6 +61,7 @@ TradeManager.Init()
 -- 6b. Fase 5: grupos y misiones.
 GrupoManager.Init()
 HermandadManager.Init()
+VozManager.Init()
 MisionManager.Init()
 
 -- 7. Modos de juego según el place.

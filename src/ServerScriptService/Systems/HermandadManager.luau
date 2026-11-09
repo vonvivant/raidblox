@@ -35,6 +35,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
 local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local DataManager = require(script.Parent.DataManager)
 local Buzon = require(script.Parent.Buzon)
@@ -81,6 +82,9 @@ local MAX_OPS = 100
 local NIVEL_RANGO: { [string]: number } = { Lider = 4, Oficial = 3, Miembro = 2, Recluta = 1 }
 
 local HermandadManager = {}
+
+-- (jugador, id de hermandad o nil): entró, salió o lo expulsaron (voz de hermandad).
+HermandadManager.Cambio = Signal.new() :: Signal.Signal<Player, string?>
 
 local hermandadDe: { [Player]: string } = {}
 local ultimoEstado: { [Player]: { Nivel: number, Clase: string } } = {}
@@ -345,6 +349,7 @@ local function establecer(player: Player, g: Hermandad?, que: string?)
 		player:SetAttribute("HermandadId", g.Id)
 		player:SetAttribute("Hermandad", g.Nombre)
 		NetworkBridge.Server.FireClient("HermandadCambio", player, { Id = g.Id, Nombre = g.Nombre }, que or "miembros")
+		HermandadManager.Cambio:Fire(player, g.Id)
 	else
 		local anterior = hermandadDe[player]
 		hermandadDe[player] = nil
@@ -352,6 +357,7 @@ local function establecer(player: Player, g: Hermandad?, que: string?)
 		player:SetAttribute("Hermandad", nil)
 		NetworkBridge.Server.FireClient("HermandadCambio", player, nil, que or "miembros")
 		if anterior then
+			HermandadManager.Cambio:Fire(player, nil)
 			task.spawn(pcall, function()
 				enLineaDe(anterior):RemoveAsync(tostring(player.UserId))
 			end)

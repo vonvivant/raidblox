@@ -71,6 +71,7 @@ flowchart LR
 - [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.
 - [Grupos](docs/grupos.md): party de hasta 5.
 - [Hermandades](docs/hermandades.md): rangos, permisos, banco de 4 pestañas y registro.
+- [Chat de voz](docs/voz.md): canales de proximidad, grupo, hermandad y zona.
 - [Roadmap](docs/roadmap.md): fases, decisiones y pendientes.
 
 ## Inicio rápido

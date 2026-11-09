@@ -63,6 +63,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	GrupoSalir = { Tipo = "Function", Critico = false },
 	GrupoExpulsar = { Tipo = "Function", Critico = false }, -- (userId)
 	GrupoLider = { Tipo = "Function", Critico = false }, -- (userId)
+	-- Fase 5: voz
+	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})
+	VozCanal = { Tipo = "Function", Critico = false }, -- (canal)
 	-- Fase 5: hermandades (DataStore: timeouts largos)
 	HermandadCambio = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Id, Nombre}|nil, queCambio)
 	HermandadInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (id, nombre, deNombre)
