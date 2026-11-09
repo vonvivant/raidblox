@@ -191,3 +191,14 @@ completa está en [economia.md](economia.md#probar-en-studio).
 aplica, ponelos a mano: **Explorador → VoiceChatService → Propiedades**. Además
 activá la voz en **Configuración del juego → Comunicación**. Detalle en
 [voz.md](voz.md).
+
+## Interfaz: menú lateral y chat
+
+- Los botones (Personaje, Grupo, Hermandad, Tienda, Voz, Mira, Montura) van en
+  una **columna vertical** a la izquierda (`Modules/MenuLateral.luau`); los
+  marcos de vida quedan a su derecha.
+- El **chat** es una ventana propia (`ChatUI.client.luau`): se **mueve**
+  arrastrando la barra de arriba y se **agranda o achica** desde la esquina ◢.
+  Posición, tamaño y minimizado se guardan en los ajustes. Usa TextChatService
+  (mensajes ya filtrados por Roblox, envío por el canal general); el chat de
+  Roblox queda apagado y los globos sobre la cabeza siguen. `/` abre el chat.

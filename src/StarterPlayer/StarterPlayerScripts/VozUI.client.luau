@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 
 local jugador = Players.LocalPlayer
 local CFG = GameConfig.Voz
@@ -205,15 +206,13 @@ end)
 local gui = UIKit.Gui("VozUI", 60)
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonVoz"
-abrir.Position = UDim2.fromScale(0.295, 0.455)
-abrir.Size = UDim2.fromScale(0.08, 0.038)
 abrir.BackgroundColor3 = UIKit.Colores.Boton
 abrir.TextColor3 = Color3.new(1, 1, 1)
 abrir.Font = Enum.Font.GothamBold
 abrir.TextScaled = true
 abrir.Text = "🎙 Voz"
 UIKit.Esquinas(abrir, 6)
-abrir.Parent = gui
+MenuLateral.Agregar(abrir, 5)
 
 local ventana, contenido = UIKit.Ventana(gui, "Chat de voz", UDim2.fromScale(0.36, 0.62))
 local aviso = UIKit.Texto(contenido, "", UDim2.new(1, 0, 0, 34))

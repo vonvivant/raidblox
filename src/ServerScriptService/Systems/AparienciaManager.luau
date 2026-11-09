@@ -113,7 +113,7 @@ function AparienciaManager.Init()
 		"GuardarAjuste",
 		function(player: Player, clave: unknown, valor: unknown): Types.Respuesta
 			local c = NetworkBridge.Guard.String(clave, 20)
-			if not c or (typeof(valor) ~= "string" and typeof(valor) ~= "boolean") then
+			if not c or (typeof(valor) ~= "string" and typeof(valor) ~= "boolean" and typeof(valor) ~= "number") then
 				return NetworkBridge.Fail("INVALID_ARGS")
 			end
 			if c == "Genero" then

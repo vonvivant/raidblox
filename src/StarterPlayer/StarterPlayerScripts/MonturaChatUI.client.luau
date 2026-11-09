@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local MonetizacionConfig = require(ReplicatedStorage.Configs.MonetizacionConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 
 local jugador = Players.LocalPlayer
 
@@ -17,18 +18,15 @@ local jugador = Players.LocalPlayer
 -- Montura
 ------------------------------------------------------------------------
 
-local gui = UIKit.Gui("MonturaUI", 44)
 local boton = Instance.new("TextButton")
 boton.Name = "BotonMontura"
-boton.Position = UDim2.fromScale(0.465, 0.455)
-boton.Size = UDim2.fromScale(0.08, 0.038)
 boton.BackgroundColor3 = UIKit.Colores.Boton
 boton.TextColor3 = Color3.new(1, 1, 1)
 boton.Font = Enum.Font.GothamBold
 boton.TextScaled = true
 boton.Text = "🐴 Montar (G)"
 UIKit.Esquinas(boton, 6)
-boton.Parent = gui
+MenuLateral.Agregar(boton, 7)
 
 local function preferida(): string
 	return if jugador:GetAttribute("Pase_MonturaDragon") == true then "Dragon" else "Caballo"

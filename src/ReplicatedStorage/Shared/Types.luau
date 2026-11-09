@@ -76,6 +76,11 @@ export type Ajustes = {
 	ChatTamano: "Chico" | "Normal" | "Grande",
 	ChatVisible: boolean,
 	CanalVoz: CanalVoz?, -- sin valor = "Proximidad"
+	-- Ventana de chat propia: posición y tamaño en fracción de la pantalla.
+	ChatX: number?,
+	ChatY: number?,
+	ChatAncho: number?,
+	ChatAlto: number?,
 }
 
 -- v5: diario de operaciones de subasta en curso. Se escribe en el mismo

@@ -1072,9 +1072,27 @@ local VALORES_AJUSTES: { [string]: { [any]: boolean } } = {
 	CanalVoz = { Proximidad = true, Grupo = true, Hermandad = true, Zona = true },
 }
 
--- Cambia un ajuste del jugador. Valida clave y valor contra una lista cerrada.
+-- Ajustes numéricos (fracción de la pantalla): posición y tamaño del chat.
+local RANGOS_AJUSTES: { [string]: { number } } = {
+	ChatX = { 0, 1 },
+	ChatY = { 0, 1 },
+	ChatAncho = { 0.15, 0.6 },
+	ChatAlto = { 0.12, 0.7 },
+}
+
+-- Cambia un ajuste del jugador. Valida clave y valor contra una lista cerrada
+-- (o un rango, para los numéricos).
 function DataManager.SetAjuste(player: Player, clave: string, valor: any): boolean
 	local perfil = perfilActivo(player)
+	local rango = RANGOS_AJUSTES[clave]
+	if perfil and rango then
+		if typeof(valor) ~= "number" or valor ~= valor then
+			return false
+		end
+		(perfil.Data.Ajustes :: any)[clave] = math.round(math.clamp(valor, rango[1], rango[2]) * 1000) / 1000
+		notificarCambio(player, perfil.Data, "Ajustes")
+		return true
+	end
 	local permitidos = VALORES_AJUSTES[clave]
 	if not perfil or not permitidos or not permitidos[valor] then
 		return false

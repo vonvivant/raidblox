@@ -10,11 +10,11 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:GetService("TextChatService")
 
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local EventosCliente = require(ReplicatedStorage.Modules.EventosCliente)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
@@ -27,15 +27,13 @@ local ventana, contenido = UIKit.Ventana(gui, "Personaje", UDim2.fromScale(0.42,
 
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonPersonaje"
-abrir.Position = UDim2.fromScale(0.01, 0.455)
-abrir.Size = UDim2.fromScale(0.1, 0.038)
 abrir.BackgroundColor3 = UIKit.Colores.Boton
 abrir.TextColor3 = Color3.new(1, 1, 1)
 abrir.Font = Enum.Font.GothamBold
 abrir.TextScaled = true
 abrir.Text = "Personaje"
 UIKit.Esquinas(abrir, 6)
-abrir.Parent = gui
+MenuLateral.Agregar(abrir, 1)
 abrir.Activated:Connect(function()
 	ventana.Visible = not ventana.Visible
 	if ventana.Visible then
@@ -155,20 +153,7 @@ local marcarGenero = opciones(seccion("Género del personaje"), {
 	guardar("Genero", valor)
 end)
 
--- Chat
-local marcarPosicion = opciones(seccion("Chat: posición"), {
-	{ Texto = "Izquierda", Valor = "Izquierda" },
-	{ Texto = "Derecha", Valor = "Derecha" },
-}, function(valor)
-	guardar("ChatPosicion", valor)
-end)
-local marcarTamano = opciones(seccion("Chat: tamaño"), {
-	{ Texto = "Chico", Valor = "Chico" },
-	{ Texto = "Normal", Valor = "Normal" },
-	{ Texto = "Grande", Valor = "Grande" },
-}, function(valor)
-	guardar("ChatTamano", valor)
-end)
+-- Chat (la posición y el tamaño se cambian arrastrando la ventana del chat)
 local marcarVisible = opciones(seccion("Chat: ventana"), {
 	{ Texto = "Mostrar", Valor = true },
 	{ Texto = "Minimizar", Valor = false },
@@ -176,36 +161,13 @@ local marcarVisible = opciones(seccion("Chat: ventana"), {
 	guardar("ChatVisible", valor)
 end)
 
-local ESCALAS_CHAT: { [string]: number } = { Chico = 0.7, Normal = 1, Grande = 1.4 }
-
-local function aplicarChat(ajustes: any)
-	local ventanaChat = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
-	if ventanaChat then
-		ventanaChat.HorizontalAlignment = if ajustes.ChatPosicion == "Derecha"
-			then Enum.HorizontalAlignment.Right
-			else Enum.HorizontalAlignment.Left
-		ventanaChat.VerticalAlignment = Enum.VerticalAlignment.Top
-		local escala = ESCALAS_CHAT[ajustes.ChatTamano] or 1
-		ventanaChat.HeightScale = escala
-		ventanaChat.WidthScale = escala
-		ventanaChat.Enabled = ajustes.ChatVisible ~= false
-	end
-	local barraChat = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
-	if barraChat then
-		barraChat.Enabled = ajustes.ChatVisible ~= false
-	end
-end
-
 local function actualizarAjustes()
 	local ajustes = EstadoCliente.Get("Ajustes")
 	if typeof(ajustes) ~= "table" then
 		return
 	end
 	marcarGenero(ajustes.Genero)
-	marcarPosicion(ajustes.ChatPosicion)
-	marcarTamano(ajustes.ChatTamano)
 	marcarVisible(ajustes.ChatVisible)
-	aplicarChat(ajustes)
 end
 
 EstadoCliente.Cambio:Connect(function(campo: string)

@@ -341,7 +341,7 @@ end
 
 -- Marco del jugador (vida y maná).
 local marcoJugador = Instance.new("Frame")
-marcoJugador.Position = UDim2.fromScale(0.01, 0.5) -- debajo del chat de Roblox
+marcoJugador.Position = UDim2.fromScale(0.11, 0.5) -- a la derecha del menú lateral
 marcoJugador.Size = UDim2.fromScale(0.2, 0.08)
 marcoJugador.BackgroundTransparency = 1
 marcoJugador.Parent = gui
@@ -354,7 +354,7 @@ local barraMana, textoMana =
 
 -- Marco del objetivo.
 local marcoObjetivo = Instance.new("Frame")
-marcoObjetivo.Position = UDim2.fromScale(0.01, 0.59)
+marcoObjetivo.Position = UDim2.fromScale(0.11, 0.59)
 marcoObjetivo.Size = UDim2.fromScale(0.2, 0.06)
 marcoObjetivo.BackgroundTransparency = 1
 marcoObjetivo.Visible = false

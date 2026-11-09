@@ -18,6 +18,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Apuntado = require(ReplicatedStorage.Modules.Apuntado)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
 
 local jugador = Players.LocalPlayer
@@ -88,15 +89,13 @@ ayuda.TextTransparency = 0.35
 -- Botón para prender y apagar la mira (con la mira puesta, se toca con Alt o Ctrl apretado).
 local boton = Instance.new("TextButton")
 boton.Name = "BotonMira"
-boton.Position = UDim2.fromScale(0.38, 0.455)
-boton.Size = UDim2.fromScale(0.08, 0.038)
 boton.BackgroundColor3 = UIKit.Colores.Boton
 boton.TextColor3 = Color3.new(1, 1, 1)
 boton.Font = Enum.Font.GothamBold
 boton.TextScaled = true
 boton.Text = "🎯 Mira: NO"
 UIKit.Esquinas(boton, 6)
-boton.Parent = gui
+MenuLateral.Agregar(boton, 6)
 
 local function colorMira(color: Color3)
 	for _, t in trazos do

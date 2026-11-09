@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
 
 local DORADO = Color3.fromRGB(255, 213, 74)
@@ -17,15 +18,13 @@ local ventana, contenido = UIKit.Ventana(gui, "Tienda", UDim2.fromScale(0.5, 0.7
 
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonTienda"
-abrir.Position = UDim2.fromScale(0.01, 0.5)
-abrir.Size = UDim2.fromScale(0.08, 0.038)
 abrir.BackgroundColor3 = Color3.fromRGB(110, 80, 20)
 abrir.TextColor3 = Color3.new(1, 1, 1)
 abrir.Font = Enum.Font.GothamBold
 abrir.TextScaled = true
 abrir.Text = "🛒 Tienda"
 UIKit.Esquinas(abrir, 6)
-abrir.Parent = gui
+MenuLateral.Agregar(abrir, 4)
 
 local lista = UIKit.Lista(contenido, UDim2.fromScale(1, 1))
 local cargando = false

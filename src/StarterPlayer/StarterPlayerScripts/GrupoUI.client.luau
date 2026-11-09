@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 
 local jugador = Players.LocalPlayer
 local CFG = GameConfig.Grupos
@@ -49,15 +50,13 @@ local listaJugadores = UIKit.Lista(contenido, UDim2.new(1, 0, 0.64, -68), UDim2.
 
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonGrupo"
-abrir.Position = UDim2.fromScale(0.115, 0.455)
-abrir.Size = UDim2.fromScale(0.08, 0.038)
 abrir.BackgroundColor3 = UIKit.Colores.Boton
 abrir.TextColor3 = Color3.new(1, 1, 1)
 abrir.Font = Enum.Font.GothamBold
 abrir.TextScaled = true
 abrir.Text = "Grupo"
 UIKit.Esquinas(abrir, 6)
-abrir.Parent = gui
+MenuLateral.Agregar(abrir, 2)
 
 local function fila(lista: ScrollingFrame, orden: number, texto: string, color: Color3): Frame
 	local f = Instance.new("Frame")
@@ -176,7 +175,7 @@ end)
 
 local marcos = Instance.new("Frame")
 marcos.Name = "MarcosGrupo"
-marcos.Position = UDim2.fromScale(0.01, 0.67)
+marcos.Position = UDim2.fromScale(0.11, 0.68)
 marcos.Size = UDim2.fromScale(0.16, 0.2)
 marcos.BackgroundTransparency = 1
 marcos.Parent = gui

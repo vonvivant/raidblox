@@ -17,6 +17,7 @@ local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local ItemInfo = require(ReplicatedStorage.Modules.ItemInfo)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
 
@@ -40,15 +41,13 @@ local ventana, contenido = UIKit.Ventana(gui, "Hermandad", UDim2.fromScale(0.64,
 
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonHermandad"
-abrir.Position = UDim2.fromScale(0.2, 0.455)
-abrir.Size = UDim2.fromScale(0.09, 0.038)
 abrir.BackgroundColor3 = UIKit.Colores.Boton
 abrir.TextColor3 = Color3.new(1, 1, 1)
 abrir.Font = Enum.Font.GothamBold
 abrir.TextScaled = true
 abrir.Text = "Hermandad"
 UIKit.Esquinas(abrir, 6)
-abrir.Parent = gui
+MenuLateral.Agregar(abrir, 3)
 
 local info: any = nil -- última respuesta de HermandadInfo
 local banco: any = nil
