@@ -24,6 +24,29 @@ local GameConfig = {
 		EsperaEntreInvitaciones = 2, -- s, por jugador
 	},
 
+	-- Hermandades (guilds), persistentes entre servidores.
+	Hermandades = {
+		CostoCreacion = 10000, -- oro
+		NivelMinimo = 5, -- en modo pruebas no se exige
+		MaxMiembros = 100,
+		LargoNombre = { Min = 3, Max = 20 },
+		ExpiraInvitacion = 60, -- s
+		Pestanas = 4, -- pestañas del banco
+		RanurasPorPestana = 28,
+		MaxOroBanco = 1e9,
+		MaxRegistro = 100, -- movimientos del banco que se guardan
+		MaxHistorial = 50, -- altas, bajas y cambios de rango
+		NombreStore = "Hermandades",
+		NombreEnLinea = "HermandadEnLinea",
+		Rangos = { "Lider", "Oficial", "Miembro", "Recluta" },
+		Permisos = { "Invitar", "Expulsar", "Rangos", "RetirarItems", "RetirarOro" },
+		PermisosIniciales = {
+			Oficial = { Invitar = true, Expulsar = true, Rangos = true, RetirarItems = true, RetirarOro = true },
+			Miembro = { Invitar = true, Expulsar = false, Rangos = false, RetirarItems = false, RetirarOro = false },
+			Recluta = { Invitar = false, Expulsar = false, Rangos = false, RetirarItems = false, RetirarOro = false },
+		},
+	},
+
 	-- Bandos: Violeta (neutral, no se lo puede atacar), Rojo y Azul.
 	Bandos = {
 		-- Volver a Violeta cuesta oro (más adelante puede pasar a Robux).

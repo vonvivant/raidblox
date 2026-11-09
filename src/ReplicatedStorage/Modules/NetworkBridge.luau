@@ -63,6 +63,24 @@ local DEFINICIONES: { [string]: Definicion } = {
 	GrupoSalir = { Tipo = "Function", Critico = false },
 	GrupoExpulsar = { Tipo = "Function", Critico = false }, -- (userId)
 	GrupoLider = { Tipo = "Function", Critico = false }, -- (userId)
+	-- Fase 5: hermandades (DataStore: timeouts largos)
+	HermandadCambio = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Id, Nombre}|nil, queCambio)
+	HermandadInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (id, nombre, deNombre)
+	HermandadCrear = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (nombre)
+	HermandadInfo = { Tipo = "Function", Critico = false, Timeout = 20 },
+	HermandadInvitar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (userId)
+	HermandadResponder = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (id, acepta)
+	HermandadSalir = { Tipo = "Function", Critico = false, Timeout = 30 },
+	HermandadDisolver = { Tipo = "Function", Critico = false, Timeout = 40 },
+	HermandadExpulsar = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId)
+	HermandadRango = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId, rango)
+	HermandadTransferir = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId)
+	HermandadPermiso = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (rango, permiso, valor)
+	HermandadBanco = { Tipo = "Function", Critico = false, Timeout = 20 },
+	HermandadDepositarItem = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (ranura, cantidad, pestana)
+	HermandadRetirarItem = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (pestana, ranura, uid)
+	HermandadDepositarOro = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (cantidad)
+	HermandadRetirarOro = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (cantidad)
 	-- Fase 5: misiones
 	MisionDialogo = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId)
 	MisionAceptar = { Tipo = "Function", Critico = false }, -- (misionId)

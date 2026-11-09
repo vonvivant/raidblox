@@ -67,6 +67,10 @@ flowchart LR
 - [Guerra de Arquitectos](docs/guerra-arquitectos.md): ciclo de partida, recursos, construcción y recompensas.
 - [Combate](docs/combate.md): máquina de estados, 8 clases, enemigos, RaidBlox, rarezas y botín.
 - [Economía](docs/economia.md): inventario, profesiones, crafteo, recolección, Casa de Subastas y comercio 1v1.
+- [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
+- [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.
+- [Grupos](docs/grupos.md): party de hasta 5.
+- [Hermandades](docs/hermandades.md): rangos, permisos, banco de 4 pestañas y registro.
 - [Roadmap](docs/roadmap.md): fases, decisiones y pendientes.
 
 ## Inicio rápido
