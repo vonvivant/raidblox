@@ -52,3 +52,12 @@ Botón **Personaje** (a la izquierda, debajo del chat):
 
 Todo se guarda en `DatosJugador.Ajustes` con el remote `GuardarAjuste`, que valida clave y valor contra una lista
 cerrada.
+
+## Aura de bando
+
+Cada jugador tiene un anillo de luz en el piso del color de su bando
+(`GameConfig.Bandos.Colores`). Lo dibuja cada cliente para todos los jugadores
+(`AuraBando.client.luau`), así lo ven todos sin tráfico de red. El anillo son
+24 tramos de neón, y cada uno se apoya donde pega un rayo hacia abajo, así
+sigue rampas, escalones y terreno. No se dibuja para jugadores muertos, a más de
+150 studs, ni para un pícaro invisible (salvo el tuyo).
