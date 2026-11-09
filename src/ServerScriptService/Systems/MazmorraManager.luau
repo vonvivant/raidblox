@@ -44,6 +44,8 @@ type Estado = "Esperando" | "Jugando" | "Victoria" | "Derrota"
 
 type Instancia = {
 	Id: number,
+	Lugar: number, -- posición en el modo local
+	LiderId: number,
 	Clave: string,
 	Def: Mazmorra,
 	Local: boolean,
@@ -272,6 +274,16 @@ end
 -- Enemigos
 ------------------------------------------------------------------------
 
+-- Solo cobran los del grupo: alguien de afuera que pegue no recibe nada.
+local function soloMiembros(inst: Instancia, npc: Npc)
+	for userId in npc.Aportes do
+		local p = Players:GetPlayerByUserId(userId)
+		if not p or not inst.Jugadores[p] then
+			npc.Aportes[userId] = nil
+		end
+	end
+end
+
 local revisarSala: (Instancia) -> ()
 local victoria: (Instancia) -> ()
 
@@ -302,6 +314,7 @@ local function crearEnemigo(inst: Instancia, id: string, posicion: Vector3): Npc
 	end
 	inst.Vivos[npc] = true
 	npc.AlMorir = function(n: Npc)
+		soloMiembros(inst, n)
 		EnemyManager.Recompensar(n, def.Xp, def.Oro, def.Botin, def.Nombre, id)
 		inst.Vivos[n] = nil
 		revisarSala(inst)
@@ -357,6 +370,7 @@ local function iniciarJefe(inst: Instancia)
 		end
 	end
 	npc.AlMorir = function(n2: Npc)
+		soloMiembros(inst, n2)
 		EnemyManager.Recompensar(n2, d.Xp, d.Oro, d.Botin, d.Nombre, inst.Clave)
 		victoria(inst)
 	end
@@ -541,8 +555,19 @@ local function sacar(inst: Instancia, player: Player, devolver: boolean)
 				personaje:PivotTo(retorno)
 			end
 		elseif inst.RetornoPlace ~= 0 then
-			task.spawn(pcall, function()
-				TeleportService:TeleportAsync(inst.RetornoPlace, { player })
+			task.spawn(function()
+				for intento = 1, 3 do
+					local ok = pcall(function()
+						TeleportService:TeleportAsync(inst.RetornoPlace, { player })
+					end)
+					if ok then
+						return
+					end
+					task.wait(2 * intento)
+				end
+				if player.Parent == Players then
+					player:Kick("No se pudo volver a la ciudad. ¡Volvé a entrar al juego!")
+				end
 			end)
 		else
 			player:Kick("La mazmorra terminó. ¡Volvé a entrar al juego!")
@@ -650,22 +675,30 @@ local function revisarCaida(inst: Instancia)
 	end
 	local jefe = inst.Jefe
 	if jefe and not jefe.Muerto then
-		CombatManager.Restaurar(jefe.Combatiente)
-		table.clear(inst.Invocado)
+		CombatManager.Restaurar(jefe.Combatiente) -- las invocaciones no se repiten (no se farmean)
 	end
 	avisarTodos(inst, `El grupo cayó. Intentos restantes: {inst.Intentos}.`, "Error")
 end
 
 local function nuevaInstancia(clave: string, def: Mazmorra, esLocal: boolean, retornoPlace: number): Instancia
 	contador += 1
-	local origen = if esLocal
-		then CFG.OrigenLocal + Vector3.new(contador * CFG.SeparacionLocal, 0, 0)
-		else CFG.OrigenLocal
+	-- Se reusa el primer lugar libre (así no se alejan cada vez más del origen).
+	local lugar = 1
+	local ocupados: { [number]: boolean } = {}
+	for _, otra in instancias do
+		ocupados[otra.Lugar] = true
+	end
+	while ocupados[lugar] do
+		lugar += 1
+	end
+	local origen = if esLocal then CFG.OrigenLocal + Vector3.new(lugar * CFG.SeparacionLocal, 0, 0) else CFG.OrigenLocal
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = `Mazmorra_{contador}`
 	carpeta.Parent = Workspace
 	local inst: Instancia = {
 		Id = contador,
+		Lugar = lugar,
+		LiderId = 0,
 		Clave = clave,
 		Def = def,
 		Local = esLocal,
@@ -703,7 +736,8 @@ local function empezar(inst: Instancia)
 		table.insert(lista, player)
 	end
 	if #lista > 1 then
-		GrupoManager.Formar(lista[1], lista)
+		local lider = Players:GetPlayerByUserId(inst.LiderId)
+		GrupoManager.Formar(if lider and inst.Jugadores[lider] then lider else lista[1], lista)
 	end
 	iniciarSala(inst)
 end
@@ -754,6 +788,7 @@ local function entrar(lider: Player, clave: string)
 	local esLocal = def.PlaceId == 0 or RunService:IsStudio()
 	if esLocal then
 		local inst = nuevaInstancia(clave, def, true, 0)
+		inst.LiderId = lider.UserId
 		for _, m in miembros do
 			inst.Jugadores[m] = true
 			instanciaDe[m] = inst
@@ -776,7 +811,11 @@ local function entrar(lider: Player, clave: string)
 	local ok, err = pcall(function()
 		local codigo, servidorId = TeleportService:ReserveServer(def.PlaceId)
 		MemoryStoreService:GetHashMap(CFG.NombreMemoria)
-			:SetAsync(servidorId, { Mazmorra = clave, Miembros = ids, Retorno = game.PlaceId }, 3600)
+			:SetAsync(
+				servidorId,
+				{ Mazmorra = clave, Miembros = ids, Lider = lider.UserId, Retorno = game.PlaceId },
+				3600
+			)
 		local opciones: any = Instance.new("TeleportOptions")
 		opciones.ReservedServerAccessCode = codigo
 		TeleportService:TeleportAsync(def.PlaceId, miembros, opciones)
@@ -859,6 +898,13 @@ local function prepararServidorReservado()
 	local def = typeof(clave) == "string" and MazmorrasConfig.Mazmorras[clave] or nil
 	if not def or typeof(nota.Miembros) ~= "table" then
 		warn("[Mazmorra] Servidor reservado sin nota válida: no hay mazmorra que armar.")
+		local function echar(player: Player)
+			player:Kick("No se encontró la mazmorra. ¡Volvé a entrar al juego!")
+		end
+		for _, player in Players:GetPlayers() do
+			echar(player)
+		end
+		Players.PlayerAdded:Connect(echar)
 		return
 	end
 	local inst =
@@ -868,6 +914,7 @@ local function prepararServidorReservado()
 			inst.Esperados[id] = true
 		end
 	end
+	inst.LiderId = if typeof(nota.Lider) == "number" then nota.Lider else 0
 	local function llego(player: Player)
 		if not inst.Esperados[player.UserId] then
 			player:Kick("Esta mazmorra es de otro grupo.")

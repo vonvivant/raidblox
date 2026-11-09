@@ -575,6 +575,10 @@ end
 --   * a distancia: el primer enemigo (o aliado) cerca de la línea de la mira.
 --   * área sobre un objetivo: centrada en el punto, acotado al rango.
 -- `preferido`: el objetivo elegido al empezar un casteo (si sigue valiendo, se mantiene).
+local paramsMira = RaycastParams.new()
+paramsMira.FilterType = Enum.RaycastFilterType.Exclude
+paramsMira.RespectCanCollide = true
+
 local function resolverApuntado(
 	c: Combatiente,
 	hab: Habilidad,
@@ -596,6 +600,16 @@ local function resolverApuntado(
 	end
 
 	if (tipo == "AreaEnemigos" or tipo == "AreaAliados") and hab.Centro == "Objetivo" then
+		-- Sin atravesar paredes: si hay algo entre el ojo y el punto, el área cae ahí.
+		local ignorar: { Instance } = {}
+		for _, otro in combatientes do
+			table.insert(ignorar, otro.Modelo)
+		end
+		paramsMira.FilterDescendantsInstances = ignorar
+		local choque = Workspace:Raycast(ojo, punto - ojo, paramsMira)
+		if choque then
+			punto = choque.Position
+		end
 		local desdeRaiz = punto - c.Raiz.Position
 		local centro = if desdeRaiz.Magnitude > hab.Rango then c.Raiz.Position + desdeRaiz.Unit * hab.Rango else punto
 		return true, nil, nil, centro, nil
@@ -624,6 +638,13 @@ local function resolverApuntado(
 		end
 		if #lista == 0 then
 			return false, nil, "No hay enemigos adelante.", nil, nil
+		end
+		-- Hasta 5, los más cercanos primero.
+		table.sort(lista, function(a: Combatiente, b: Combatiente): boolean
+			return (a.Raiz.Position - c.Raiz.Position).Magnitude < (b.Raiz.Position - c.Raiz.Position).Magnitude
+		end)
+		while #lista > 5 do
+			table.remove(lista)
 		end
 		return true, masCerca, nil, nil, lista
 	end
@@ -713,6 +734,11 @@ local function ejecutar(
 
 	for _, o in objetivos do
 		for _, efecto in hab.Efectos do
+			-- Golpe en cono (modo apuntado): los demás del cono solo reciben el
+			-- daño; aturdir, provocar y demás efectos van al objetivo principal.
+			if listaForzada and o ~= objetivo and (efecto.Tipo :: string) ~= "Danio" then
+				continue
+			end
 			if vivo(o) or efecto.Tipo == "Aura" then
 				aplicarEfecto(c, o, efecto, hab.Id)
 			end

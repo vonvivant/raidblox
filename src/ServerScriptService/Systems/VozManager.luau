@@ -101,6 +101,9 @@ end
 
 local function enviarEstado(player: Player)
 	local canal = canalDe[player] or "Proximidad"
+	if not disponible(player, canal) then
+		canal = "Proximidad"
+	end
 	local lista = oyentes(player, canal)
 	NetworkBridge.Server.FireClient("VozEstado", player, {
 		Canal = canal,
@@ -115,12 +118,15 @@ local function aplicar(player: Player)
 	if not voz then
 		return
 	end
-	local canal = canalDe[player] or "Proximidad"
-	if not disponible(player, canal) then
-		-- Se quedó sin grupo o sin hermandad: vuelve a proximidad.
+	local elegido = canalDe[player] or "Proximidad"
+	local canal = elegido
+	if not disponible(player, elegido) then
+		-- Sin grupo o sin hermandad (o todavía cargando): habla por proximidad,
+		-- pero se recuerda la elección y vuelve sola cuando esté disponible.
 		canal = "Proximidad"
-		canalDe[player] = canal
-		NetworkBridge.Server.FireClient("Notificacion", player, "Tu canal de voz volvió a Proximidad.", "Info")
+		if string.sub(voz.Firma, 1, #elegido + 1) == elegido .. ":" then
+			NetworkBridge.Server.FireClient("Notificacion", player, "Tu canal de voz volvió a Proximidad.", "Info")
+		end
 	end
 	local lista = oyentes(player, canal)
 	local firma = canal .. ":" .. (if lista then table.concat(lista, ",") else "*")

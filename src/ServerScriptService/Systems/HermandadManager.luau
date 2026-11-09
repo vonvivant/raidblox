@@ -78,7 +78,7 @@ local TOPICO = "Hermandades" .. SUFIJO
 local CACHE_SEGUNDOS = 20
 local VENCE_EN_LINEA = 150
 local LATIDO = 60
-local MAX_OPS = 100
+local MAX_OPS = 300
 local NIVEL_RANGO: { [string]: number } = { Lider = 4, Oficial = 3, Miembro = 2, Recluta = 1 }
 
 local HermandadManager = {}
@@ -93,6 +93,8 @@ local ocupado: { [Player]: boolean } = {}
 local ultimaLlamada: { [Player]: { [string]: number } } = {}
 local cache: { [string]: { Datos: Hermandad?, Hora: number } } = {}
 local reconciliando: { [string]: boolean } = {}
+local opsEnCurso: { [string]: boolean } = {} -- operaciones del banco en curso en este servidor
+local reconciliarBanco: (Player) -> ()
 local enCurso = 0
 local iniciado = false
 
@@ -333,6 +335,10 @@ local function marcarEnLinea(player: Player)
 	if not gid then
 		return
 	end
+	if player.Parent ~= Players then
+		hermandadDe[player] = nil
+		return
+	end
 	local e = estadoJugador(player)
 	pcall(function()
 		enLineaDe(gid):SetAsync(
@@ -375,6 +381,10 @@ end
 local function aplicarLocal(gid: string, g: Hermandad?, tipo: string)
 	for player, suGid in hermandadDe do
 		if suGid ~= gid then
+			continue
+		end
+		if player.Parent ~= Players then
+			hermandadDe[player] = nil
 			continue
 		end
 		if not g or not g.Miembros[tostring(player.UserId)] then
@@ -451,7 +461,15 @@ end
 
 local function alCargar(player: Player)
 	estadoJugador(player)
-	local ok, gid = leer(`J_{player.UserId}`)
+	task.spawn(reconciliarBanco, player)
+	local ok, gid = false, nil
+	for intento = 1, 4 do
+		ok, gid = leer(`J_{player.UserId}`)
+		if ok or player.Parent ~= Players then
+			break
+		end
+		task.wait(15 * intento) -- DataStore caído: se reintenta un rato
+	end
 	if not ok or typeof(gid) ~= "string" or gid == "" or player.Parent ~= Players then
 		return
 	end
@@ -606,7 +624,9 @@ local function crear(player: Player, texto: string): Respuesta
 	end)
 
 	local g = creada
-	if g then
+	if g and player.Parent ~= Players then
+		guardarCache(gid, g) -- se fue mientras se creaba: al volver la encuentra
+	elseif g then
 		guardarCache(gid, g)
 		establecer(player, g)
 		marcarEnLinea(player)
@@ -715,7 +735,9 @@ local function responder(player: Player, gid: string, acepta: boolean): Respuest
 		-- Si no se sabe si se escribió, J_ queda: al reconectarse se verifica.
 	end)
 	local g = unida
-	if g then
+	if g and player.Parent ~= Players then
+		notificar(gid, g, "miembros")
+	elseif g then
 		establecer(player, g)
 		marcarEnLinea(player)
 		avisar(player, `Te uniste a {g.Nombre}.`, "Oro")
@@ -730,7 +752,8 @@ local function responder(player: Player, gid: string, acepta: boolean): Respuest
 end
 
 -- Saca a un jugador (por salir o por expulsión) de G_ y luego libera su J_.
-local function sacar(gid: string, userId: number, texto: string): (boolean, Hermandad?, string?)
+-- `por`: quien expulsa (permiso y rango se revisan dentro de la transacción).
+local function sacar(gid: string, userId: number, texto: string, por: number?): (boolean, Hermandad?, string?)
 	local uid = tostring(userId)
 	local ok, g, motivo = actualizarHermandad(gid, function(h: Hermandad): string?
 		local m = h.Miembros[uid]
@@ -739,6 +762,9 @@ local function sacar(gid: string, userId: number, texto: string): (boolean, Herm
 		end
 		if m.Rango == "Lider" then
 			return "ES_LIDER"
+		end
+		if por and (not puede(h, por, "Expulsar") or nivelRango(rangoDe(h, por)) <= nivelRango(m.Rango)) then
+			return "SIN_PERMISO"
 		end
 		h.Miembros[uid] = nil
 		historial(h, texto)
@@ -784,23 +810,33 @@ local function disolver(player: Player): Respuesta
 	end
 	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
 	trabajo(function()
-		local okB, b = leer(`B_{gid}`)
+		-- Se cierra el banco en la misma escritura que verifica que esté vacío:
+		-- después de esto ningún depósito puede entrar.
+		local conItems = false
+		local okB, cerrado = actualizar(`B_{gid}`, function(actual: any): any
+			conItems = false
+			local banco: Banco = if typeof(actual) == "table" then actual else bancoVacio()
+			if banco.Oro > 0 then
+				conItems = true
+			end
+			for _, pestana in banco.Pestanas do
+				if next(pestana) ~= nil then
+					conItems = true
+				end
+			end
+			if conItems then
+				return nil
+			end
+			(banco :: any).Cerrado = true
+			return banco
+		end)
 		if not okB then
 			return
 		end
-		if typeof(b) == "table" then
-			local banco = b :: Banco
-			local vacio = banco.Oro <= 0
-			for _, pestana in banco.Pestanas do
-				if next(pestana) ~= nil then
-					vacio = false
-				end
-			end
-			if not vacio then
-				avisar(player, "Vaciá el banco antes de disolver la hermandad.", "Error")
-				resultado = NetworkBridge.Fail("NOT_ALLOWED")
-				return
-			end
+		if not cerrado then
+			avisar(player, "Vaciá el banco antes de disolver la hermandad.", "Error")
+			resultado = NetworkBridge.Fail("NOT_ALLOWED")
+			return
 		end
 		local nombre = ""
 		local motivo: string? = nil
@@ -826,6 +862,14 @@ local function disolver(player: Player): Respuesta
 			return
 		end
 		if not escrito then
+			-- No se disolvió: se vuelve a abrir el banco.
+			actualizar(`B_{gid}`, function(actual: any): any
+				if typeof(actual) == "table" and actual.Cerrado then
+					actual.Cerrado = nil
+					return actual
+				end
+				return nil
+			end)
 			avisar(
 				player,
 				if motivo == "MIEMBROS"
@@ -873,7 +917,8 @@ local function expulsar(player: Player, userId: number): Respuesta
 	end
 	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
 	trabajo(function()
-		local okS, nuevo, motivo = sacar(gid, userId, `{player.DisplayName} expulsó a {objetivo.Nombre}.`)
+		local okS, nuevo, motivo =
+			sacar(gid, userId, `{player.DisplayName} expulsó a {objetivo.Nombre}.`, player.UserId)
 		if not okS then
 			return
 		end
@@ -1094,32 +1139,99 @@ end
 -- Banco
 ------------------------------------------------------------------------
 
+-- Lectura SIN caché (GetAsync guarda cada clave unos segundos): para verificar
+-- si una operación quedó escrita hay que ver el valor real.
+local function leerFresco(clave: string): (boolean, any)
+	for intento = 1, 3 do
+		local ok, valor = pcall(function(): any
+			local opciones = Instance.new("DataStoreGetOptions")
+			opciones.UseCache = false
+			return obtenerStore():GetAsync(clave, opciones)
+		end)
+		if ok then
+			return true, valor
+		end
+		task.wait(intento)
+	end
+	return false, nil
+end
+
 -- ¿Quedó aplicada la operación? "si", "no" o "desconocido".
-local function verificarOp(gid: string, opId: string): ("si" | "no" | "desconocido", Op?)
-	local ok, b = leer(`B_{gid}`)
+-- `inicio`: os.time() de cuando se anotó. Solo se responde "no" si la lista de
+-- operaciones del banco cubre todo ese tiempo (si se recortó, no se sabe).
+local function verificarOp(gid: string, opId: string, inicio: number): (string, Op?)
+	local ok, b = leerFresco(`B_{gid}`)
 	if not ok then
 		return "desconocido", nil
 	end
-	local op = if typeof(b) == "table" then buscarOp(b :: Banco, opId) else nil
-	return if op then "si" else "no", op
+	if typeof(b) ~= "table" then
+		return "no", nil
+	end
+	local banco = b :: Banco
+	local op = buscarOp(banco, opId)
+	if op then
+		return "si", op
+	end
+	local masVieja = banco.Ops[1]
+	if #banco.Ops < MAX_OPS or (masVieja and masVieja.T < inicio - 5) then
+		return "no", nil
+	end
+	return "desconocido", nil
 end
 
--- Cuando no se pudo saber, se vuelve a mirar más tarde (hasta 5 veces).
-local function resolverDespues(gid: string, opId: string, siAplicada: (Op) -> (), siNo: () -> ())
-	task.spawn(function()
-		for _ = 1, 5 do
-			task.wait(60)
-			local estado, op = verificarOp(gid, opId)
-			if estado == "si" and op then
-				siAplicada(op)
-				return
-			elseif estado == "no" then
-				siNo()
-				return
-			end
+-- Entrega en la mochila o, si no entra o no se puede, por buzón con id fijo
+-- (así una reconciliación repetida nunca entrega dos veces).
+local function darItem(player: Player, item: ItemInstancia, opId: string)
+	if not DataManager.AgregarInstancia(player, item) then
+		Buzon.EnviarItem(player.UserId, item, "Banco de hermandad", `banco:{opId}`)
+	end
+end
+
+local function darOro(player: Player, cantidad: number, opId: string)
+	if not DataManager.AddGold(player, cantidad) then
+		Buzon.EnviarOro(player.UserId, cantidad, "Banco de hermandad", `banco:{opId}`)
+	end
+end
+
+-- Cierra una entrada del diario según el resultado. Todo en el mismo bloque
+-- sin pausas: lo que se entrega y el borrado del diario se guardan juntos.
+local function cerrarPendiente(
+	player: Player,
+	opId: string,
+	p: Types.PendienteBanco,
+	estado: string, -- "si", "no" o "desconocido"
+	op: Op?
+)
+	if estado == "desconocido" or not DataManager.PerfilActivo(player) then
+		return
+	end
+	if p.Tipo == "DepositoItem" and estado == "no" and p.Item then
+		darItem(player, p.Item, opId)
+	elseif p.Tipo == "DepositoOro" and estado == "no" and p.Oro then
+		darOro(player, p.Oro, opId)
+	elseif p.Tipo == "RetiroItem" and estado == "si" and op and op.Item then
+		darItem(player, op.Item, opId)
+	elseif p.Tipo == "RetiroOro" and estado == "si" and op and op.Oro then
+		darOro(player, op.Oro, opId)
+	end
+	DataManager.QuitarPendienteBanco(player, opId)
+end
+
+-- Revisa el diario del jugador (al entrar y cada minuto): operaciones que
+-- quedaron a medias por un error o porque se cayó un servidor.
+reconciliarBanco = function(player: Player)
+	for opId, p in DataManager.PendientesBanco(player) do
+		if opsEnCurso[opId] or os.time() - p.Creado < 20 then
+			continue
 		end
-		warn(`[Hermandad] Operación {opId} del banco {gid} sin resolver`)
-	end)
+		opsEnCurso[opId] = true
+		local estado, op = verificarOp(p.Gid, opId, p.Creado)
+		opsEnCurso[opId] = nil
+		if player.Parent ~= Players then
+			return
+		end
+		cerrarPendiente(player, opId, p, estado, op)
+	end
 end
 
 local function miembroConPermiso(player: Player, permiso: string?): (string?, Respuesta?)
@@ -1142,75 +1254,135 @@ local function miembroConPermiso(player: Player, permiso: string?): (string?, Re
 	return gid, nil
 end
 
+local MOTIVOS: { [string]: string } = {
+	LLENA = "Esa pestaña del banco está llena.",
+	CERRADO = "El banco de esta hermandad está cerrado.",
+	VACIO = "Ese ítem ya no está en el banco.",
+	FONDOS = "El banco no tiene tanto oro.",
+	TOPE = "El banco llegó al tope de oro.",
+}
+
+-- Corre una operación del banco con diario:
+--   1. `preparar` saca lo que haga falta del perfil (sin pausas) y se anota en
+--      el diario; se guarda el perfil (SaveNowAsync) ANTES de tocar el banco.
+--   2. UpdateAsync del banco con el id de la operación.
+--   3. Se cierra el diario: confirmado, devuelto o entregado, según el caso.
+-- Si no se puede saber el resultado, el diario queda y se reconcilia después.
+local function operar(
+	player: Player,
+	gid: string,
+	pendiente: Types.PendienteBanco,
+	preparar: () -> boolean,
+	deshacer: (string) -> (), -- recibe el id de la operación (para el buzón)
+	transformar: (Banco, Op) -> string?
+): (Respuesta, Op?)
+	local opId = HttpService:GenerateGUID(false)
+	if not preparar() then
+		return NetworkBridge.Fail("NOT_FOUND"), nil
+	end
+	DataManager.RegistrarPendienteBanco(player, opId, pendiente)
+	opsEnCurso[opId] = true
+	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
+	local opFinal: Op? = nil
+	trabajo(function()
+		if not DataManager.SaveNowAsync(player, 10) then
+			-- No se confirmó el guardado: se deshace en memoria (si el guardado
+			-- igual entra, el diario lo arregla al volver a entrar).
+			if DataManager.PerfilActivo(player) then
+				deshacer(opId)
+				DataManager.QuitarPendienteBanco(player, opId)
+			end
+			avisar(player, "No se pudo guardar tu perfil. Probá de nuevo.", "Error")
+			return
+		end
+		local motivo: string? = nil
+		local aplicada: Op? = nil
+		local ok = actualizar(`B_{gid}`, function(actual: any): any
+			motivo = nil
+			aplicada = nil
+			local b: Banco = if typeof(actual) == "table" then actual else bancoVacio()
+			local previa = buscarOp(b, opId)
+			if previa then
+				aplicada = previa
+				return nil
+			end
+			if (b :: any).Cerrado then
+				motivo = "CERRADO"
+				return nil
+			end
+			local op: Op = { Id = opId, T = os.time() }
+			motivo = transformar(b, op)
+			if motivo then
+				return nil
+			end
+			aplicada = op
+			return b
+		end)
+		if not DataManager.PerfilActivo(player) then
+			return -- se fue: el diario guardado se resuelve cuando vuelva
+		end
+		if ok then
+			if aplicada then
+				opFinal = aplicada
+				cerrarPendiente(player, opId, pendiente, "si", aplicada)
+				resultado = NetworkBridge.Ok(nil)
+			else
+				cerrarPendiente(player, opId, pendiente, "no", nil)
+				avisar(player, MOTIVOS[motivo or ""] or "No se pudo completar la operación.", "Error")
+				resultado = NetworkBridge.Fail(if motivo == "FONDOS" then "INSUFFICIENT_FUNDS" else "NOT_ALLOWED")
+			end
+			return
+		end
+		local estado, op = verificarOp(gid, opId, pendiente.Creado)
+		cerrarPendiente(player, opId, pendiente, estado, op)
+		if estado == "si" then
+			opFinal = op
+			resultado = NetworkBridge.Ok(nil)
+		elseif estado == "no" then
+			avisar(player, "No se pudo completar la operación (no se movió nada).", "Error")
+		else
+			avisar(player, "El banco no responde. Se revisa en un minuto y se corrige solo.", "Error")
+		end
+	end)
+	opsEnCurso[opId] = nil
+	return resultado, opFinal
+end
+
 local function depositarItem(player: Player, clave: string, cantidad: number, pestana: number): Respuesta
 	local gid, error_ = miembroConPermiso(player, nil)
 	if not gid then
 		return error_ :: Respuesta
 	end
-	local item = DataManager.QuitarDeRanura(player, clave, cantidad)
-	if not item then
-		return NetworkBridge.Fail("NOT_FOUND")
-	end
-	local opId = HttpService:GenerateGUID(false)
-	local detalle = nombreItem(item)
-	local userId = player.UserId
-	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
-	trabajo(function()
-		local motivo: string? = nil
-		local aplicado = false
-		local ok = actualizar(`B_{gid}`, function(actual: any): any
-			motivo = nil
-			aplicado = false
-			local b: Banco = if typeof(actual) == "table" then actual else bancoVacio()
-			if buscarOp(b, opId) then
-				aplicado = true
+	local item: ItemInstancia? = nil
+	local pendiente: Types.PendienteBanco = { Gid = gid, Tipo = "DepositoItem", Creado = os.time() }
+	local resultado = operar(player, gid, pendiente, function(): boolean
+		item = DataManager.QuitarDeRanura(player, clave, cantidad)
+		pendiente.Item = item
+		return item ~= nil
+	end, function(opId: string)
+		local i = item
+		if i then
+			darItem(player, i, opId)
+		end
+	end, function(b: Banco, op: Op): string?
+		local i = item :: ItemInstancia
+		local ranuras = b.Pestanas[tostring(pestana)]
+		if not ranuras then
+			ranuras = {}
+			b.Pestanas[tostring(pestana)] = ranuras
+		end
+		for r = 1, CFG.RanurasPorPestana do
+			if ranuras[tostring(r)] == nil then
+				ranuras[tostring(r)] = i
+				anotar(b, op, player, "Depositó", `{nombreItem(i)} (pestaña {pestana})`)
 				return nil
 			end
-			local ranuras = b.Pestanas[tostring(pestana)]
-			if not ranuras then
-				ranuras = {}
-				b.Pestanas[tostring(pestana)] = ranuras
-			end
-			for i = 1, CFG.RanurasPorPestana do
-				if ranuras[tostring(i)] == nil then
-					ranuras[tostring(i)] = item
-					anotar(b, { Id = opId, T = os.time() }, player, "Depositó", `{detalle} (pestaña {pestana})`)
-					aplicado = true
-					return b
-				end
-			end
-			motivo = "LLENA"
-			return nil
-		end)
-		if ok and aplicado then
-			resultado = NetworkBridge.Ok(nil)
-			return
 		end
-		if ok then
-			Buzon.DarItem(player, item, "Banco de hermandad (devolución)")
-			avisar(
-				player,
-				if motivo == "LLENA" then "Esa pestaña del banco está llena." else "No se pudo depositar.",
-				"Error"
-			)
-			resultado = NetworkBridge.Fail("NOT_ALLOWED")
-			return
-		end
-		local estado = verificarOp(gid, opId)
-		if estado == "si" then
-			resultado = NetworkBridge.Ok(nil)
-		elseif estado == "no" then
-			Buzon.DarItem(player, item, "Banco de hermandad (devolución)")
-			avisar(player, "No se pudo depositar. Te devolvimos el ítem.", "Error")
-		else
-			avisar(player, "El banco no responde. Si el depósito no entró, el ítem vuelve a tu buzón.", "Error")
-			resolverDespues(gid, opId, function() end, function()
-				Buzon.EnviarItem(userId, item, "Banco de hermandad (devolución)", `banco:{opId}`)
-			end)
-		end
+		return "LLENA"
 	end)
-	if resultado.Success then
-		avisar(player, `Depositaste {detalle}.`)
+	local i = item
+	if resultado.Success and i then
+		avisar(player, `Depositaste {nombreItem(i)}.`)
 		avisarBanco(gid)
 	end
 	return resultado
@@ -1225,65 +1397,22 @@ local function retirarItem(player: Player, pestana: number, ranura: number, uid:
 	if not gid then
 		return error_ :: Respuesta
 	end
-	local opId = HttpService:GenerateGUID(false)
-	local userId = player.UserId
-	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
-	local entregado: ItemInstancia? = nil
-	trabajo(function()
-		local sacado: ItemInstancia? = nil
-		local ok = actualizar(`B_{gid}`, function(actual: any): any
-			sacado = nil
-			if typeof(actual) ~= "table" then
-				return nil
-			end
-			local b = actual :: Banco
-			local previa = buscarOp(b, opId)
-			if previa then
-				sacado = previa.Item
-				return nil
-			end
-			local ranuras = b.Pestanas[tostring(pestana)]
-			local it = ranuras and ranuras[tostring(ranura)]
-			if not ranuras or not it or it.Uid ~= uid then
-				return nil
-			end
-			ranuras[tostring(ranura)] = nil
-			sacado = it
-			anotar(
-				b,
-				{ Id = opId, T = os.time(), Item = it },
-				player,
-				"Retiró",
-				`{nombreItem(it)} (pestaña {pestana})`
-			)
-			return b
-		end)
-		if ok then
-			if sacado then
-				entregado = sacado
-				resultado = NetworkBridge.Ok(nil)
-			else
-				avisar(player, "Ese ítem ya no está en el banco.", "Error")
-				resultado = NetworkBridge.Fail("NOT_FOUND")
-			end
-			return
+	local pendiente: Types.PendienteBanco = { Gid = gid, Tipo = "RetiroItem", Creado = os.time() }
+	local resultado, op = operar(player, gid, pendiente, function(): boolean
+		return true
+	end, function(_: string) end, function(b: Banco, o: Op): string?
+		local ranuras = b.Pestanas[tostring(pestana)]
+		local it = ranuras and ranuras[tostring(ranura)]
+		if not ranuras or not it or it.Uid ~= uid then
+			return "VACIO"
 		end
-		local estado, op = verificarOp(gid, opId)
-		if estado == "si" and op and op.Item then
-			entregado = op.Item
-			resultado = NetworkBridge.Ok(nil)
-		elseif estado == "desconocido" then
-			avisar(player, "El banco no responde. Si el retiro entró, el ítem llega a tu buzón.", "Error")
-			resolverDespues(gid, opId, function(o: Op)
-				if o.Item then
-					Buzon.EnviarItem(userId, o.Item, "Banco de hermandad", `banco:{opId}`)
-				end
-			end, function() end)
-		end
+		ranuras[tostring(ranura)] = nil
+		o.Item = it
+		anotar(b, o, player, "Retiró", `{nombreItem(it)} (pestaña {pestana})`)
+		return nil
 	end)
-	local item = entregado
-	if item then
-		Buzon.DarItem(player, item, "Banco de hermandad")
+	local item = op and op.Item
+	if resultado.Success and item then
 		avisar(player, `Retiraste {nombreItem(item)}.`)
 		avisarBanco(gid)
 	end
@@ -1295,85 +1424,39 @@ local function moverOro(player: Player, cantidad: number, deposito: boolean): Re
 	if not gid then
 		return error_ :: Respuesta
 	end
-	if deposito and not DataManager.SpendGold(player, cantidad) then
-		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
-	end
-	local opId = HttpService:GenerateGUID(false)
-	local userId = player.UserId
-	local resultado: Respuesta = NetworkBridge.Fail("INTERNAL_ERROR")
-	local aplicadoFinal = false
-	trabajo(function()
-		local motivo: string? = nil
-		local aplicado = false
-		local ok = actualizar(`B_{gid}`, function(actual: any): any
-			motivo = nil
-			aplicado = false
-			local b: Banco = if typeof(actual) == "table" then actual else bancoVacio()
-			if buscarOp(b, opId) then
-				aplicado = true
-				return nil
+	local pendiente: Types.PendienteBanco = {
+		Gid = gid,
+		Tipo = if deposito then "DepositoOro" else "RetiroOro",
+		Oro = cantidad,
+		Creado = os.time(),
+	}
+	local resultado = operar(player, gid, pendiente, function(): boolean
+		return not deposito or DataManager.SpendGold(player, cantidad)
+	end, function(opId: string)
+		if deposito then
+			darOro(player, cantidad, opId)
+		end
+	end, function(b: Banco, op: Op): string?
+		if deposito then
+			if b.Oro + cantidad > CFG.MaxOroBanco then
+				return "TOPE"
 			end
-			if deposito then
-				if b.Oro + cantidad > CFG.MaxOroBanco then
-					motivo = "TOPE"
-					return nil
-				end
-				b.Oro += cantidad
-			else
-				if b.Oro < cantidad then
-					motivo = "FONDOS"
-					return nil
-				end
-				b.Oro -= cantidad
-			end
-			anotar(
-				b,
-				{ Id = opId, T = os.time(), Oro = cantidad },
-				player,
-				if deposito then "Depositó" else "Retiró",
-				`{cantidad} de oro`
-			)
-			aplicado = true
-			return b
-		end)
-		local estado: "si" | "no" | "desconocido" = if ok
-			then (if aplicado then "si" else "no")
-			else verificarOp(gid, opId)
-		if estado == "si" then
-			aplicadoFinal = true
-			resultado = NetworkBridge.Ok(nil)
-		elseif estado == "no" then
-			if deposito then
-				Buzon.DarOro(player, cantidad, "Banco de hermandad (devolución)")
-			end
-			avisar(
-				player,
-				if motivo == "FONDOS"
-					then "El banco no tiene tanto oro."
-					elseif motivo == "TOPE" then "El banco llegó al tope de oro."
-					else "No se pudo completar la operación.",
-				"Error"
-			)
-			resultado = NetworkBridge.Fail(if motivo == "FONDOS" then "INSUFFICIENT_FUNDS" else "NOT_ALLOWED")
+			b.Oro += cantidad
 		else
-			avisar(player, "El banco no responde. Se revisa en unos minutos y se corrige por buzón.", "Error")
-			resolverDespues(gid, opId, function()
-				if not deposito then
-					Buzon.EnviarOro(userId, cantidad, "Banco de hermandad", `banco:{opId}`)
-				end
-			end, function()
-				if deposito then
-					Buzon.EnviarOro(userId, cantidad, "Banco de hermandad (devolución)", `banco:{opId}`)
-				end
-			end)
+			if b.Oro < cantidad then
+				return "FONDOS"
+			end
+			b.Oro -= cantidad
 		end
+		op.Oro = cantidad
+		anotar(b, op, player, if deposito then "Depositó" else "Retiró", `{cantidad} de oro`)
+		return nil
 	end)
-	if aplicadoFinal then
-		if not deposito then
-			Buzon.DarOro(player, cantidad, "Banco de hermandad")
-		end
+	if resultado.Success then
 		avisar(player, `{if deposito then "Depositaste" else "Retiraste"} {cantidad} de oro.`, "Oro")
 		avisarBanco(gid)
+	elseif deposito and resultado.ErrorCode == "NOT_FOUND" then
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
 	end
 	return resultado
 end
@@ -1525,6 +1608,12 @@ function HermandadManager.Init()
 			task.wait(LATIDO)
 			for player in hermandadDe do
 				task.spawn(marcarEnLinea, player)
+			end
+			-- Operaciones del banco que quedaron sin resolver (error o caída).
+			for _, player in Players:GetPlayers() do
+				if next(DataManager.PendientesBanco(player)) ~= nil then
+					task.spawn(reconciliarBanco, player)
+				end
 			end
 		end
 	end)

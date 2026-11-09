@@ -1007,6 +1007,35 @@ function DataManager.QuitarPendiente(player: Player, tipo: "Subastas" | "Compras
 	end
 end
 
+-- Diario del banco de hermandad. Igual que el de subastas: se anota en el mismo
+-- bloque sin pausas en que sale el ítem o el oro, y se guarda (SaveNowAsync)
+-- antes de tocar el banco. Si el servidor se cae, al volver se reconcilia.
+function DataManager.RegistrarPendienteBanco(player: Player, id: string, pendiente: Types.PendienteBanco): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	local pendientes = perfil.Data.Pendientes
+	local banco: { [string]: Types.PendienteBanco } = pendientes.Banco or {}
+	pendientes.Banco = banco
+	banco[id] = pendiente
+	return true
+end
+
+function DataManager.QuitarPendienteBanco(player: Player, id: string)
+	local perfil = perfilActivo(player)
+	local banco = perfil and perfil.Data.Pendientes.Banco
+	if banco then
+		banco[id] = nil
+	end
+end
+
+function DataManager.PendientesBanco(player: Player): { [string]: Types.PendienteBanco }
+	local perfil = perfilActivo(player)
+	local banco = perfil and perfil.Data.Pendientes.Banco
+	return if banco then table.clone(banco) else {}
+end
+
 -- ¿Sigue cargado el perfil del jugador? (si se fue, no hay que tocar nada más)
 function DataManager.PerfilActivo(player: Player): boolean
 	return perfilActivo(player) ~= nil

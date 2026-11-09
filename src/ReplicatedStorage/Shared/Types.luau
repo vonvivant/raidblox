@@ -84,9 +84,18 @@ export type Ajustes = {
 -- contra la subasta (DataStore) y se cierra o se devuelve.
 export type PendienteSubasta = { Item: ItemInstancia, Deposito: number, Creado: number }
 export type PendienteCompra = { Precio: number, Creado: number }
+-- Diario del banco de hermandad (opcional: perfiles viejos no lo tienen).
+export type PendienteBanco = {
+	Gid: string,
+	Tipo: "DepositoItem" | "RetiroItem" | "DepositoOro" | "RetiroOro",
+	Item: ItemInstancia?, -- DepositoItem: lo que salió de la mochila
+	Oro: number?,
+	Creado: number,
+}
 export type Pendientes = {
 	Subastas: { [string]: PendienteSubasta },
 	Compras: { [string]: PendienteCompra },
+	Banco: { [string]: PendienteBanco }?,
 }
 
 export type DatosJugador = {

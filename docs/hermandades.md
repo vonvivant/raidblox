@@ -74,7 +74,20 @@ sequenceDiagram
     end
 ```
 
-### Sin duplicados
+### Sin duplicados (con diario en el perfil)
+
+Cada operación del banco se anota en el perfil del jugador
+(`Pendientes.Banco`) en el mismo instante en que sale el ítem o el oro, y el
+perfil se guarda (`SaveNowAsync`) **antes** de tocar el banco. Así, aunque el
+servidor se caiga en el medio, al volver a entrar se reconcilia contra `B_`:
+lo depositado que no llegó vuelve, y lo retirado que sí salió se entrega.
+La verificación lee `B_` sin caché y solo responde "no entró" si la lista de
+operaciones del banco cubre todo el tiempo desde que se anotó.
+
+Disolver cierra el banco (`Cerrado`) en la misma escritura que verifica que
+esté vacío: después de eso no entra ningún depósito.
+
+### Detalles anteriores
 
 - Cada operación del banco lleva un id que queda guardado en `B_`. Si una
   escritura da error, se lee el banco: **solo** si la operación no está, se
