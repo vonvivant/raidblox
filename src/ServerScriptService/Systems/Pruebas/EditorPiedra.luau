@@ -51,7 +51,9 @@ end
 local function aplicar(v: Valores)
 	actual = v
 	local skin = GuerraConfig.Skins.Ninguna
-	skin.Material = AspectoPiedra.Enum(v.Material)
+	local variante = AspectoPiedra.Variante(v.Variante)
+	skin.Material = if variante then variante.BaseMaterial else AspectoPiedra.Enum(v.Material)
+	skin.Variante = if variante then variante.Name else nil
 	skin.Color = AspectoPiedra.Color(v)
 	skin.Reflejo = v.Reflejo
 	skin.Transparencia = v.Transparencia

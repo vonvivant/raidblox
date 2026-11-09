@@ -8,6 +8,7 @@
 -- Studio, no desde un script del juego.
 
 local CollectionService = game:GetService("CollectionService")
+local MaterialService = game:GetService("MaterialService")
 
 local AspectoPiedra = {}
 
@@ -23,6 +24,8 @@ export type Valores = {
 	Densidad: number,
 	Friccion: number,
 	Elasticidad: number,
+	Variante: string?, -- material propio (MaterialVariant en MaterialService); nil = material de Roblox
+	Tamano: number?, -- StudsPerTile del material propio (tamaño del dibujo)
 }
 
 -- Materiales que se pueden elegir (nombre del Enum -> nombre en pantalla).
@@ -54,7 +57,31 @@ AspectoPiedra.Rangos = {
 	Densidad = { 0.1, 20 },
 	Friccion = { 0, 2 },
 	Elasticidad = { 0, 1 },
+	Tamano = { 1, 40 },
 }
+
+-- Materiales propios creados en Studio (Gestor de materiales). Los scripts no
+-- pueden crearlos ni cambiar sus texturas, pero sí usarlos y cambiar el tamaño.
+function AspectoPiedra.Variantes(): { MaterialVariant }
+	local lista: { MaterialVariant } = {}
+	for _, hijo in MaterialService:GetChildren() do
+		if hijo:IsA("MaterialVariant") then
+			table.insert(lista, hijo)
+		end
+	end
+	table.sort(lista, function(a: MaterialVariant, b: MaterialVariant): boolean
+		return a.Name < b.Name
+	end)
+	return lista
+end
+
+function AspectoPiedra.Variante(nombre: string?): MaterialVariant?
+	if not nombre or nombre == "" then
+		return nil
+	end
+	local v = MaterialService:FindFirstChild(nombre)
+	return if v and v:IsA("MaterialVariant") then v else nil
+end
 
 local enumPorNombre: { [string]: Enum.Material } = {}
 for _, par in AspectoPiedra.Materiales do
@@ -119,6 +146,11 @@ function AspectoPiedra.Validar(v: unknown): Valores?
 	if not reflejo or not transparencia or not densidad or not friccion or not elasticidad then
 		return nil
 	end
+	local variante: string? = nil
+	if typeof(t.Variante) == "string" and AspectoPiedra.Variante(t.Variante :: string) then
+		variante = t.Variante :: string
+	end
+	local tamano = numero(t.Tamano, R.Tamano)
 	return {
 		Material = material :: string,
 		Color = rgb,
@@ -127,6 +159,8 @@ function AspectoPiedra.Validar(v: unknown): Valores?
 		Densidad = densidad,
 		Friccion = friccion,
 		Elasticidad = elasticidad,
+		Variante = variante,
+		Tamano = tamano,
 	}
 end
 
@@ -136,7 +170,14 @@ end
 
 -- Aplica los valores a una parte. La física solo la aplica el servidor.
 function AspectoPiedra.Aplicar(parte: BasePart, v: Valores, conFisica: boolean)
-	parte.Material = AspectoPiedra.Enum(v.Material)
+	local variante = AspectoPiedra.Variante(v.Variante)
+	if variante then
+		parte.Material = variante.BaseMaterial
+		parte.MaterialVariant = variante.Name
+	else
+		parte.Material = AspectoPiedra.Enum(v.Material)
+		parte.MaterialVariant = ""
+	end
 	parte.Color = AspectoPiedra.Color(v)
 	parte.Reflectance = v.Reflejo
 	parte.Transparency = v.Transparencia
@@ -145,7 +186,16 @@ function AspectoPiedra.Aplicar(parte: BasePart, v: Valores, conFisica: boolean)
 	end
 end
 
+-- El tamaño del dibujo es del material propio entero (afecta a todo lo que lo use).
+function AspectoPiedra.AplicarTamano(v: Valores)
+	local variante = AspectoPiedra.Variante(v.Variante)
+	if variante and v.Tamano then
+		variante.StudsPerTile = v.Tamano
+	end
+end
+
 function AspectoPiedra.AplicarATodas(v: Valores, conFisica: boolean)
+	AspectoPiedra.AplicarTamano(v)
 	for _, objeto in CollectionService:GetTagged(AspectoPiedra.Etiqueta) do
 		if objeto:IsA("BasePart") then
 			AspectoPiedra.Aplicar(objeto, v, conFisica)
@@ -159,7 +209,8 @@ end
 
 -- Texto para pegar en GuerraConfig.Skins.Ninguna (o mandárselo al programador).
 function AspectoPiedra.Codigo(v: Valores): string
-	return `Ninguna = \{ Material = Enum.Material.{v.Material}, Color = Color3.fromRGB({v.Color[1]}, {v.Color[2]}, {v.Color[3]}), `
+	local variante = if v.Variante then `Variante = "{v.Variante}", ` else ""
+	return `Ninguna = \{ {variante}Material = Enum.Material.{v.Material}, Color = Color3.fromRGB({v.Color[1]}, {v.Color[2]}, {v.Color[3]}), `
 		.. `Reflejo = {dos(v.Reflejo)}, Transparencia = {dos(v.Transparencia)}, `
 		.. `Fisica = \{ Densidad = {dos(v.Densidad)}, Friccion = {dos(v.Friccion)}, Elasticidad = {dos(v.Elasticidad)} } },`
 end

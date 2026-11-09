@@ -147,4 +147,12 @@ piedra base del castillo (la skin "Ninguna"):
 - La metalicidad y la rugosidad "de verdad" son texturas de MaterialVariant que
   solo se cambian en Studio (los scripts del juego no pueden).
 
+- **Tus materiales**: la ventana también lista los materiales propios
+  (MaterialVariant) que crees en Studio con el **Gestor de materiales** (Ventana →
+  3D → Material). Al elegir uno se usa su material base y su textura, y el
+  deslizador **Tamaño del dibujo** cambia sus "studs por mosaico". El color, el
+  brillo y la física se siguen aplicando encima. Para que exista en el juego
+  publicado, guardá el place (Archivo → Guardar/Publicar en Roblox): los
+  materiales viven en MaterialService, que Rojo no toca.
+
 Las partes con esta piedra llevan la etiqueta `PiedraCastillo`.

@@ -23,6 +23,7 @@ export type AspectoSkin = {
 	Reflejo: number?, -- Reflectance (0 = mate)
 	Transparencia: number?,
 	Fisica: { Densidad: number, Friccion: number, Elasticidad: number }?,
+	Variante: string?, -- material propio (MaterialVariant) por nombre
 }
 
 local GuerraConfig = {

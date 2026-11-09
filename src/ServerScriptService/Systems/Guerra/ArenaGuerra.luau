@@ -413,10 +413,12 @@ function ArenaGuerra.Construir(base: Base, etapa: number, skin: string, colorEqu
 		p.Reflectance = 0
 		CollectionService:RemoveTag(p, "PiedraCastillo")
 		if base.ColorEquipo[p] then
+			p.MaterialVariant = ""
 			p.Material = Enum.Material.Fabric
 			p.Color = colorEquipo
 		else
 			p.Material = aspecto.Material
+			p.MaterialVariant = aspecto.Variante or ""
 			p.Color = aspecto.Color
 			p.Reflectance = aspecto.Reflejo or 0
 			p.Transparency = aspecto.Transparencia or 0

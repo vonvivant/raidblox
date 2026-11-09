@@ -90,9 +90,52 @@ for i, par in AspectoPiedra.Materiales do
 		local e = editando
 		if e then
 			e.Material = nombre
+			e.Variante = nil
 			vistaPrevia()
 		end
 	end)
+end
+
+-- Materiales propios (los que creaste en el Gestor de materiales de Studio).
+titulo("Tus materiales (Gestor de materiales)")
+local grillaPropios = Instance.new("Frame")
+grillaPropios.Size = UDim2.new(1, 0, 0, 0)
+grillaPropios.AutomaticSize = Enum.AutomaticSize.Y
+grillaPropios.BackgroundTransparency = 1
+grillaPropios.LayoutOrder = siguiente()
+grillaPropios.Parent = desplazable
+local layoutPropios = Instance.new("UIGridLayout")
+layoutPropios.CellSize = UDim2.new(0.25, -6, 0, 30)
+layoutPropios.CellPadding = UDim2.fromOffset(6, 6)
+layoutPropios.SortOrder = Enum.SortOrder.LayoutOrder
+layoutPropios.Parent = grillaPropios
+local botonesPropios: { [string]: TextButton } = {}
+
+local function dibujarPropios()
+	UIKit.Limpiar(grillaPropios)
+	table.clear(botonesPropios)
+	local variantes = AspectoPiedra.Variantes()
+	if #variantes == 0 then
+		local t = UIKit.Texto(grillaPropios, "No hay: crealos en Studio (Gestor de materiales).", UDim2.new())
+		t.TextColor3 = UIKit.Colores.TextoSuave
+		return
+	end
+	for i, variante in variantes do
+		local b = UIKit.Boton(grillaPropios, `⭐ {variante.Name}`, UDim2.new())
+		b.LayoutOrder = i
+		botonesPropios[variante.Name] = b
+		local nombre = variante.Name
+		b.Activated:Connect(function()
+			local e = editando
+			local v = AspectoPiedra.Variante(nombre)
+			if e and v then
+				e.Variante = nombre
+				e.Material = v.BaseMaterial.Name
+				e.Tamano = v.StudsPerTile
+				vistaPrevia()
+			end
+		end)
+	end
 end
 
 ------------------------------------------------------------------------
@@ -269,6 +312,7 @@ local function numerico(clave: string, etiqueta: string, rango: { number })
 		end
 	end)
 end
+numerico("Tamano", "Tamaño del dibujo", R.Tamano)
 numerico("Reflejo", "Brillo / metálico", R.Reflejo)
 numerico("Transparencia", "Transparencia", R.Transparencia)
 local nota = UIKit.Texto(
@@ -324,7 +368,12 @@ local function refrescarControles()
 		return
 	end
 	for nombre, b in botonesMaterial do
-		b.BackgroundColor3 = if nombre == e.Material then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+		b.BackgroundColor3 = if e.Variante == nil and nombre == e.Material
+			then UIKit.Colores.BotonPrimario
+			else UIKit.Colores.Boton
+	end
+	for nombre, b in botonesPropios do
+		b.BackgroundColor3 = if nombre == e.Variante then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
 	end
 	local color = AspectoPiedra.Color(e)
 	muestraColor.BackgroundColor3 = color
@@ -335,6 +384,8 @@ local function refrescarControles()
 	for _, clave in { "Reflejo", "Transparencia", "Densidad", "Friccion", "Elasticidad" } do
 		deslizadores[clave].Poner((e :: any)[clave])
 	end
+	local variante = AspectoPiedra.Variante(e.Variante)
+	deslizadores.Tamano.Poner(e.Tamano or (if variante then variante.StudsPerTile else 10))
 	codigo.Text = AspectoPiedra.Codigo(e)
 end
 
@@ -398,6 +449,7 @@ NetworkBridge.Client.OnEvent("EditorPiedraAbrir", function(datos: any)
 	guardados = actual
 	original = orig
 	editando = copia(actual)
+	dibujarPropios()
 	ventana.Visible = true
 	vistaPrevia()
 	UIKit.EnfocarPrimero(ventana)
