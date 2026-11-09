@@ -28,6 +28,7 @@ local HermandadManager = require(Systems.HermandadManager)
 local VozManager = require(Systems.VozManager)
 local DebugStudio = require(Systems.DebugStudio)
 local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
+local EditorPiedra = require(Systems.Pruebas.EditorPiedra)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -72,5 +73,6 @@ end
 -- 8. Herramientas de prueba: comandos (solo Studio) y NPCs de oro y materiales.
 DebugStudio.Init()
 NpcsPrueba.Init()
+EditorPiedra.Init()
 
 print(`[RaidBlox] Servidor iniciado - Fase 5 (zona: {zona or "sin configurar"})`)

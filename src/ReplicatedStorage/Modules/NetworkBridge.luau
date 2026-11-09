@@ -63,6 +63,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	GrupoSalir = { Tipo = "Function", Critico = false },
 	GrupoExpulsar = { Tipo = "Function", Critico = false }, -- (userId)
 	GrupoLider = { Tipo = "Function", Critico = false }, -- (userId)
+	-- Pruebas: editor de la piedra del castillo
+	EditorPiedraAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Actual, Original})
+	EditorPiedraGuardar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (valores)
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})
 	VozCanal = { Tipo = "Function", Critico = false }, -- (canal)

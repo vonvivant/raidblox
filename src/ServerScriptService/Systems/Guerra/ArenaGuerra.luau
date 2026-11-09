@@ -12,6 +12,7 @@
 --     Recursos (Folder) -> Parts con atributo Recurso = "Madera" | "Piedra" | "Hierro"
 -- Si la carpeta no existe y se está probando en Studio, se genera una arena completa.
 
+local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -408,14 +409,29 @@ function ArenaGuerra.Construir(base: Base, etapa: number, skin: string, colorEqu
 	local aspecto = GuerraConfig.Skins[skin] or GuerraConfig.Skins.Ninguna
 	local partes: { BasePart } = base.PartesPorEtapa[etapa] or {}
 	for _, p in partes do
+		p.Transparency = 0
+		p.Reflectance = 0
+		CollectionService:RemoveTag(p, "PiedraCastillo")
 		if base.ColorEquipo[p] then
 			p.Material = Enum.Material.Fabric
 			p.Color = colorEquipo
 		else
 			p.Material = aspecto.Material
 			p.Color = aspecto.Color
+			p.Reflectance = aspecto.Reflejo or 0
+			p.Transparency = aspecto.Transparencia or 0
+			local fisica = aspecto.Fisica
+			if fisica then
+				p.CustomPhysicalProperties =
+					PhysicalProperties.new(fisica.Densidad, fisica.Friccion, fisica.Elasticidad)
+			else
+				(p :: any).CustomPhysicalProperties = nil
+			end
+			if skin == "Ninguna" or not GuerraConfig.Skins[skin] then
+				-- La piedra base del castillo: la edita el NPC editor (EditorPiedra).
+				CollectionService:AddTag(p, "PiedraCastillo")
+			end
 		end
-		p.Transparency = 0
 		p.CanCollide = true
 		p.CanQuery = true
 		p.CastShadow = true

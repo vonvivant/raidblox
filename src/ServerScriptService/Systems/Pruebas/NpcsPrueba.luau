@@ -45,6 +45,8 @@ local function permitido(player: Player): boolean
 	return table.find(ConfigServidor.Probadores, player.UserId) ~= nil
 end
 
+NpcsPrueba.Permitido = permitido
+
 local function avisar(player: Player, texto: string, tipo: string?)
 	NetworkBridge.Server.FireClient("Notificacion", player, texto, tipo or "Info")
 end
