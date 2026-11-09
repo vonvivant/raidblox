@@ -17,6 +17,13 @@ local GameConfig = {
 		TimeoutCarga = 60,
 	},
 
+	-- Grupos (party)
+	Grupos = {
+		MaxMiembros = 5,
+		ExpiraInvitacion = 30, -- s
+		EsperaEntreInvitaciones = 2, -- s, por jugador
+	},
+
 	-- Bandos: Violeta (neutral, no se lo puede atacar), Rojo y Azul.
 	Bandos = {
 		-- Volver a Violeta cuesta oro (más adelante puede pasar a Robux).

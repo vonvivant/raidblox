@@ -55,6 +55,14 @@ local DEFINICIONES: { [string]: Definicion } = {
 	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
 	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Fase 5: grupos
+	GrupoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	GrupoInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (deUserId, nombre)
+	GrupoInvitar = { Tipo = "Function", Critico = false }, -- (userId)
+	GrupoResponder = { Tipo = "Function", Critico = false }, -- (deUserId, acepta)
+	GrupoSalir = { Tipo = "Function", Critico = false },
+	GrupoExpulsar = { Tipo = "Function", Critico = false }, -- (userId)
+	GrupoLider = { Tipo = "Function", Critico = false }, -- (userId)
 	-- Fase 5: misiones
 	MisionDialogo = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId)
 	MisionAceptar = { Tipo = "Function", Critico = false }, -- (misionId)

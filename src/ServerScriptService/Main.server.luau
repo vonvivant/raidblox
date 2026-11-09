@@ -23,6 +23,7 @@ local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
 local AuctionManager = require(Systems.Economia.AuctionManager)
 local TradeManager = require(Systems.Economia.TradeManager)
 local MisionManager = require(Systems.MisionManager)
+local GrupoManager = require(Systems.GrupoManager)
 local DebugStudio = require(Systems.DebugStudio)
 local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
 
@@ -55,7 +56,8 @@ RecoleccionManager.Init()
 AuctionManager.Init()
 TradeManager.Init()
 
--- 6b. Misiones (Fase 5).
+-- 6b. Fase 5: grupos y misiones.
+GrupoManager.Init()
 MisionManager.Init()
 
 -- 7. Modos de juego según el place.
