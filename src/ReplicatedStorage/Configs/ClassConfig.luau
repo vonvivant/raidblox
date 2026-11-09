@@ -603,6 +603,11 @@ local ClassConfig = {
 	},
 	GCD = 0.8, -- bloqueo global tras cada habilidad (estado Attacking)
 	ToleranciaRango = 4, -- studs extra por latencia
+	-- Modo apuntado (mira): habilidades "Enemigo" con este rango o menos son
+	-- cuerpo a cuerpo y pegan a todo lo que haya en un cono hacia adelante.
+	RangoCuerpoACuerpo = 10,
+	MedioAnguloCono = 60, -- grados a cada lado de la mira
+	ToleranciaMira = 4, -- studs de distancia a la línea de la mira (ayuda a apuntar)
 	MovimientoMaxCasteo = 2.5, -- studs: moverse más cancela el casteo
 	VentanaParry = 0.5,
 	CooldownParry = 3,

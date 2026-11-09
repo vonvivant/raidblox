@@ -301,3 +301,30 @@ levanten el arma antes de golpear.
 
 Además, quien recibe daño parpadea en blanco. Las partículas usan solo texturas que trae Roblox (`rbxasset://`), y
 todos los efectos son locales y se borran solos.
+
+## Modo apuntado (mira)
+
+Hay dos formas de elegir a quién le pegás, y se alternan con **Q** (o clic en
+el stick derecho del joystick):
+
+- **Apuntado** (en PC arranca así): mira en el centro, cámara sobre el hombro y
+  el personaje mira hacia donde mira la cámara. **Clic izquierdo** = ataque
+  básico; 1-4 = habilidades. El mouse se suelta solo al abrir una ventana o
+  escribir, y mientras tengas apretado **Alt**. La mira se pone roja sobre un
+  enemigo (verde sobre un aliado) y muestra una X al pegar.
+- **Objetivo** (en celular arranca así): el de siempre, con Tab o clic.
+
+El cliente solo manda el **punto del mundo bajo la mira**; el servidor decide
+(`resolverApuntado` en `CombatManager`):
+
+| Habilidad | En modo apuntado |
+| --- | --- |
+| Enemigo, cuerpo a cuerpo (rango ≤ 10) | todos los enemigos en un cono de 120° hacia la mira |
+| Enemigo, a distancia | el primer enemigo a menos de 4 studs de la línea de la mira y dentro del rango; si no hay nadie, no se lanza (no gasta maná) |
+| Aliado | el primer aliado en la línea de la mira; si no hay, sobre vos |
+| Área sobre un objetivo | centrada en el punto de la mira, hasta el rango de la habilidad |
+| Propio / área alrededor tuyo | igual que siempre |
+
+Los 4 studs de tolerancia (`ClassConfig.ToleranciaMira`) son la ayuda para
+apuntar, también para joystick. Con un casteo, al terminar se mantiene el
+objetivo del comienzo si sigue valiendo.

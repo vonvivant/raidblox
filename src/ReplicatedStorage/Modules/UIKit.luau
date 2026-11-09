@@ -43,6 +43,7 @@ function UIKit.Ventana(padre: Instance, titulo: string, tam: UDim2): (Frame, Fra
 	marco.BackgroundColor3 = UIKit.Colores.Fondo
 	marco.BackgroundTransparency = 0.05
 	marco.Visible = false
+	marco:SetAttribute("Ventana", true) -- con una ventana abierta, el modo apuntado suelta el mouse
 	UIKit.Esquinas(marco, 12)
 	local proporcion = Instance.new("UISizeConstraint")
 	proporcion.MinSize = Vector2.new(320, 240)

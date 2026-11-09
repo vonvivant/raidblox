@@ -55,6 +55,7 @@ type Casteo = {
 	Habilidad: Habilidad,
 	Indice: number,
 	Objetivo: Combatiente?,
+	Punto: Vector3?, -- modo apuntado: hacia dónde apuntaba la mira
 	PosInicio: Vector3,
 	Fin: number,
 }
@@ -567,7 +568,108 @@ local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatie
 	return true, nil, nil -- área centrada en uno mismo
 end
 
-local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo: Combatiente?)
+-- Modo apuntado: el jugador manda el punto del mundo bajo su mira y el servidor
+-- decide a quién le pega. Devuelve (ok, objetivo, motivo, centro, lista):
+--   * cuerpo a cuerpo ("Enemigo" con rango corto): todos los enemigos en un
+--     cono hacia la mira (lista); el objetivo es el más cercano.
+--   * a distancia: el primer enemigo (o aliado) cerca de la línea de la mira.
+--   * área sobre un objetivo: centrada en el punto, acotado al rango.
+-- `preferido`: el objetivo elegido al empezar un casteo (si sigue valiendo, se mantiene).
+local function resolverApuntado(
+	c: Combatiente,
+	hab: Habilidad,
+	punto: Vector3,
+	preferido: Combatiente?
+): (boolean, Combatiente?, string?, Vector3?, { Combatiente }?)
+	local tipo: string = hab.Objetivo
+	local alcance = hab.Rango + ClassConfig.ToleranciaRango
+	local ojo = c.Raiz.Position + Vector3.new(0, 1.5, 0)
+	local hacia = punto - ojo
+	if hacia.Magnitude < 0.1 then
+		hacia = c.Raiz.CFrame.LookVector
+	end
+	local dir = hacia.Unit
+
+	if tipo == "Propio" or ((tipo == "AreaEnemigos" or tipo == "AreaAliados") and hab.Centro ~= "Objetivo") then
+		local ok, o, motivo = resolverObjetivo(c, hab, nil)
+		return ok, o, motivo, nil, nil
+	end
+
+	if (tipo == "AreaEnemigos" or tipo == "AreaAliados") and hab.Centro == "Objetivo" then
+		local desdeRaiz = punto - c.Raiz.Position
+		local centro = if desdeRaiz.Magnitude > hab.Rango then c.Raiz.Position + desdeRaiz.Unit * hab.Rango else punto
+		return true, nil, nil, centro, nil
+	end
+
+	if tipo == "Enemigo" and hab.Rango <= ClassConfig.RangoCuerpoACuerpo then
+		local plano = Vector3.new(dir.X, 0, dir.Z)
+		plano = if plano.Magnitude > 0.01 then plano.Unit else c.Raiz.CFrame.LookVector
+		local coseno = math.cos(math.rad(ClassConfig.MedioAnguloCono))
+		local lista: { Combatiente } = {}
+		local masCerca: Combatiente? = nil
+		local menor = math.huge
+		for _, o in enemigosEnRadio(c, c.Raiz.Position, alcance) do
+			if CombatManager.EsInvisible(o) then
+				continue
+			end
+			local v = o.Raiz.Position - c.Raiz.Position
+			local vPlano = Vector3.new(v.X, 0, v.Z)
+			local d = vPlano.Magnitude
+			if d < 2.5 or vPlano.Unit:Dot(plano) >= coseno then
+				table.insert(lista, o)
+				if d < menor then
+					masCerca, menor = o, d
+				end
+			end
+		end
+		if #lista == 0 then
+			return false, nil, "No hay enemigos adelante.", nil, nil
+		end
+		return true, masCerca, nil, nil, lista
+	end
+
+	-- A distancia: si el objetivo del casteo sigue valiendo, se mantiene.
+	if preferido then
+		local ok, o = resolverObjetivo(c, hab, preferido)
+		if ok and o == preferido then
+			return true, o, nil, nil, nil
+		end
+	end
+	local candidatos: { Combatiente } = if tipo == "Enemigo"
+		then enemigosEnRadio(c, c.Raiz.Position, alcance)
+		else aliadosEnRadio(c, c.Raiz.Position, alcance)
+	local elegido: Combatiente? = nil
+	local menor = math.huge
+	for _, o in candidatos do
+		if o == c or (tipo == "Enemigo" and CombatManager.EsInvisible(o)) then
+			continue
+		end
+		local v = o.Raiz.Position - ojo
+		local largo = v:Dot(dir)
+		if largo > 0 and largo <= alcance + 2 and (v - dir * largo).Magnitude <= ClassConfig.ToleranciaMira then
+			if largo < menor then
+				elegido, menor = o, largo
+			end
+		end
+	end
+	if tipo == "Enemigo" then
+		if not elegido then
+			return false, nil, "No hay ningún enemigo en la mira (o está fuera de alcance).", nil, nil
+		end
+		return true, elegido, nil, nil, nil
+	end
+	-- Aliado: sin nadie en la mira, sobre uno mismo.
+	return true, elegido or c, nil, nil, nil
+end
+
+local function ejecutar(
+	c: Combatiente,
+	hab: Habilidad,
+	indice: number,
+	objetivo: Combatiente?,
+	centroForzado: Vector3?,
+	listaForzada: { Combatiente }?
+)
 	local t = ahora()
 	if c.Mana < hab.CostoMana then
 		avisar(c.Player, "No tenés maná suficiente.")
@@ -586,8 +688,11 @@ local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo
 	end
 
 	local objetivos: { Combatiente } = {}
-	if hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
-		local centro = if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position
+	if listaForzada then
+		objetivos = listaForzada
+	elseif hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
+		local centro = centroForzado
+			or (if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position)
 		objetivos = if hab.Objetivo == "AreaEnemigos"
 			then enemigosEnRadio(c, centro, hab.Radio or 10)
 			else aliadosEnRadio(c, centro, hab.Radio or 10)
@@ -625,7 +730,8 @@ local function ejecutar(c: Combatiente, hab: Habilidad, indice: number, objetivo
 	-- Visual para los clientes cercanos: animación, proyectil, impacto o área.
 	local centroArea: Vector3? = nil
 	if hab.Objetivo == "AreaEnemigos" or hab.Objetivo == "AreaAliados" then
-		centroArea = if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position
+		centroArea = centroForzado
+			or (if hab.Centro == "Objetivo" and objetivo then objetivo.Raiz.Position else c.Raiz.Position)
 	end
 	local alcanzados: { Model } = {}
 	for _, o in objetivos do
@@ -659,10 +765,18 @@ local function completarCasteo(c: Combatiente, id: number, hab: Habilidad, _play
 		return nil -- interrumpido (aturdido, muerto o reemplazado)
 	end
 	local cancelar: string? = nil
+	local centro: Vector3? = nil
+	local lista: { Combatiente }? = nil
 	if (c.Raiz.Position - casteo.PosInicio).Magnitude > ClassConfig.MovimientoMaxCasteo then
 		cancelar = "Te moviste: se canceló el hechizo."
 	else
-		local okFinal, objetivoFinal, motivoFinal = resolverObjetivo(c, hab, casteo.Objetivo)
+		local okFinal, objetivoFinal, motivoFinal
+		local punto = casteo.Punto
+		if punto then
+			okFinal, objetivoFinal, motivoFinal, centro, lista = resolverApuntado(c, hab, punto, casteo.Objetivo)
+		else
+			okFinal, objetivoFinal, motivoFinal = resolverObjetivo(c, hab, casteo.Objetivo)
+		end
 		if not okFinal then
 			cancelar = motivoFinal or "Objetivo inválido."
 		else
@@ -673,11 +787,11 @@ local function completarCasteo(c: Combatiente, id: number, hab: Habilidad, _play
 		cancelarCasteo(c, cancelar)
 		return nil
 	end
-	ejecutar(c, hab, casteo.Indice, casteo.Objetivo)
+	ejecutar(c, hab, casteo.Indice, casteo.Objetivo, centro, lista)
 	return nil
 end
 
-local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combatiente?)
+local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combatiente?, punto: Vector3?)
 	local player = c.Player
 	local datos = player and DataManager.GetData(player)
 	local def = datos and ClassConfig.Clases[datos.Clase]
@@ -705,14 +819,19 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 		avisar(player, "No tenés maná suficiente.")
 		return
 	end
-	local ok, objetivo, motivo = resolverObjetivo(c, hab, pedido)
+	local ok, objetivo, motivo, centro, lista
+	if punto then
+		ok, objetivo, motivo, centro, lista = resolverApuntado(c, hab, punto, nil)
+	else
+		ok, objetivo, motivo = resolverObjetivo(c, hab, pedido)
+	end
 	if not ok then
 		avisar(player, motivo or "No se puede usar ahora.")
 		return
 	end
 
 	if hab.TiempoCasteo <= 0 then
-		ejecutar(c, hab, indice, objetivo)
+		ejecutar(c, hab, indice, objetivo, centro, lista)
 		return
 	end
 
@@ -724,6 +843,7 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 		Habilidad = hab,
 		Indice = indice,
 		Objetivo = objetivo,
+		Punto = punto,
 		PosInicio = c.Raiz.Position,
 		Fin = t + hab.TiempoCasteo,
 	}
@@ -1140,19 +1260,30 @@ function CombatManager.Init()
 	end)
 
 	-- Remotes
-	NetworkBridge.Server.OnEvent("UsarHabilidad", function(player: Player, indice: unknown, objetivo: unknown)
-		local n = NetworkBridge.Guard.Integer(indice, 1, 4)
-		local c = porJugador[player]
-		if not n or not c or not vivo(c) then
-			return
+	NetworkBridge.Server.OnEvent(
+		"UsarHabilidad",
+		function(player: Player, indice: unknown, objetivo: unknown, punto: unknown)
+			local n = NetworkBridge.Guard.Integer(indice, 1, 4)
+			local c = porJugador[player]
+			if not n or not c or not vivo(c) then
+				return
+			end
+			local pedido: Combatiente? = nil
+			if objetivo ~= nil then
+				local modelo = NetworkBridge.Guard.InstanceOf(objetivo, "Model")
+				pedido = if modelo then combatientes[modelo :: Model] else nil
+			end
+			-- Modo apuntado: un punto del mundo (finito y a menos de 600 studs).
+			local apuntado: Vector3? = nil
+			if typeof(punto) == "Vector3" then
+				local v = punto :: Vector3
+				if v == v and (v - c.Raiz.Position).Magnitude <= 600 then
+					apuntado = v
+				end
+			end
+			intentarHabilidad(c, n, pedido, apuntado)
 		end
-		local pedido: Combatiente? = nil
-		if objetivo ~= nil then
-			local modelo = NetworkBridge.Guard.InstanceOf(objetivo, "Model")
-			pedido = if modelo then combatientes[modelo :: Model] else nil
-		end
-		intentarHabilidad(c, n, pedido)
-	end)
+	)
 
 	NetworkBridge.Server.OnEvent("Parry", function(player: Player)
 		local c = porJugador[player]

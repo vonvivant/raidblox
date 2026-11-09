@@ -24,6 +24,7 @@ local Workspace = game:GetService("Workspace")
 local ClassConfig = require(ReplicatedStorage.Configs.ClassConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
+local Apuntado = require(ReplicatedStorage.Modules.Apuntado)
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 
 local jugador = Players.LocalPlayer
@@ -233,7 +234,9 @@ local function usarHabilidad(indice: number)
 	if not hab then
 		return
 	end
-	NetworkBridge.Client.Fire("UsarHabilidad", indice, objetivo)
+	-- Modo apuntado: va el punto bajo la mira y el servidor decide a quién le pega.
+	local punto = if Apuntado.Activo then Apuntado.Punto() else nil
+	NetworkBridge.Client.Fire("UsarHabilidad", indice, if punto then nil else objetivo, punto)
 end
 
 local function parry()
@@ -269,6 +272,10 @@ end, false, Enum.KeyCode.ButtonL2)
 
 UserInputService.InputBegan:Connect(function(input: InputObject, procesado: boolean)
 	if procesado then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and Apuntado.Activo and not Apuntado.Libre then
+		usarHabilidad(1) -- con la mira, clic izquierdo = ataque básico
 		return
 	end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -625,6 +632,20 @@ RunService.RenderStepped:Connect(function()
 		else
 			ranura.Velo.Size = UDim2.fromScale(1, 0)
 			ranura.Cuenta.Text = ""
+		end
+	end
+end)
+
+-- Con la mira, el marco de objetivo muestra al combatiente que tengas en la mira
+-- (se mantiene el último hasta que apuntes a otro).
+task.spawn(function()
+	while true do
+		task.wait(0.15)
+		if Apuntado.Activo and not Apuntado.Libre then
+			local modelo = Apuntado.ModeloEnMira()
+			if modelo and modelo ~= jugador.Character and modelo ~= objetivo and combatienteVivo(modelo) then
+				seleccionar(modelo)
+			end
 		end
 	end
 end)
