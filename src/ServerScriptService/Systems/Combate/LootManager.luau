@@ -242,6 +242,39 @@ local function recoger(player: Player, id: string)
 	)
 end
 
+-- Mascotas coleccionistas: junta todo el botín del jugador a menos de `radio`
+-- studs. Devuelve cuántas bolsas juntó. Si el inventario se llena, para (las
+-- bolsas siguen ahí y al vencer van al buzón).
+function LootManager.RecogerCerca(player: Player, radio: number): number
+	local delJugador = pendientes[player]
+	if not delJugador or next(delJugador) == nil then
+		return 0
+	end
+	local personaje = player.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if not raiz or not raiz:IsA("BasePart") then
+		return 0
+	end
+	local juntadas = 0
+	for id, p in table.clone(delJugador) do
+		if (raiz.Position - p.Posicion).Magnitude <= radio then
+			local item = p.Item
+			if not DataManager.AddItem(player, item.ItemId, item.Cantidad, item.Rareza, item.Meta) then
+				break
+			end
+			retirar(player, id)
+			juntadas += 1
+			NetworkBridge.Server.FireClient(
+				"Notificacion",
+				player,
+				`🐾 +{nombreItem(item)} x{item.Cantidad}`,
+				if item.Rareza == "Comun" then "Info" else "Oro"
+			)
+		end
+	end
+	return juntadas
+end
+
 ------------------------------------------------------------------------
 -- Inicio
 ------------------------------------------------------------------------

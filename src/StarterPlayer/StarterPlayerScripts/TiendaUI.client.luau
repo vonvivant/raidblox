@@ -15,6 +15,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
+local MascotasConfig = require(ReplicatedStorage.Configs.MascotasConfig)
+local AparienciaEquipoConfig = require(ReplicatedStorage.Configs.AparienciaEquipoConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local ItemInfo = require(ReplicatedStorage.Modules.ItemInfo)
@@ -300,7 +302,101 @@ local NOMBRES_SKIN: { [string]: string } = {
 	Jade = "Jade",
 }
 
-local dibujarExtrasColeccion: (() -> ())? = nil
+local function dibujarMascotas()
+	local mias: { string } = EstadoCliente.Get("Mascotas") or {}
+	local equipada = EstadoCliente.Get("MascotaEquipada")
+	local f = tarjeta(80 + math.max(1, math.ceil(#mias / 3)) * 36)
+	encabezado(
+		f,
+		"Mascotas",
+		`Flotan a tu lado y te juntan solas el botín a menos de {MascotasConfig.RadioRecogida} studs.`
+	)
+	if #mias == 0 then
+		local t = UIKit.Texto(
+			f,
+			"Todavía no tenés. Se ganan en el Pase de batalla.",
+			UDim2.new(1, -20, 0, 26),
+			UDim2.fromOffset(10, 74)
+		)
+		t.TextColor3 = UIKit.Colores.TextoSuave
+		return
+	end
+	for i, id in mias do
+		local def = MascotasConfig.Mascotas[id]
+		local esta = id == equipada
+		local b = UIKit.Boton(
+			f,
+			(if esta then "✔ " else "") .. (if def then def.Nombre else id),
+			UDim2.new(0.3, -6, 0, 30),
+			UDim2.new(((i - 1) % 3) * 0.32, 10, 0, 74 + ((i - 1) // 3) * 36),
+			if esta then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+		)
+		b.Activated:Connect(function()
+			local r = NetworkBridge.Client.Invoke("EquiparMascota", if esta then "" else id)
+			if r.Success then
+				task.delay(0.3, recargar)
+			end
+		end)
+	end
+end
+
+local NOMBRES_SLOT: { [string]: string } = {
+	ArmaPrincipal = "Arma",
+	ArmaSecundaria = "Arma secundaria",
+	Casco = "Casco",
+	Pechera = "Pechera",
+}
+
+local function dibujarApariencias()
+	local mias: { string } = EstadoCliente.Get("Apariencias") or {}
+	local transmog: { [string]: string } = EstadoCliente.Get("Transmog") or {}
+	local f = tarjeta(if #mias == 0 then 106 else 76)
+	encabezado(
+		f,
+		"Apariencias de equipo",
+		"Cambian cómo se ve el equipo puesto en ese lugar; las stats son las de tu ítem."
+	)
+	if #mias == 0 then
+		local t = UIKit.Texto(
+			f,
+			"Todavía no tenés. Se ganan en el Pase de batalla.",
+			UDim2.new(1, -20, 0, 26),
+			UDim2.fromOffset(10, 74)
+		)
+		t.TextColor3 = UIKit.Colores.TextoSuave
+		return
+	end
+	for _, id in mias do
+		local def = AparienciaEquipoConfig.Apariencias[id]
+		if not def then
+			continue
+		end
+		local esta = transmog[def.Slot] == id
+		local fila = tarjeta(40)
+		local t = UIKit.Texto(
+			fila,
+			`{def.Nombre}  ({NOMBRES_SLOT[def.Slot] or def.Slot})`,
+			UDim2.new(0.6, 0, 1, -8),
+			UDim2.fromOffset(10, 4)
+		)
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextColor3 = def.Color
+		local b = UIKit.Boton(
+			fila,
+			if esta then "✔ Quitar" else "Usar",
+			UDim2.new(0.3, 0, 1, -8),
+			UDim2.new(0.68, 0, 0, 4),
+			if esta then UIKit.Colores.Boton else VIOLETA
+		)
+		local slot = def.Slot
+		b.Activated:Connect(function()
+			local r = NetworkBridge.Client.Invoke("EquiparTransmog", slot, if esta then "" else id)
+			if r.Success then
+				task.delay(0.3, recargar)
+			end
+		end)
+	end
+end
 
 local function dibujarColeccion(datos: any)
 	local skins = EstadoCliente.Get("SkinsEstructura") or { "Ninguna" }
@@ -329,9 +425,8 @@ local function dibujarColeccion(datos: any)
 			end
 		end)
 	end
-	if dibujarExtrasColeccion then
-		dibujarExtrasColeccion()
-	end
+	dibujarMascotas()
+	dibujarApariencias()
 	dibujarFichas(datos)
 end
 

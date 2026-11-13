@@ -80,6 +80,8 @@ local DEFINICIONES: { [string]: Definicion } = {
 	PaseReclamar = { Tipo = "Function", Critico = false }, -- (nivel, via)
 	CanjearCodigo = { Tipo = "Function", Critico = false }, -- (texto)
 	EquiparSkinCastillo = { Tipo = "Function", Critico = false }, -- (skin)
+	EquiparTransmog = { Tipo = "Function", Critico = false }, -- (slot, apariencia|"")
+	EquiparMascota = { Tipo = "Function", Critico = false }, -- (mascota|"")
 	-- Fase 5: mazmorras
 	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },

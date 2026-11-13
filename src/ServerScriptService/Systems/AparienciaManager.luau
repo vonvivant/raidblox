@@ -16,6 +16,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local AparienciaConfig = require(ReplicatedStorage.Configs.AparienciaConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.DataManager)
+local EquipoVisible = require(script.Parent.EquipoVisible)
 
 local AparienciaManager = {}
 
@@ -84,6 +85,8 @@ aplicarGenero = function(player: Player)
 	if not ok then
 		warn(`[Apariencia] No se pudo aplicar el género a {player.Name}: {err}`)
 	end
+	-- El cuerpo pudo cambiar de tamaño: se vuelve a ubicar el equipo visible.
+	EquipoVisible.Actualizar(player)
 end
 
 local function colorearNombre(player: Player)

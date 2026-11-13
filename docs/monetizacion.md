@@ -85,3 +85,49 @@ Nuevas en `ItemCatalog`: Amatista, Esmeralda, Zafiro, Rubí y Diamante
 Creator Hub → tu experiencia → **Monetización → Productos para desarrolladores**,
 creá cada uno y pegá su Id en `MonetizacionConfig.Productos`. Mientras el Id sea
 0, el creador y los probadores los pueden **simular** desde la tienda.
+
+## 6.3 Pase de batalla, cosméticos y mascotas
+
+Todo vive en la tienda (botón 🛒), en las pestañas **Pase**, **Colección** y
+**Códigos**.
+
+### Pase de batalla (`PaseBatallaConfig`)
+
+- 50 niveles, 1000 XP cada uno. Temporada actual: `T1` "El Despertar". Al
+  cambiar `Temporada` en el config, el progreso de todos vuelve a cero.
+- XP del pase: enemigo 15, jefe 150, misión 250, mazmorra ganada 600.
+- Cada nivel tiene una recompensa **Gratis** y una **Premium**; se reclaman a
+  mano (no se pierden si no las reclamás). La vía Premium se habilita con el
+  pase permanente `PaseBatalla` (pestaña Pases; Id 0 = simulable en pruebas).
+- Tipos de recompensa: oro, ítem (con rareza), título, skin del castillo,
+  ficha, booster, mascota y apariencia. Si la mochila está llena, el ítem va al
+  buzón. Todo pasa por `Recompensas.Dar`.
+
+### Skins del castillo
+
+Gótica (Premium 10), Hielo (Premium 20) y Jade (Premium 30). Se equipan en
+**Colección** y se usan en la Guerra de Arquitectos en las etapas donde seas
+quien más aportó.
+
+### Códigos de creador (`PaseBatallaConfig.Codigos`)
+
+Uno por cuenta. Cada canje suma 1 al contador del código en el DataStore
+`CodigosUso` (`CodigosUso_Studio` en Studio), para medir cuánto trae cada
+creador. Iniciales: `RAIDBLOX` (500 oro + 3 pociones) y `BIENVENIDA`
+(booster de 30 min). Para agregar uno: una línea en `Codigos`.
+
+### Equipo visible y transmog (`AparienciaEquipoConfig`)
+
+- El arma principal (mano derecha), la secundaria (izquierda), el casco y la
+  pechera puestos se dibujan en el personaje con modelos hechos de piezas
+  simples; los ven todos. `Items` dice qué modelo y color usa cada ítem.
+- **Transmog**: en Colección → Apariencias elegís cómo se ve un slot
+  (Espada Llameante, Báculo Arcano, Casco de Dragón). Solo cambia el aspecto,
+  y se ve mientras tengas un ítem puesto en ese slot.
+
+### Mascotas coleccionistas (`MascotasConfig`)
+
+Lumi (Premium 1) y Brasa (Premium 25). La equipada flota a tu lado y cada
+segundo te junta el botín personal a menos de **25 studs** (si la mochila se
+llena, para; las bolsas siguen ahí y al vencer van al buzón). No pelean ni dan
+stats.
