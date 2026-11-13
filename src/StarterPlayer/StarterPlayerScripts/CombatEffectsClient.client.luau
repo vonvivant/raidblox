@@ -116,7 +116,12 @@ guiJefes.Parent = playerGui
 
 local contenedorJefes = Instance.new("Frame")
 contenedorJefes.AnchorPoint = Vector2.new(0.5, 0)
-contenedorJefes.Position = UDim2.fromScale(0.5, 0.18)
+-- Debajo del marco del objetivo (que mide 84 px antes de escalar).
+local function ubicarJefes()
+	contenedorJefes.Position = UDim2.new(0.5, 0, 0, math.floor((8 + 84 + 10) * Hud.Escala()))
+end
+Hud.Cambio:Connect(ubicarJefes)
+ubicarJefes()
 contenedorJefes.Size = UDim2.fromScale(0.5, 0.2)
 contenedorJefes.BackgroundTransparency = 1
 contenedorJefes.Parent = guiJefes

@@ -85,3 +85,16 @@ canal → Integraciones → Webhooks), tomá su URL y cambiá el dominio
 `discord.com` por el del proxy que uses. Pegala en
 `ConfigServidor.WebhookAdmin` (vive en el servidor: los clientes no la ven) y
 activá **Permitir solicitudes HTTP** en Configuración del juego → Seguridad.
+
+## Avisos y Guerra (estilo HUD)
+
+- **Avisos** (`Modules/Avisos.luau`): pastillas con franja e ícono del color
+  del tipo (Info, Error, Oro, Zona, Guerra), debajo del centro de la pantalla.
+  Máximo 4 a la vez; un mensaje repetido se junta en uno con "×N". Escalan con
+  el HUD.
+- **Barras de RaidBlox:** debajo del marco del objetivo.
+- **Guerra de Arquitectos** (`GuerraUI`): panel debajo del minimapa (mismo
+  lado) con la fase y el reloj (rojo en el último minuto) y una tarjeta por
+  reino: etapa, barra, lo que falta de cada recurso (🪵 🪨 ⛓) y el almacén.
+  Tu reino lleva borde dorado. Lo que cargás va en una pastilla arriba de la
+  barra de acción (naranja si está lleno).

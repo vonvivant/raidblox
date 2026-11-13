@@ -59,7 +59,6 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 - El buzón de ítems reintenta recién al volver a entrar si el inventario estaba lleno.
 - La búsqueda de subastas lee las 200 publicaciones más baratas del índice; con mucho volumen conviene un índice por
   tipo de ítem.
-- `GuerraUI` y `Avisos` siguen con su diseño de prueba (funcionan; se pueden pulir).
 - Webhook de Discord: necesita un proxy y la URL en `ConfigServidor.WebhookAdmin` (ver [interfaz](interfaz.md)).
 - Configurar los PlaceId reales en `ZoneConfig` cuando se creen los places.
 - El texto de diseño del Prompt 7.4 llegó cortado en el punto 4 (logs de Discord); se implementó lo que se lee.
