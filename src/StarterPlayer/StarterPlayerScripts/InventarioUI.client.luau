@@ -23,6 +23,7 @@ local ProfesionesConfig = require(ReplicatedStorage.Configs.ProfesionesConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local ItemInfo = require(ReplicatedStorage.Modules.ItemInfo)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
 
@@ -97,7 +98,17 @@ textoProfesiones.TextColor3 = UIKit.Colores.TextoSuave
 textoProfesiones.TextXAlignment = Enum.TextXAlignment.Left
 textoProfesiones.TextYAlignment = Enum.TextYAlignment.Top
 
-local atajo = UIKit.Atajo(gui, "Mochila", UDim2.fromScale(0.92, 0.55))
+-- Botón en el menú lateral (antes flotaba a la derecha y lo tapaban el
+-- seguimiento de misiones y, en táctil, la barra de acción).
+local atajo = Instance.new("TextButton")
+atajo.Name = "BotonMochila"
+atajo.BackgroundColor3 = UIKit.Colores.Boton
+atajo.TextColor3 = Color3.new(1, 1, 1)
+atajo.Font = Enum.Font.GothamBold
+atajo.TextScaled = true
+atajo.Text = "🎒 Mochila (I)"
+UIKit.Esquinas(atajo, 6)
+MenuLateral.Agregar(atajo, 8)
 
 ------------------------------------------------------------------------
 -- Menú contextual

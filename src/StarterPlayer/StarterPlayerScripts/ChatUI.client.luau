@@ -20,7 +20,8 @@ local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
 
 local MAX_MENSAJES = 80
-local POR_DEFECTO = { X = 0.01, Y = 0.06, Ancho = 0.3, Alto = 0.3 }
+-- A la derecha del menú lateral y debajo del marco del jugador (HUD de la Fase 7).
+local POR_DEFECTO = { X = 0.11, Y = 0.17, Ancho = 0.28, Alto = 0.26 }
 local LIMITES = { AnchoMin = 0.15, AnchoMax = 0.6, AltoMin = 0.12, AltoMax = 0.7 }
 
 -- El chat de Roblox se apaga: se usa esta ventana.

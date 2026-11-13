@@ -54,7 +54,7 @@ en [combate](combate.md)). Todo en el cliente; se apagan con el ajuste.
 - Marcadores: grupo (azul, fijos en el borde si están lejos), enemigos (rojo,
   hasta 40), NPCs de misión (! amarillo / ? gris, lo marca `MisionesUI`),
   vetas y plantas (verde), portales (violeta).
-- Zoom con + y − (radios de 60, 120, 240 y 480 studs). **M** (o Select en
+- Zoom con + y − (radios de 60, 120, 240 y 480 studs). **M** (o R1 en
   gamepad, o el botón M) abre el mapa del mundo con el norte arriba.
 - El seguimiento de misiones y el panel de mazmorra bajaron a y = 0,37 para no
   tapar el minimapa.

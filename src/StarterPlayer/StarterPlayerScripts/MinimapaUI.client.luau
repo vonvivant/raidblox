@@ -7,7 +7,7 @@
 --   personaje. Marcadores: compañeros de grupo (azul; en el borde si están
 --   lejos), enemigos (rojo), NPCs de misión (! disponible, ? para entregar),
 --   vetas y plantas (verde), portales (violeta).
--- * Botones + y − para el zoom; M (o el botón) abre el mapa del mundo, con el
+-- * Botones + y − para el zoom; M (R1 en gamepad, o el botón) abre el mapa del mundo, con el
 --   norte arriba y un radio mayor.
 -- * Se oculta desde el panel Personaje (ajuste "Minimapa").
 
@@ -251,7 +251,7 @@ ContextActionService:BindAction("MapaMundoRaidBlox", function(_, estado: Enum.Us
 		alternarMundo()
 	end
 	return Enum.ContextActionResult.Pass
-end, false, Enum.KeyCode.M, Enum.KeyCode.ButtonSelect)
+end, false, Enum.KeyCode.M, Enum.KeyCode.ButtonR1)
 
 ------------------------------------------------------------------------
 -- Dibujo
