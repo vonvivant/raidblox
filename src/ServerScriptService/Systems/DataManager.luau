@@ -243,6 +243,10 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 			TituloEquipado = datos.TituloEquipado,
 			SkinsEstructura = datos.SkinsEstructura,
 			SkinEstructuraEquipada = datos.SkinEstructuraEquipada,
+			Mascotas = datos.Mascotas or {},
+			MascotaEquipada = datos.MascotaEquipada or false,
+			Apariencias = datos.Apariencias or {},
+			Transmog = datos.Transmog or {},
 		}
 	else
 		return datos.Equipamiento
@@ -427,6 +431,10 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		TituloEquipado = d.TituloEquipado,
 		SkinsEstructura = d.SkinsEstructura,
 		SkinEstructuraEquipada = d.SkinEstructuraEquipada,
+		Mascotas = d.Mascotas or {},
+		MascotaEquipada = d.MascotaEquipada or false,
+		Apariencias = d.Apariencias or {},
+		Transmog = d.Transmog or {},
 		Profesiones = d.Profesiones,
 		Ajustes = d.Ajustes,
 	}
@@ -1529,6 +1537,20 @@ function DataManager.SetMetaRanura(player: Player, clave: string, meta: Types.It
 	end
 	item.Meta = meta
 	notificarCambio(player, perfil.Data, "Inventario")
+	return true
+end
+
+-- Cambio directo del perfil para los sistemas de la Fase 6.3 (pase de batalla,
+-- mascotas, apariencias, códigos), cuyos campos son opcionales. `cambiar` NO
+-- debe pausar (sin yields): corre en el mismo bloque que el resto del cambio.
+-- Devuelve false si el perfil no está activo.
+function DataManager.Mutar(player: Player, seccion: Types.SeccionDatos, cambiar: (Types.DatosJugador) -> ()): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	cambiar(perfil.Data)
+	notificarCambio(player, perfil.Data, seccion)
 	return true
 end
 

@@ -24,6 +24,8 @@ local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local DataManager = require(script.Parent.DataManager)
 local Buzon = require(script.Parent.Buzon)
 local Bonos = require(script.Parent.Monetizacion.Bonos)
+local PaseBatallaManager = require(script.Parent.Monetizacion.PaseBatallaManager)
+local PaseBatallaConfig = require(game:GetService("ReplicatedStorage").Configs.PaseBatallaConfig)
 local NpcFactory = require(script.Parent.NpcFactory)
 local EnemyManager = require(script.Parent.Combate.EnemyManager)
 
@@ -148,6 +150,7 @@ local function entregar(player: Player, id: string): Respuesta
 	end
 	local completadaEn = os.time()
 	DataManager.CompletarMision(player, id)
+	PaseBatallaManager.SumarXp(player, PaseBatallaConfig.Xp.Mision)
 
 	-- Recompensas.
 	local r = mision.Recompensas

@@ -131,6 +131,13 @@ export type DatosJugador = {
 	BoosterXpHasta: number?, -- os.time() hasta cuando dura el 2× de experiencia
 	Fichas: { [string]: number }?, -- "Reroll", "Bando"
 	PackInicio: boolean?, -- ya compró el Pack de Inicio
+	-- Fase 6.3 (opcionales)
+	PaseBatalla: { Temporada: string, Xp: number, Gratis: { [string]: boolean }, Premium: { [string]: boolean } }?,
+	Mascotas: { string }?, -- mascotas obtenidas
+	MascotaEquipada: string?,
+	Apariencias: { string }?, -- apariencias (transmog) obtenidas
+	Transmog: { [string]: string }?, -- slot de equipo -> apariencia que se muestra
+	CodigosCanjeados: { [string]: number }?, -- código -> os.time()
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía

@@ -76,6 +76,10 @@ local DEFINICIONES: { [string]: Definicion } = {
 	TiendaUsarReroll = { Tipo = "Function", Critico = false }, -- (ranura)
 	TiendaUsarBando = { Tipo = "Function", Critico = false }, -- (bando)
 	TiendaCajaAbierta = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (nombre, items)
+	PaseInfo = { Tipo = "Function", Critico = false },
+	PaseReclamar = { Tipo = "Function", Critico = false }, -- (nivel, via)
+	CanjearCodigo = { Tipo = "Function", Critico = false }, -- (texto)
+	EquiparSkinCastillo = { Tipo = "Function", Critico = false }, -- (skin)
 	-- Fase 5: mazmorras
 	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },

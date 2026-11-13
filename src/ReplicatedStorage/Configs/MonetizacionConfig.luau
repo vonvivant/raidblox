@@ -59,6 +59,12 @@ local MonetizacionConfig = {
 			Descripcion = "Montura exclusiva envuelta en llamas, 15% más rápida que el caballo.",
 			Orden = 4,
 		},
+		PaseBatalla = {
+			Id = 0,
+			Nombre = "Pase de Batalla (Temporada 1)",
+			Descripcion = "Desbloquea la vía Premium del pase: mascotas, skins del castillo, apariencias y más.",
+			Orden = 0,
+		},
 		TituloPersonal = {
 			Id = 0,
 			Nombre = "Título Personalizado",

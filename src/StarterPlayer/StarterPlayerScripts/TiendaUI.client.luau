@@ -5,7 +5,11 @@
 --   Pases       permanentes (6.1); con el Título Personalizado se escribe acá.
 --   Productos   booster, pack de inicio, fichas y cajas (6.2). Cada caja
 --               muestra sus probabilidades ANTES de comprar.
---   Mis fichas  usar fichas de re-roll (equipo de la mochila) y de bando.
+--   Pase        pase de batalla de la temporada (6.3): 50 niveles, vía
+--               Gratis y vía Premium; cada recompensa se reclama a mano.
+--   Colección   fichas (re-roll y bando), skins del castillo para la Guerra,
+--               mascotas y apariencias de equipo (transmog).
+--   Códigos     códigos de creador y de eventos.
 -- La compra la abre el servidor; en modo pruebas lo que no tiene Id se simula.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -49,8 +53,8 @@ local vista = "Pases"
 local botonesVista: { [string]: TextButton } = {}
 local recargar: () -> ()
 
-for i, nombre in { "Pases", "Productos", "Mis fichas" } do
-	local b = UIKit.Boton(barra, nombre, UDim2.new(0.3, 0, 1, 0))
+for i, nombre in { "Pases", "Productos", "Pase", "Colección", "Códigos" } do
+	local b = UIKit.Boton(barra, nombre, UDim2.new(0.19, -5, 1, 0))
 	b.LayoutOrder = i
 	botonesVista[nombre] = b
 	b.Activated:Connect(function()
@@ -286,6 +290,135 @@ local function dibujarFichas(datos: any)
 end
 
 ------------------------------------------------------------------------
+-- Colección: skins del castillo (las mascotas y apariencias se suman abajo)
+------------------------------------------------------------------------
+
+local NOMBRES_SKIN: { [string]: string } = {
+	Ninguna = "Piedra clásica",
+	Gotica = "Gótica",
+	Hielo = "Hielo",
+	Jade = "Jade",
+}
+
+local dibujarExtrasColeccion: (() -> ())? = nil
+
+local function dibujarColeccion(datos: any)
+	local skins = EstadoCliente.Get("SkinsEstructura") or { "Ninguna" }
+	local equipada = EstadoCliente.Get("SkinEstructuraEquipada") or "Ninguna"
+	local f = tarjeta(80 + math.ceil(#skins / 3) * 36)
+	encabezado(
+		f,
+		"Skins del castillo",
+		"Se aplica en la Guerra de Arquitectos a las etapas donde seas quien más aportó."
+	)
+	for i, skin in skins do
+		local col = (i - 1) % 3
+		local fila = (i - 1) // 3
+		local b = UIKit.Boton(
+			f,
+			(if skin == equipada then "✔ " else "") .. (NOMBRES_SKIN[skin] or skin),
+			UDim2.new(0.3, -6, 0, 30),
+			UDim2.new(col * 0.32, 10, 0, 74 + fila * 36),
+			if skin == equipada then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+		)
+		local s = skin
+		b.Activated:Connect(function()
+			local r = NetworkBridge.Client.Invoke("EquiparSkinCastillo", s)
+			if r.Success then
+				task.delay(0.3, recargar)
+			end
+		end)
+	end
+	if dibujarExtrasColeccion then
+		dibujarExtrasColeccion()
+	end
+	dibujarFichas(datos)
+end
+
+------------------------------------------------------------------------
+-- Pase de batalla
+------------------------------------------------------------------------
+
+local function dibujarPaseBatalla(datos: any)
+	local cab = tarjeta(84)
+	local enNivel = if datos.Nivel >= #datos.Niveles then datos.XpPorNivel else datos.Xp % datos.XpPorNivel
+	encabezado(
+		cab,
+		datos.Nombre,
+		`Nivel {datos.Nivel}/{#datos.Niveles}  ·  {enNivel}/{datos.XpPorNivel} XP  ·  {if datos.Premium
+			then "Premium activo"
+			else "Premium: comprá el Pase de Batalla en Pases"}`
+	)
+	local fondoBarra = Instance.new("Frame")
+	fondoBarra.Size = UDim2.new(1, -20, 0, 10)
+	fondoBarra.Position = UDim2.new(0, 10, 1, -16)
+	fondoBarra.BackgroundColor3 = UIKit.Colores.Boton
+	UIKit.Esquinas(fondoBarra, 5)
+	fondoBarra.Parent = cab
+	local relleno = Instance.new("Frame")
+	relleno.Size = UDim2.fromScale(math.clamp(enNivel / datos.XpPorNivel, 0, 1), 1)
+	relleno.BackgroundColor3 = DORADO
+	UIKit.Esquinas(relleno, 5)
+	relleno.Parent = fondoBarra
+
+	for _, n in datos.Niveles do
+		local f = tarjeta(52)
+		local alcanzado = datos.Nivel >= n.Nivel
+		local num = UIKit.Texto(f, tostring(n.Nivel), UDim2.new(0.08, 0, 1, -8), UDim2.fromOffset(6, 4))
+		num.TextColor3 = if alcanzado then DORADO else UIKit.Colores.TextoSuave
+		local function via(nombreVia: string, texto: string, reclamado: boolean, x: number)
+			local premium = nombreVia == "Premium"
+			local puede = alcanzado and not reclamado and (not premium or datos.Premium)
+			local etiqueta = if reclamado
+				then `✔ {texto}`
+				elseif puede then `Reclamar: {texto}`
+				elseif premium and not datos.Premium then `🔒 {texto}`
+				else texto
+			local b = UIKit.Boton(
+				f,
+				etiqueta,
+				UDim2.new(0.44, -6, 1, -10),
+				UDim2.new(x, 0, 0, 5),
+				if puede then (if premium then VIOLETA else UIKit.Colores.BotonPrimario) else UIKit.Colores.Boton
+			)
+			b.TextWrapped = true
+			if puede then
+				local nivel = n.Nivel
+				b.Activated:Connect(function()
+					local r = NetworkBridge.Client.Invoke("PaseReclamar", nivel, nombreVia)
+					if r.Success then
+						task.delay(0.2, recargar)
+					end
+				end)
+			end
+		end
+		via("Gratis", n.Gratis, n.GratisReclamado, 0.1)
+		via("Premium", n.Premium, n.PremiumReclamado, 0.56)
+	end
+end
+
+------------------------------------------------------------------------
+-- Códigos
+------------------------------------------------------------------------
+
+local function dibujarCodigos()
+	local f = tarjeta(112)
+	encabezado(f, "Canjear código", "Códigos de creadores y de eventos. Cada código se canjea una vez por cuenta.")
+	local caja = UIKit.Entrada(f, "Escribí el código", UDim2.new(0.62, 0, 0, 32), UDim2.fromOffset(10, 72))
+	local b =
+		UIKit.Boton(f, "Canjear", UDim2.new(0.3, 0, 0, 32), UDim2.new(0.68, 0, 0, 72), UIKit.Colores.BotonPrimario)
+	b.Activated:Connect(function()
+		if caja.Text == "" then
+			return
+		end
+		local r = NetworkBridge.Client.Invoke("CanjearCodigo", caja.Text)
+		if r.Success then
+			caja.Text = ""
+		end
+	end)
+end
+
+------------------------------------------------------------------------
 -- Recargar
 ------------------------------------------------------------------------
 
@@ -298,7 +431,15 @@ recargar = function()
 	for nombre, b in botonesVista do
 		b.BackgroundColor3 = if nombre == vista then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
 	end
-	local r = NetworkBridge.Client.Invoke(if vista == "Pases" then "TiendaInfo" else "TiendaProductos")
+	if vista == "Códigos" then
+		cargando = false
+		UIKit.Limpiar(lista)
+		orden = 0
+		dibujarCodigos()
+		return
+	end
+	local remoto = if vista == "Pases" then "TiendaInfo" elseif vista == "Pase" then "PaseInfo" else "TiendaProductos"
+	local r = NetworkBridge.Client.Invoke(remoto)
 	cargando = false
 	UIKit.Limpiar(lista)
 	orden = 0
@@ -310,8 +451,10 @@ recargar = function()
 		dibujarPases(r.Data)
 	elseif vista == "Productos" then
 		dibujarProductos(r.Data)
+	elseif vista == "Pase" then
+		dibujarPaseBatalla(r.Data)
 	else
-		dibujarFichas(r.Data)
+		dibujarColeccion(r.Data)
 	end
 end
 

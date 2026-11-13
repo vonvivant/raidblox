@@ -36,6 +36,8 @@ local DataManager = require(script.Parent.DataManager)
 local AntiCheat = require(script.Parent.AntiCheat)
 local GrupoManager = require(script.Parent.GrupoManager)
 local Bonos = require(script.Parent.Monetizacion.Bonos)
+local PaseBatallaManager = require(script.Parent.Monetizacion.PaseBatallaManager)
+local PaseBatallaConfig = require(ReplicatedStorage.Configs.PaseBatallaConfig)
 local CombatManager = require(script.Parent.Combate.CombatManager)
 local EnemyManager = require(script.Parent.Combate.EnemyManager)
 
@@ -610,6 +612,7 @@ victoria = function(inst: Instancia)
 	for player in inst.Jugadores do
 		DataManager.AddGold(player, Bonos.Oro(player, r.Oro))
 		DataManager.AddExperience(player, Bonos.Xp(player, r.Xp))
+		PaseBatallaManager.SumarXp(player, PaseBatallaConfig.Xp.Mazmorra)
 		avisar(player, `¡Completaste {inst.Def.Nombre}! +{r.Oro} de oro y +{r.Xp} de experiencia.`, "Oro")
 	end
 	-- Portal de salida para irse antes.
