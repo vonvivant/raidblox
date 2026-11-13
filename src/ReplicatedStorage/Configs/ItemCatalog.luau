@@ -114,6 +114,12 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		PrecioVenta = 25,
 		Atributos = { Fuerza = 4 },
 	},
+	-- Gemas (por ahora salen de cajas; más adelante se engarzan en el equipo)
+	Amatista = { Nombre = "Amatista", Tipo = "Material", Apilable = true, PrecioVenta = 20 },
+	Esmeralda = { Nombre = "Esmeralda", Tipo = "Material", Apilable = true, PrecioVenta = 30 },
+	Zafiro = { Nombre = "Zafiro", Tipo = "Material", Apilable = true, PrecioVenta = 35 },
+	Rubi = { Nombre = "Rubí", Tipo = "Material", Apilable = true, PrecioVenta = 40 },
+	Diamante = { Nombre = "Diamante", Tipo = "Material", Apilable = true, PrecioVenta = 100 },
 	NucleoObsidiana = { Nombre = "Núcleo de Obsidiana", Tipo = "Material", Apilable = true, PrecioVenta = 30 },
 	SedaArana = { Nombre = "Seda de Araña", Tipo = "Material", Apilable = true, PrecioVenta = 20 },
 	PecheraCuero = {

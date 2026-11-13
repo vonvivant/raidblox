@@ -127,6 +127,10 @@ export type DatosJugador = {
 	Titulos: { string },
 	TituloEquipado: string?,
 	TituloPersonalizado: string?, -- pase "Título Personalizado" (texto ya filtrado)
+	-- Fase 6.2 (opcionales: perfiles viejos no los tienen)
+	BoosterXpHasta: number?, -- os.time() hasta cuando dura el 2× de experiencia
+	Fichas: { [string]: number }?, -- "Reroll", "Bando"
+	PackInicio: boolean?, -- ya compró el Pack de Inicio
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía

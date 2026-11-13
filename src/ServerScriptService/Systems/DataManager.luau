@@ -1036,6 +1036,60 @@ function DataManager.PendientesBanco(player: Player): { [string]: Types.Pendient
 	return if banco then table.clone(banco) else {}
 end
 
+------------------------------------------------------------------------
+-- Fase 6.2: boosters, fichas y pack de inicio
+------------------------------------------------------------------------
+
+-- Suma `segundos` de booster (si ya hay uno activo, se encadena). Devuelve el nuevo fin.
+function DataManager.ExtenderBoosterXp(player: Player, segundos: number): number?
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return nil
+	end
+	local hasta = math.max(os.time(), perfil.Data.BoosterXpHasta or 0) + segundos
+	perfil.Data.BoosterXpHasta = hasta
+	notificarCambio(player, perfil.Data, "Ajustes")
+	return hasta
+end
+
+function DataManager.Fichas(player: Player, tipo: string): number
+	local perfil = perfilActivo(player)
+	local fichas = perfil and perfil.Data.Fichas
+	return if fichas then fichas[tipo] or 0 else 0
+end
+
+function DataManager.AgregarFicha(player: Player, tipo: string, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	local fichas: { [string]: number } = perfil.Data.Fichas or {}
+	perfil.Data.Fichas = fichas
+	fichas[tipo] = (fichas[tipo] or 0) + cantidad
+	notificarCambio(player, perfil.Data, "Ajustes")
+	return true
+end
+
+function DataManager.UsarFicha(player: Player, tipo: string): boolean
+	local perfil = perfilActivo(player)
+	local fichas = perfil and perfil.Data.Fichas
+	if not perfil or not fichas or (fichas[tipo] or 0) < 1 then
+		return false
+	end
+	fichas[tipo] -= 1
+	notificarCambio(player, perfil.Data, "Ajustes")
+	return true
+end
+
+function DataManager.MarcarPackInicio(player: Player): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	perfil.Data.PackInicio = true
+	return true
+end
+
 -- Título escrito por el jugador (ya filtrado por quien llama). nil lo borra.
 function DataManager.SetTituloPersonalizado(player: Player, texto: string?): boolean
 	local perfil = perfilActivo(player)
@@ -1459,6 +1513,21 @@ function DataManager.SetMaxSlots(player: Player, maxSlots: number): boolean
 		end
 	end
 	inv.MaxSlots = maxSlots
+	notificarCambio(player, perfil.Data, "Inventario")
+	return true
+end
+
+-- Reemplaza los metadatos de un equipo de la mochila (re-roll).
+function DataManager.SetMetaRanura(player: Player, clave: string, meta: Types.ItemMeta?): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not claveValida(perfil.Data.Inventario, clave) then
+		return false
+	end
+	local item = perfil.Data.Inventario.Slots[clave]
+	if not item then
+		return false
+	end
+	item.Meta = meta
 	notificarCambio(player, perfil.Data, "Inventario")
 	return true
 end
