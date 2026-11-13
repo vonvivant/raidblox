@@ -46,17 +46,54 @@ Físico blanco, mágico azul/púrpura, crítico dorado con rebote, cura verde co
 "+", estados naranjas y "¡FALLO!" / "¡ESQUIVADO!" en gris (ver esquiva y fallo
 en [combate](combate.md)). Todo en el cliente; se apagan con el ajuste.
 
-## Minimapa (`MinimapaUI`)
+## Minimapa (`MinimapaUI`, `Modules/Radar.luau`)
 
-- Círculo arriba a la derecha que **gira con la cámara**; la flecha es tu
-  personaje. Debajo: zona (atributo `Zona` de Workspace), coordenadas X/Z y
-  servidor.
-- Marcadores: grupo (azul, fijos en el borde si están lejos), enemigos (rojo,
-  hasta 40), NPCs de misión (! amarillo / ? gris, lo marca `MisionesUI`),
-  vetas y plantas (verde), portales (violeta).
-- Zoom con + y − (radios de 60, 120, 240 y 480 studs). **M** (o R1 en
-  gamepad, o el botón M) abre el mapa del mundo con el norte arriba.
-- El seguimiento de misiones y el panel de mazmorra bajaron a y = 0,37 para no
+**Radar 2D por coordenadas**, no ViewportFrame: un ViewportFrame tendría que
+clonar el mapa y dibujarlo en 3D una segunda vez; el radar solo mueve puntos de
+interfaz y con muchos jugadores cuesta casi lo mismo.
+
+- Arriba a la derecha (izquierda con Zurdo), con **marco metálico** y remaches.
+  El disco es un `CanvasGroup` con `UICorner` al máximo: es lo que de verdad
+  recorta en círculo (`ClipsDescendants` solo no recorta esquinas redondeadas).
+- **Gira con la cámara**; la flecha del centro es tu personaje. Debajo: zona
+  (atributo `Zona` de Workspace), coordenadas X/Z y servidor.
+- Se dibuja en cada frame (`RenderStepped`). Buscar entidades es lo caro, así
+  que `Radar` rehace la lista cada 0,5 s y por frame solo se leen posiciones.
+- Zoom con + y − (radios de 60, 120, 240 y 480 studs). El botón M abre el mapa.
+
+| Punto | Qué es | De dónde sale |
+|---|---|---|
+| ● azul con borde | Tu grupo (pegado al borde si está lejos) | Jugadores con tu mismo atributo `GrupoId` |
+| ● rojo | Enemigos | Modelos de `Workspace.Enemigos` con Humanoid vivo |
+| ◆ rojo grande | Élites y jefes | Lo mismo, con el atributo `Elite = true` |
+| ! amarillo / ? gris | NPC de misión | Tag `NpcMision` (el signo lo pone `MisionesUI`) |
+| ■ amarillo | Recursos (vetas y plantas) | Tag `NodoRecoleccion` |
+| ✦ amarillo | Restos del Spoil del Chatarrero | Tag `RestosSpoil` |
+| ◈ violeta | Portales | Tag `Portal` |
+| · gris | Estaciones y Casa de Subastas | Tags `EstacionCrafteo`, `CasaSubastas` |
+
+Para que algo aparezca en los mapas alcanza con respetar esa carpeta, esos
+tags (CollectionService) y esos atributos. Toda la interfaz se crea por código
+dentro de `PlayerGui`: no hay que armar nada en `StarterGui`.
+
+## Mapa del mundo (`MapaMundoUI`)
+
+- **M** (R1 en gamepad) o el botón M del minimapa lo abren y lo cierran; el
+  botón **X** de arriba a la derecha lo cierra. Empieza cerrado.
+- `ScreenGui "MapaMundoUI"` (`ResetOnSpawn = false`, `DisplayOrder = 50`) →
+  `Frame "MarcoMapa"` (pergamino con borde de metal, 70% × 70%, centrado) →
+  `TextLabel "Titulo"`, `TextButton "BotonCerrar"`, `ImageLabel "Lienzo"`
+  (el mapa, siempre cuadrado) con `TextLabel "Pin"`, y `TextLabel "Pie"`.
+- El pin muestra tu posición y hacia dónde mirás en tiempo real. También se
+  ven portales, NPCs de misión, estaciones, élites, restos y tu grupo.
+- **Cuenta mundo → mapa** (`aMapa`), con el norte (−Z) arriba:
+  `u = (x − Centro.X) / Tamano + 0,5` y `v = (z − Centro.Z) / Tamano + 0,5`.
+  `u` y `v` van de 0 a 1 y son la posición en escala dentro del Lienzo.
+- `ZoneConfig.Mapas[zona] = { Centro, Tamano, Imagen }` define el cuadrado del
+  mundo que entra en el mapa. `Imagen` es opcional (`rbxassetid://...` de una
+  vista cenital cuadrada); sin imagen se dibuja un pergamino con cuadrícula.
+  Hoy solo está cargada la zona de pruebas: sumá una entrada por zona real.
+- El seguimiento de misiones y el panel de mazmorra están en y = 0,37 para no
   tapar el minimapa.
 
 ## Panel de administración (`AdminManager`, `AdminUI`)

@@ -27,6 +27,17 @@ local ZoneConfig = {
 	-- En Studio, si no hay portales en el mapa, se crean dos de prueba.
 	CrearPortalesDePruebaEnStudio = true,
 
+	-- Mapa del mundo (tecla M): qué parte del lugar muestra cada zona.
+	--   Centro y Tamano: cuadrado del mundo (en studs) que entra en el mapa.
+	--   Imagen: opcional, "rbxassetid://..." de una imagen cenital de la zona
+	--           (cuadrada, con el norte -Z arriba). Sin imagen se dibuja un
+	--           pergamino con cuadrícula.
+	-- Las zonas que no figuren usan MapaPorDefecto.
+	MapaPorDefecto = { Centro = Vector3.new(0, 0, 0), Tamano = 1000, Imagen = "" },
+	Mapas = {
+		Pruebas = { Centro = Vector3.new(20, 0, -40), Tamano = 560, Imagen = "" },
+	} :: { [string]: { Centro: Vector3, Tamano: number, Imagen: string } },
+
 	Zonas = {
 		CiudadPrincipal = {
 			Nombre = "Ciudad Principal",
