@@ -82,6 +82,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	EquiparSkinCastillo = { Tipo = "Function", Critico = false }, -- (skin)
 	EquiparTransmog = { Tipo = "Function", Critico = false }, -- (slot, apariencia|"")
 	EquiparMascota = { Tipo = "Function", Critico = false }, -- (mascota|"")
+	-- Fase 7.4: panel de administración (el servidor valida que seas admin)
+	AdminAccion = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (accion, a, b, c)
+	AdminInfo = { Tipo = "Function", Critico = false },
 	-- Fase 5: mazmorras
 	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },

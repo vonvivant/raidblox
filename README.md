@@ -73,7 +73,8 @@ flowchart LR
 - [Hermandades](docs/hermandades.md): rangos, permisos, banco de 4 pestañas y registro.
 - [Chat de voz](docs/voz.md): canales de proximidad, grupo, hermandad y zona.
 - [Mazmorras](docs/mazmorras.md): instancias para grupos, salas, jefe y modos local/reservado.
-- [Monetización](docs/monetizacion.md): pases, tienda, bonos y monturas.
+- [Monetización](docs/monetizacion.md): pases, tienda, cajas, pase de batalla, transmog y mascotas.
+- [Interfaz y administración](docs/interfaz.md): HUD, ajustes y zurdos, minimapa, panel de admin y webhook.
 - [Roadmap](docs/roadmap.md): fases, decisiones y pendientes.
 
 ## Inicio rápido

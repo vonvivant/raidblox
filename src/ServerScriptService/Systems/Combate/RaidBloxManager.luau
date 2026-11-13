@@ -32,6 +32,7 @@ type Jefe = {
 	ProximoAtaque: { [string]: number },
 	ProximoEscalado: number,
 	Receptores: { [Player]: boolean }, -- quiénes ven la barra
+	Invocado: boolean, -- lo trajo un admin: no reaparece al morir
 }
 
 local RaidBloxManager = {}
@@ -198,7 +199,7 @@ end
 -- Ciclo de vida
 ------------------------------------------------------------------------
 
-local aparecer: (id: string, def: RaidBloxConfig.DefinicionRaidBlox) -> ()
+local aparecer: (id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado: boolean?) -> ()
 
 local function alMorir(jefe: Jefe)
 	local npc = jefe.Npc
@@ -231,11 +232,14 @@ local function alMorir(jefe: Jefe)
 	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre, jefe.Id)
 	NetworkBridge.Server.FireAll("AnuncioGlobal", `¡{jefe.Def.Nombre} fue derrotado!`, COLOR_ANUNCIO)
 
+	if jefe.Invocado then
+		return
+	end
 	local espera = if Pruebas.Activas() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion
 	task.delay(espera, aparecer, jefe.Id, jefe.Def)
 end
 
-aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
+aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado: boolean?)
 	local npc = EnemyManager.Crear({
 		Nombre = def.Nombre,
 		Nivel = def.Nivel,
@@ -270,6 +274,7 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 		ProximoAtaque = {},
 		ProximoEscalado = 0,
 		Receptores = {},
+		Invocado = invocado == true,
 	}
 	for _, ataque in def.Ataques do
 		jefe.ProximoAtaque[ataque.Nombre] = t + ataque.Cada
@@ -310,6 +315,22 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 		`¡{def.Nombre} (Nv. {def.Nivel}) apareció! Reuní a tu grupo.`,
 		COLOR_ANUNCIO
 	)
+end
+
+-- Panel de admin: trae un jefe de prueba a una posición. No reaparece al
+-- morir. Falla si ese jefe ya está vivo en este servidor.
+function RaidBloxManager.Invocar(id: string, posicion: Vector3): (boolean, string?)
+	local def = RaidBloxConfig.Jefes[id]
+	if not def then
+		return false, "No existe ese jefe."
+	end
+	if jefes[id] then
+		return false, "Ese jefe ya está en el servidor."
+	end
+	local copia = table.clone(def)
+	copia.Posicion = posicion
+	aparecer(id, copia, true)
+	return jefes[id] ~= nil, nil
 end
 
 function RaidBloxManager.Init(zona: string?)
