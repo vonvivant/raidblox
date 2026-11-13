@@ -43,8 +43,8 @@ izquierda con Zurdo). Son campos opcionales: no cambia la versión de datos.
 ## Números flotantes (`CombatEffectsClient`)
 
 Físico blanco, mágico azul/púrpura, crítico dorado con rebote, cura verde con
-"+", estados naranjas y "¡FALLO!" / "¡ESQUIVADO!" en gris (para cuando el
-servidor emita esos estados). Todo en el cliente; se apagan con el ajuste.
+"+", estados naranjas y "¡FALLO!" / "¡ESQUIVADO!" en gris (ver esquiva y fallo
+en [combate](combate.md)). Todo en el cliente; se apagan con el ajuste.
 
 ## Minimapa (`MinimapaUI`)
 

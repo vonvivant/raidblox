@@ -63,5 +63,4 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 - Webhook de Discord: necesita un proxy y la URL en `ConfigServidor.WebhookAdmin` (ver [interfaz](interfaz.md)).
 - Configurar los PlaceId reales en `ZoneConfig` cuando se creen los places.
 - El texto de diseño del Prompt 7.4 llegó cortado en el punto 4 (logs de Discord); se implementó lo que se lee.
-- No hay mecánica de esquiva ni de fallo: el cliente ya sabe mostrar "¡FALLO!" / "¡ESQUIVADO!" si el servidor los emite.
 - Antes de lanzar: crear pases y productos en el Creator Hub, PlaceId reales, apagar `ModoPruebas`, cargar `ConfigServidor.Admins`.

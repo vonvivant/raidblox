@@ -330,3 +330,17 @@ El cliente solo manda el **punto del mundo bajo la mira**; el servidor decide
 Los 4 studs de tolerancia (`ClassConfig.ToleranciaMira`) son la ayuda para
 apuntar, también para joystick. Con un casteo, al terminar se mantiene el
 objetivo del comienzo si sigue valiendo.
+
+## Esquiva y fallo (Fase 7)
+
+Antes de cada golpe directo (habilidad de daño o golpe de un NPC) el servidor
+tira dos veces (`CombatManager.evitado`):
+
+- **Fallo:** si el objetivo tiene más nivel, 4% por nivel de diferencia (tope
+  25%). Vale para físico y mágico. Se ve "¡FALLO!".
+- **Esquiva:** solo golpes físicos. Base 3% (Asesino 8%, Arquero 6%, Druida
+  4%; enemigos 2%) + 0,3% por punto de Agilidad del equipo, tope 30%. Se ve
+  "¡ESQUIVADO!".
+
+No se esquivan los daños en el tiempo ni las zonas rojas de los jefes (de esas
+hay que salir). Los números están en `ClassConfig` (`Esquiva*`, `Fallo*`).

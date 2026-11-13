@@ -616,6 +616,17 @@ local ClassConfig = {
 	MultiplicadorCritico = 1.5,
 	RegenVidaFueraCombate = 0.02, -- fracción de vida máxima por segundo
 	SegundosParaFueraDeCombate = 6,
+	-- Esquiva (solo golpes físicos directos): base por clase + Agilidad del
+	-- equipo (0,3% por punto). Tope 30%. Muestra "¡ESQUIVADO!".
+	EsquivaBase = 0.03,
+	EsquivaPorClase = { Asesino = 0.08, Arquero = 0.06, Druida = 0.04 } :: { [string]: number },
+	EsquivaPorAgilidad = 0.003,
+	EsquivaMaxima = 0.3,
+	EsquivaEnemigos = 0.02,
+	-- Fallo: atacar a alguien de más nivel puede fallar (4% por nivel de
+	-- diferencia, tope 25%). Muestra "¡FALLO!".
+	FalloPorNivel = 0.04,
+	FalloMaximo = 0.25,
 }
 
 return ClassConfig

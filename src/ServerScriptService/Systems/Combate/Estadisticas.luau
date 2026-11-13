@@ -25,6 +25,7 @@ export type Stats = {
 	Pasivas: { [string]: boolean },
 	MultiplicadorAmenaza: number,
 	MultiplicadorEspalda: number?,
+	Esquiva: number, -- 0..ClassConfig.EsquivaMaxima, solo contra golpes físicos directos
 }
 
 local Estadisticas = {}
@@ -51,6 +52,7 @@ local function aplicarItem(stats: Stats, item: Types.ItemInstancia)
 		stats.Ataque += (atributos.Fuerza or 0) * mult
 		stats.Poder += (atributos.Inteligencia or 0) * mult
 		stats.Critico += (atributos.Agilidad or 0) * mult * 0.005
+		stats.Esquiva += (atributos.Agilidad or 0) * mult * ClassConfig.EsquivaPorAgilidad
 	end
 
 	if meta then
@@ -99,6 +101,7 @@ function Estadisticas.DeJugador(datos: Types.DatosJugador): Stats
 		Pasivas = {},
 		MultiplicadorAmenaza = if def then def.MultiplicadorAmenaza else 1,
 		MultiplicadorEspalda = if def then def.MultiplicadorEspalda else nil,
+		Esquiva = ClassConfig.EsquivaPorClase[datos.Clase] or ClassConfig.EsquivaBase,
 	}
 
 	for _, item in datos.Equipamiento :: { [string]: Types.ItemInstancia } do
@@ -112,6 +115,7 @@ function Estadisticas.DeJugador(datos: Types.DatosJugador): Stats
 	stats.ManaMax = math.floor(stats.ManaMax)
 	stats.Critico = math.clamp(stats.Critico, 0, 0.75)
 	stats.RoboVida = math.clamp(stats.RoboVida, 0, 0.5)
+	stats.Esquiva = math.clamp(stats.Esquiva, 0, ClassConfig.EsquivaMaxima)
 	return stats
 end
 
@@ -128,6 +132,7 @@ function Estadisticas.DeEnemigo(vida: number, danio: number, defensa: number): S
 		Pasivas = {},
 		MultiplicadorAmenaza = 1,
 		MultiplicadorEspalda = nil,
+		Esquiva = ClassConfig.EsquivaEnemigos,
 	}
 end
 

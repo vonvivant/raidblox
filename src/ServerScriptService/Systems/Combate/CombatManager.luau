@@ -330,6 +330,33 @@ local function porLaEspalda(fuente: Combatiente, objetivo: Combatiente): boolean
 end
 
 -- Daño de una habilidad con todos los modificadores.
+-- Antes de un golpe directo: ¿falla por diferencia de nivel o lo esquivan?
+-- Devuelve el estado a mostrar ("Fallo" / "Esquivado") o nil si pega.
+local function evitado(fuente: Combatiente, objetivo: Combatiente, escuela: Escuela): string?
+	local diferencia = objetivo.Nivel - fuente.Nivel
+	if diferencia > 0 then
+		local p = math.min(ClassConfig.FalloMaximo, diferencia * ClassConfig.FalloPorNivel)
+		if math.random() < p then
+			return "Fallo"
+		end
+	end
+	if escuela == "Fisico" and math.random() < objetivo.Stats.Esquiva then
+		return "Esquivado"
+	end
+	return nil
+end
+
+local function golpeEvitado(fuente: Combatiente, objetivo: Combatiente, escuela: Escuela): boolean
+	local estado = evitado(fuente, objetivo, escuela)
+	if not estado then
+		return false
+	end
+	marcarCombate(fuente)
+	marcarCombate(objetivo)
+	emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, estado)
+	return true
+end
+
 local function calcularDanio(
 	fuente: Combatiente,
 	objetivo: Combatiente,
@@ -435,6 +462,9 @@ end
 local function aplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto: Efecto, idHabilidad: string)
 	local t = ahora()
 	if efecto.Tipo == "Danio" then
+		if golpeEvitado(fuente, objetivo, efecto.Escuela) then
+			return
+		end
 		local cantidad, critico = calcularDanio(fuente, objetivo, efecto.Base, efecto.Escala, efecto.Factor)
 		aplicarDanio(fuente, objetivo, cantidad, efecto.Escuela, critico, false)
 	elseif efecto.Tipo == "Cura" then
@@ -1163,6 +1193,10 @@ end
 -- Golpe cuerpo a cuerpo de un NPC (se puede hacer parry).
 function CombatManager.AtaqueNpc(npc: Combatiente, objetivo: Combatiente, multiplicador: number)
 	if not vivo(npc) or not vivo(objetivo) then
+		return
+	end
+	if golpeEvitado(npc, objetivo, "Fisico") then
+		emitir(npc.Raiz.Position, "Accion", npc.Modelo, "AtaqueNpc", { Objetivo = objetivo.Modelo })
 		return
 	end
 	local defensa = statEfectivo(objetivo, "Defensa")
