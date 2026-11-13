@@ -24,6 +24,9 @@ local EquipoVisible = {}
 
 local iniciado = false
 local ultimoPedido: { [Player]: number } = {}
+-- Firma de lo que está dibujado: si no cambió, no se rehace (Cosmeticos
+-- cambia seguido, por ejemplo con cada XP del pase de batalla).
+local firmas: { [Player]: string } = {}
 
 local NOMBRES_ANCLAJE: { [string]: { string } } = {
 	ManoDerecha = { "RightHand", "Right Arm" },
@@ -114,12 +117,30 @@ local function construir(
 	end
 end
 
-function EquipoVisible.Actualizar(player: Player)
+-- (Un personaje nuevo no tiene la carpeta "EquipoVisible", así que se rehace igual.)
+local function firmaDe(datos: Types.DatosJugador): string
+	local partes: { string } = {}
+	local equipamiento = datos.Equipamiento :: { [string]: Types.ItemInstancia? }
+	local transmog = datos.Transmog or {}
+	for _, slot in CFG.SlotsVisibles do
+		local item = equipamiento[slot]
+		table.insert(partes, `{slot}={if item then item.ItemId else ""}/{transmog[slot] or ""}`)
+	end
+	return table.concat(partes, ";")
+end
+
+-- `forzar`: rehacer aunque nada haya cambiado (el cuerpo cambió de tamaño).
+function EquipoVisible.Actualizar(player: Player, forzar: boolean?)
 	local personaje = player.Character
 	local datos = DataManager.GetData(player)
 	if not personaje or not datos then
 		return
 	end
+	local firma = firmaDe(datos)
+	if not forzar and firmas[player] == firma and personaje:FindFirstChild("EquipoVisible") then
+		return
+	end
+	firmas[player] = firma
 	local vieja = personaje:FindFirstChild("EquipoVisible")
 	if vieja then
 		vieja:Destroy()
@@ -236,6 +257,7 @@ function EquipoVisible.Init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		ultimoPedido[player] = nil
+		firmas[player] = nil
 	end)
 end
 

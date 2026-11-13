@@ -86,7 +86,7 @@ aplicarGenero = function(player: Player)
 		warn(`[Apariencia] No se pudo aplicar el género a {player.Name}: {err}`)
 	end
 	-- El cuerpo pudo cambiar de tamaño: se vuelve a ubicar el equipo visible.
-	EquipoVisible.Actualizar(player)
+	EquipoVisible.Actualizar(player, true)
 end
 
 local function colorearNombre(player: Player)
