@@ -1132,6 +1132,9 @@ local VALORES_AJUSTES: { [string]: { [any]: boolean } } = {
 	ChatTamano = { Chico = true, Normal = true, Grande = true },
 	ChatVisible = { [true] = true, [false] = true },
 	CanalVoz = { Proximidad = true, Grupo = true, Hermandad = true, Zona = true },
+	Zurdo = { [true] = true, [false] = true },
+	TextosCombate = { [true] = true, [false] = true },
+	Minimapa = { [true] = true, [false] = true },
 }
 
 -- Ajustes numéricos (fracción de la pantalla): posición y tamaño del chat.
@@ -1140,6 +1143,7 @@ local RANGOS_AJUSTES: { [string]: { number } } = {
 	ChatY = { 0, 1 },
 	ChatAncho = { 0.15, 0.6 },
 	ChatAlto = { 0.12, 0.7 },
+	EscalaUI = { 0.75, 1.3 },
 }
 
 -- Cambia un ajuste del jugador. Valida clave y valor contra una lista cerrada

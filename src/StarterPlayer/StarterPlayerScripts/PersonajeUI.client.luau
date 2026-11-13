@@ -5,8 +5,9 @@
 -- * Bando: muestra el actual. Violeta es neutral; para volver a Violeta desde
 --   Rojo o Azul hay que pagar (lo valida el servidor).
 -- * Género: Mi avatar / Masculino / Femenino (lo aplica el servidor).
--- * Chat: posición (izquierda/derecha), tamaño y mostrar/ocultar. Se guarda en
---   el perfil y se aplica acá, sobre la ventana de chat de Roblox.
+-- * Chat: mostrar/minimizar (posición y tamaño: arrastrando la ventana).
+-- * Interfaz (Fase 7): mano (diestro/zurdo), tamaño del HUD, números de
+--   combate y minimapa. Se guardan en el perfil; los aplica el módulo Hud.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,7 +24,9 @@ local jugador = Players.LocalPlayer
 local CFG = GameConfig.Bandos
 
 local gui = UIKit.Gui("PersonajeUI", 62)
-local ventana, contenido = UIKit.Ventana(gui, "Personaje", UDim2.fromScale(0.42, 0.72))
+local ventana, marcoContenido = UIKit.Ventana(gui, "Personaje", UDim2.fromScale(0.42, 0.78))
+local contenido = UIKit.Lista(marcoContenido, UDim2.fromScale(1, 1))
+contenido.BackgroundTransparency = 1
 
 local abrir = Instance.new("TextButton")
 abrir.Name = "BotonPersonaje"
@@ -41,10 +44,10 @@ abrir.Activated:Connect(function()
 	end
 end)
 
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 8)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = contenido
+local layout = contenido:FindFirstChildOfClass("UIListLayout")
+if layout then
+	layout.Padding = UDim.new(0, 8)
+end
 
 local orden = 0
 local function seccion(titulo: string): Frame
@@ -161,6 +164,34 @@ local marcarVisible = opciones(seccion("Chat: ventana"), {
 	guardar("ChatVisible", valor)
 end)
 
+-- Interfaz
+local marcarMano = opciones(seccion("Interfaz: mano"), {
+	{ Texto = "Diestro", Valor = false },
+	{ Texto = "Zurdo", Valor = true },
+}, function(valor)
+	guardar("Zurdo", valor)
+end)
+local marcarEscala = opciones(seccion("Interfaz: tamaño"), {
+	{ Texto = "Chico", Valor = 0.85 },
+	{ Texto = "Normal", Valor = 1 },
+	{ Texto = "Grande", Valor = 1.15 },
+	{ Texto = "Enorme", Valor = 1.3 },
+}, function(valor)
+	guardar("EscalaUI", valor)
+end)
+local marcarTextos = opciones(seccion("Números de daño y cura"), {
+	{ Texto = "Mostrar", Valor = true },
+	{ Texto = "Ocultar", Valor = false },
+}, function(valor)
+	guardar("TextosCombate", valor)
+end)
+local marcarMinimapa = opciones(seccion("Minimapa"), {
+	{ Texto = "Mostrar", Valor = true },
+	{ Texto = "Ocultar", Valor = false },
+}, function(valor)
+	guardar("Minimapa", valor)
+end)
+
 local function actualizarAjustes()
 	local ajustes = EstadoCliente.Get("Ajustes")
 	if typeof(ajustes) ~= "table" then
@@ -168,6 +199,10 @@ local function actualizarAjustes()
 	end
 	marcarGenero(ajustes.Genero)
 	marcarVisible(ajustes.ChatVisible)
+	marcarMano(ajustes.Zurdo == true)
+	marcarEscala(if typeof(ajustes.EscalaUI) == "number" then ajustes.EscalaUI else 1)
+	marcarTextos(ajustes.TextosCombate ~= false)
+	marcarMinimapa(ajustes.Minimapa ~= false)
 end
 
 EstadoCliente.Cambio:Connect(function(campo: string)

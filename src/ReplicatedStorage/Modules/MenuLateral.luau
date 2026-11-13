@@ -2,8 +2,11 @@
 -- MenuLateral: columna vertical de botones a la izquierda de la pantalla
 -- (Personaje, Grupo, Hermandad, Tienda, Voz, Mira, Montura). Cada script
 -- agrega su botón con un orden. Solo para el cliente.
+-- Con la opción "Zurdo" la columna pasa al borde derecho.
 
 local Players = game:GetService("Players")
+
+local Hud = require(script.Parent.Hud)
 
 local MenuLateral = {}
 
@@ -30,6 +33,12 @@ local function obtener(): Frame
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = marco
+	local function lado()
+		marco.AnchorPoint = Vector2.new(if Hud.Zurdo then 1 else 0, 0.5)
+		marco.Position = UDim2.fromScale(if Hud.Zurdo then 0.995 else 0.005, 0.56)
+	end
+	Hud.Cambio:Connect(lado)
+	lado()
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	columna = marco
 	return marco

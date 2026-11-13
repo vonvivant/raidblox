@@ -389,6 +389,46 @@ function CombatManager.Aturdir(c: Combatiente, duracion: number)
 end
 
 ------------------------------------------------------------------------
+-- Efectos visibles (Fase 7): el marco de objetivo muestra buffs y debuffs con
+-- su cuenta regresiva. Se publican en el atributo "Efectos" del modelo como
+-- "Nombre|Hasta|B" (o D) separados por ";"; solo se reescribe si cambió.
+------------------------------------------------------------------------
+
+local NOMBRES_STAT: { [string]: string } = {
+	Ataque = "Ataque",
+	Poder = "Poder",
+	Defensa = "Defensa",
+	Critico = "Crítico",
+}
+
+local function publicarEfectos(c: Combatiente)
+	local t = ahora()
+	local partes: { string } = {}
+	local function agregar(nombre: string, hasta: number, bueno: boolean)
+		if hasta > t then
+			table.insert(partes, `{nombre}|{math.floor(hasta * 10 + 0.5) / 10}|{if bueno then "B" else "D"}`)
+		end
+	end
+	agregar("Aturdido", c.AturdidoHasta, false)
+	agregar("Provocado", if c.ProvocadoPor then c.ProvocadoHasta else 0, false)
+	agregar("Invisible", c.InvisibleHasta, true)
+	for _, b in c.Buffs do
+		agregar(`+{b.Porcentaje}% {NOMBRES_STAT[b.Stat] or b.Stat}`, b.Hasta, true)
+	end
+	for _, p in c.Periodicos do
+		if p.Tipo == "Cura" then
+			agregar("Regeneración", p.Hasta, true)
+		else
+			agregar(if p.Escuela == "Magico" then "Quemadura" else "Sangrado", p.Hasta, false)
+		end
+	end
+	local texto = table.concat(partes, ";")
+	if c.Modelo:GetAttribute("Efectos") ~= texto then
+		c.Modelo:SetAttribute("Efectos", texto)
+	end
+end
+
+------------------------------------------------------------------------
 -- Efectos de habilidades
 ------------------------------------------------------------------------
 
@@ -454,6 +494,7 @@ local function aplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto:
 		aplicarTransparencia(objetivo, true)
 		CombatManager.InvisibilidadIniciada:Fire(objetivo)
 	end
+	publicarEfectos(objetivo)
 end
 
 local function esOfensiva(hab: Habilidad): boolean
@@ -1216,6 +1257,10 @@ local function tick(dt: number): nil
 		end
 		if c.ProvocadoPor and c.ProvocadoHasta <= t then
 			c.ProvocadoPor = nil
+		end
+
+		if cadaSegundo then
+			publicarEfectos(c)
 		end
 
 		if cadaSegundo and c.Player and vivo(c) then

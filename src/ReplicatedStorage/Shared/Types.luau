@@ -81,6 +81,11 @@ export type Ajustes = {
 	ChatY: number?,
 	ChatAncho: number?,
 	ChatAlto: number?,
+	-- Fase 7: interfaz.
+	Zurdo: boolean?, -- espeja el HUD
+	EscalaUI: number?, -- 0.75 a 1.3 (sin valor = 1)
+	TextosCombate: boolean?, -- números flotantes (sin valor = sí)
+	Minimapa: boolean?, -- sin valor = sí
 }
 
 -- v5: diario de operaciones de subasta en curso. Se escribe en el mismo
