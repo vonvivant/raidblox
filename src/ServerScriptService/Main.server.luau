@@ -56,6 +56,8 @@ AparienciaManager.Init()
 CombatManager.Init()
 LootManager.Init()
 local zona = ZoneManager.ZonaActual()
+-- El minimapa del cliente muestra el nombre de la zona.
+game:GetService("Workspace"):SetAttribute("Zona", zona or "Desconocida")
 EnemyManager.Init(zona)
 RaidBloxManager.Init(zona)
 

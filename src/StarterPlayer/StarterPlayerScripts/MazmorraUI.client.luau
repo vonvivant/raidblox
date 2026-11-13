@@ -11,7 +11,7 @@ local gui = UIKit.Gui("MazmorraUI", 42)
 
 local panel = Instance.new("Frame")
 panel.AnchorPoint = Vector2.new(1, 0)
-panel.Position = UDim2.fromScale(0.99, 0.3)
+panel.Position = UDim2.fromScale(0.99, 0.37) -- debajo del minimapa
 panel.Size = UDim2.fromScale(0.2, 0.21)
 panel.BackgroundColor3 = UIKit.Colores.Fondo
 panel.BackgroundTransparency = 0.15

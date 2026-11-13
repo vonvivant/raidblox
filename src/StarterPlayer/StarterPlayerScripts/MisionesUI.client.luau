@@ -219,7 +219,7 @@ end)
 local seguimiento = Instance.new("Frame")
 seguimiento.Name = "Seguimiento"
 seguimiento.AnchorPoint = Vector2.new(1, 0)
-seguimiento.Position = UDim2.fromScale(0.99, 0.3)
+seguimiento.Position = UDim2.fromScale(0.99, 0.37) -- debajo del minimapa
 seguimiento.Size = UDim2.fromScale(0.2, 0.3)
 seguimiento.BackgroundTransparency = 1
 seguimiento.Parent = gui
@@ -310,6 +310,8 @@ local function actualizarMarcador(modelo: Model)
 		return
 	end
 	local signo, color = estadoNpc(npcId)
+	-- Para el minimapa (atributo local, no se replica).
+	modelo:SetAttribute("MarcaMinimapa", signo or "")
 	etiqueta.Visible = signo ~= nil
 	etiqueta.Text = signo or ""
 	if color then
