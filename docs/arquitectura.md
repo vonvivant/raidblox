@@ -30,6 +30,7 @@ src/
 │   │   ├── HabilidadTipos.luau       Tipos de habilidad y efecto (los comparten todas las clases)
 │   │   ├── ClassConfig.luau          Clases, stats por nivel y habilidades
 │   │   ├── ChatarreroConfig.luau     Las 30 habilidades del Chatarrero, Spoil y construcciones
+│   │   ├── NpcArquetiposConfig.luau  Los 38 arquetipos de NPC y sus facciones
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
 │   │   ├── RaidBloxConfig.luau       Jefes de mundo
@@ -69,6 +70,7 @@ src/
 │       ├── AparienciaManager.luau    Género del personaje y ajustes del jugador
 │       ├── EquipoVisible.luau        Dibuja el equipo puesto y el transmog
 │       ├── NpcFactory.luau           Modelos de NPC
+│       ├── NpcManager.luau           NPCs por arquetipo: facciones, vendedores, servicios y Guardián de Portales
 │       ├── MisionManager.luau        Misiones
 │       ├── GrupoManager.luau         Grupos (party) de hasta 5
 │       ├── HermandadManager.luau     Hermandades, rangos y banco
@@ -119,6 +121,7 @@ src/
         ├── ChatUI.client.luau            Chat propio, movible
         ├── InventarioUI.client.luau      Mochila, equipo y detalles
         ├── CrafteoUI.client.luau         Recetas y minijuego de recolección
+        ├── NpcUI.client.luau             Ventana de los NPCs por arquetipo (venta, servicios, viajes)
         ├── SubastaUI.client.luau         Casa de Subastas
         ├── ComercioUI.client.luau        Comercio 1v1
         ├── MisionesUI.client.luau        Diálogos, seguimiento y marcadores
@@ -222,7 +225,7 @@ avisarle a uno de arriba, usa una señal (`Signal`) o un gancho (`CraftingManage
 6. **Economía:** inventario, crafteo, recolección, subastas y comercio.
 7. **Social, mazmorras, monetización y clases:** `GrupoManager`, `HermandadManager`, `VozManager`,
    `MazmorraManager`, `PasesManager`, `MonturaManager`, `ProductosManager`, `PaseBatallaManager`, `MascotaManager`,
-   `EquipoVisible`, `AdminManager`, `ChatarreroManager` y `MisionManager`.
+   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `NpcManager` y `MisionManager`.
 8. **Modo de juego del place:** `ArchitectWarManager.Init()` si corresponde.
 9. **Herramientas de prueba:** `DebugStudio` (solo Studio), `NpcsPrueba` y `EditorPiedra`.
 
@@ -262,6 +265,8 @@ devuelven siempre `{ Success, ErrorCode, Data }`.
 | Bandos y ajustes del jugador | `BandoVolverNeutral`, `GuardarAjuste` | Function | C → S |
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaAbrir` | Event | S → C |
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaComprar` | Function | C → S |
+| NPCs por arquetipo | `NpcAbrir` | Event | S → C |
+| NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcFabricar`, `NpcViajar` | Function | C → S |
 | Fase 4: Casa de Subastas | `SubastaAbrir` | Event | S → C |
 | Fase 4: Casa de Subastas | `SubastaBuscar`, `SubastaPublicar`, `SubastaComprar`, `SubastaCancelar`, `SubastaMias` | Function | C → S |
 | Fase 4: comercio 1v1 | `ComercioSolicitar`, `ComercioResponder`, `ComercioOfertar`, `ComercioBloquear`, `ComercioConfirmar`, `ComercioCancelar` | Event | C → S |

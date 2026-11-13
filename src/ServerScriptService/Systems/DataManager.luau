@@ -697,6 +697,17 @@ function DataManager.AddHonor(player: Player, cantidad: number): boolean
 	return true
 end
 
+-- Descuenta honor solo si alcanza. Devuelve false sin tocar nada si no.
+function DataManager.SpendHonor(player: Player, cantidad: number): boolean
+	local perfil = perfilActivo(player)
+	if not perfil or not esEnteroPositivo(cantidad) or perfil.Data.PuntosHonor < cantidad then
+		return false
+	end
+	perfil.Data.PuntosHonor -= cantidad
+	notificarCambio(player, perfil.Data, "Honor")
+	return true
+end
+
 -- Otorga un título (no duplica). Devuelve true si es nuevo.
 function DataManager.AddTitulo(player: Player, titulo: string): boolean
 	local perfil = perfilActivo(player)

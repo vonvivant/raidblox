@@ -124,6 +124,14 @@ local DEFINICIONES: { [string]: Definicion } = {
 	-- Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas())
 	TiendaPruebaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
 	TiendaPruebaComprar = { Tipo = "Function", Critico = false }, -- (itemId, cantidad)
+	-- NPCs por arquetipo (NpcManager)
+	NpcAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId, arquetipo, faccion, datos)
+	NpcComprar = { Tipo = "Function", Critico = false }, -- (npcId, indiceOferta, cantidad)
+	NpcVender = { Tipo = "Function", Critico = false }, -- (npcId, ranura, cantidad)
+	NpcServicio = { Tipo = "Function", Critico = false }, -- (npcId, servicioId)
+	NpcFabricar = { Tipo = "Function", Critico = false }, -- (npcId): abre las recetas de su estación
+	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
+
 	-- Fase 4: Casa de Subastas
 	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
 	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)

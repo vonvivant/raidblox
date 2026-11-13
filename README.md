@@ -76,6 +76,7 @@ flowchart LR
 - [Chatarrero](docs/chatarrero.md): novena clase, 30 habilidades en 4 barras, Spoil y construcciones.
 - [Economía](docs/economia.md): inventario, profesiones, crafteo, recolección, Casa de Subastas y comercio 1v1.
 - [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
+- [NPCs](docs/npcs.md): 38 arquetipos, facciones Rojo / Azul / Neutral, vendedores, artesanos y Guardián de Portales.
 - [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.
 - [Grupos](docs/grupos.md): party de hasta 5.
 - [Hermandades](docs/hermandades.md): rangos, permisos, banco de 4 pestañas y registro.

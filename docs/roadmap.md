@@ -76,18 +76,20 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 ## Después del catálogo
 
 Hecho (ver [chatarrero](chatarrero.md), [combate](combate.md) e [interfaz](interfaz.md)): esquiva y fallo, clase
-Chatarrero, minimapa con marco y mapa del mundo, y una pasada de buenas prácticas sobre todo el código.
+Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas sobre todo el código, y los
+[NPCs por arquetipo](npcs.md) (facciones, Guardián de Portales y los 38 arquetipos como datos).
 
 Pedidos en cola, en este orden:
 
-1. **NPCs:** módulo base con facciones (Rojo / Azul / Neutral), Guardián de Portales y los 38 arquetipos.
-2. **Vault global:** banco con pestañas, filtros y buscador.
-3. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
-4. **Raza Artesano y firma de autoría** en los ítems.
-5. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
-6. **NPC vendedor** con probador en vivo.
-7. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
-8. **Mapas de prueba** de la Ciudad y el Bosque.
+1. **Vault global:** banco con pestañas, filtros y buscador.
+2. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
+3. **Raza Artesano y firma de autoría** en los ítems.
+4. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
+5. **NPC vendedor** con probador en vivo.
+6. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
+7. **Mapas de prueba** de la Ciudad y el Bosque.
+
+Falta decidir: si la Casa de Subastas se separa por bando (ver [NPCs](npcs.md)).
 
 Sistemas que todavía no existen y varios de esos pedidos necesitan: durabilidad del equipo, banco personal (lo trae
 el Vault), razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).

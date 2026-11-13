@@ -26,6 +26,7 @@ local Workspace = game:GetService("Workspace")
 
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
 local DataManager = require(script.Parent.DataManager)
 local AntiCheat = require(script.Parent.AntiCheat)
 
@@ -45,6 +46,10 @@ type Intento = {
 }
 
 local ZoneManager = {}
+
+-- Se dispara cuando un viaje ya iniciado no se pudo completar (jugador, zonaId).
+-- Quien haya cobrado el viaje lo usa para devolver el oro.
+ZoneManager.Cancelado = Signal.new() :: Signal.Signal<Player, string>
 
 local intentos: { [Player]: Intento } = {} -- teleports en curso
 local ultimoPortal: { [Player]: number } = {}
@@ -93,6 +98,7 @@ local function cancelar(player: Player, intento: Intento, mensaje: string)
 	end
 	intentos[player] = nil
 	NetworkBridge.Server.FireClient("TeleportEstado", player, "Fallo", intento.zonaId, mensaje)
+	ZoneManager.Cancelado:Fire(player, intento.zonaId)
 end
 
 -- Ejecuta (o reintenta) el teleport real.
@@ -171,6 +177,11 @@ function ZoneManager.ZonaActual(): string?
 		return "Pruebas"
 	end
 	return id
+end
+
+-- ¿Tiene un viaje en curso?
+function ZoneManager.Viajando(player: Player): boolean
+	return intentos[player] ~= nil
 end
 
 -- Pide llevar a un jugador a una zona. Devuelve false (y avisa al jugador) si

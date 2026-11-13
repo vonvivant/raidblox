@@ -247,6 +247,11 @@ local function prepararEstacion(objeto: Instance)
 		return
 	end
 	local estacion = objeto
+	-- Las estaciones de un NPC artesano no llevan cartel propio: se abren
+	-- hablando con el NPC (NpcManager).
+	if estacion:GetAttribute("SinPrompt") == true then
+		return
+	end
 	local prompt = estacion:FindFirstChildOfClass("ProximityPrompt") or Instance.new("ProximityPrompt")
 	prompt.ActionText = "Fabricar"
 	prompt.ObjectText = NOMBRES_ESTACION[tipo]

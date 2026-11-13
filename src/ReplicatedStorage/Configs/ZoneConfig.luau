@@ -15,6 +15,9 @@ export type Zona = {
 	NivelMinimo: number,
 	Tema: string, -- texto de la pantalla de carga
 	ColorTema: Color3,
+	-- De qué bando es el territorio. El Guardián de Portales Rojo solo lleva a
+	-- zonas Rojas y Neutrales; el Azul, a Azules y Neutrales; el Neutral, a todas.
+	Territorio: "Rojo" | "Azul" | "Neutral",
 }
 
 local ZoneConfig = {
@@ -45,6 +48,23 @@ local ZoneConfig = {
 			NivelMinimo = 1,
 			Tema = "Las campanas de la ciudad te dan la bienvenida...",
 			ColorTema = Color3.fromRGB(230, 190, 90),
+			Territorio = "Neutral",
+		},
+		CapitalRoja = {
+			Nombre = "Bastión Carmesí",
+			PlaceId = 0,
+			NivelMinimo = 1,
+			Tema = "Los estandartes rojos flamean sobre las murallas...",
+			ColorTema = Color3.fromRGB(220, 60, 60),
+			Territorio = "Rojo",
+		},
+		CapitalAzul = {
+			Nombre = "Ciudadela Azur",
+			PlaceId = 0,
+			NivelMinimo = 1,
+			Tema = "Las torres azules se alzan entre la niebla...",
+			ColorTema = Color3.fromRGB(70, 120, 235),
+			Territorio = "Azul",
 		},
 		Bosque = {
 			Nombre = "Bosque Susurrante",
@@ -52,6 +72,7 @@ local ZoneConfig = {
 			NivelMinimo = 1,
 			Tema = "Los árboles antiguos murmuran tu nombre...",
 			ColorTema = Color3.fromRGB(90, 170, 90),
+			Territorio = "Neutral",
 		},
 		ReinoFuego = {
 			Nombre = "Reino de Fuego",
@@ -59,6 +80,7 @@ local ZoneConfig = {
 			NivelMinimo = 20,
 			Tema = "El aire arde. Solo los veteranos sobreviven aquí.",
 			ColorTema = Color3.fromRGB(220, 80, 40),
+			Territorio = "Neutral",
 		},
 		GuerraArquitectos = {
 			Nombre = "Guerra de Arquitectos",
@@ -66,6 +88,7 @@ local ZoneConfig = {
 			NivelMinimo = 5,
 			Tema = "Dos reinos. Un estandarte. Construí más rápido.",
 			ColorTema = Color3.fromRGB(80, 200, 255),
+			Territorio = "Neutral",
 		},
 	} :: { [string]: Zona },
 }
