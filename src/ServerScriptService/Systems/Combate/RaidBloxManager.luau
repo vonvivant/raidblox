@@ -261,6 +261,7 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado
 		return
 	end
 	npc.Modelo:SetAttribute("RaidBlox", true)
+	npc.Modelo:SetAttribute("Elite", true) -- minimapa y reglas de jefe (Chatarrero)
 	npc.Combatiente.ReduccionAturdir = 0.5 -- los jefes resisten la mitad de los aturdimientos
 	npc.Combatiente.Humanoid.MaxHealth = vidaMaxima(def, 1)
 	npc.Combatiente.Humanoid.Health = vidaMaxima(def, 1)
@@ -288,8 +289,8 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado
 			escalar(jefe)
 		end
 		revisarFuria(jefe)
-		if not CombatManager.PuedeActuar(npc.Combatiente) then
-			return
+		if not CombatManager.PuedeActuar(npc.Combatiente) or CombatManager.Silenciado(npc.Combatiente) then
+			return -- aturdido o silenciado: no lanza sus ataques especiales
 		end
 		for _, ataque in def.Ataques do
 			if ahoraT >= (jefe.ProximoAtaque[ataque.Nombre] or 0) then

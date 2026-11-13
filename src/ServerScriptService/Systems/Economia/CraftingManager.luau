@@ -35,6 +35,12 @@ local AREA_PRUEBA = Vector3.new(70, 0, -40)
 
 type Trabajo = { RecetaId: string, Receta: Receta, Estacion: BasePart, Fin: number }
 local trabajos: { [Player]: Trabajo } = {}
+local duplicador: ((Player) -> boolean)? = nil
+
+-- Otro sistema decide si lo que fabrica un jugador sale duplicado.
+function CraftingManager.SetDuplicador(fn: (Player) -> boolean)
+	duplicador = fn
+end
 local iniciado = false
 
 local NOMBRES_ESTACION: { [string]: string } = {
@@ -148,6 +154,15 @@ local function completar(player: Player, trabajo: Trabajo)
 		else
 			cantidad += 1
 		end
+	end
+	-- Sobreaceleración del Chatarrero (u otro bono): duplica lo fabricado.
+	if duplicador and player.Parent == Players and duplicador(player) then
+		if meta then
+			entregar(player, resultado.ItemId, cantidad, table.clone(meta), `Crafteo: {receta.Nombre}`)
+		else
+			cantidad *= 2
+		end
+		avisar(player, "¡Producción duplicada!", "Oro")
 	end
 	entregar(player, resultado.ItemId, cantidad, meta, `Crafteo: {receta.Nombre}`)
 

@@ -54,6 +54,8 @@ export type Npc = {
 	ProximoAtaque: number,
 	Volviendo: boolean,
 	Muerto: boolean,
+	Ignora: { [Combatiente]: number }, -- a quién no persigue, y hasta cuándo
+	DemoraCadaver: number?, -- segundos que queda el cuerpo al morir (por defecto 3)
 	-- Callbacks opcionales (jefes)
 	AlTick: ((npc: Npc) -> ())?,
 	AlMorir: ((npc: Npc) -> ())?,
@@ -64,6 +66,9 @@ local EnemyManager = {}
 
 -- (tipoEnemigo, jugadores que participaron): para las misiones de "Matar".
 EnemyManager.Derrotado = Signal.new() :: Signal.Signal<string, { Player }>
+-- Un NPC acaba de morir (antes de limpiar nada). Quien escucha puede alargar
+-- `DemoraCadaver` para que el cuerpo quede más tiempo (Spoil del Chatarrero).
+EnemyManager.NpcMurio = Signal.new() :: Signal.Signal<Npc>
 
 local npcs: { [Combatiente]: Npc } = {}
 local carpeta: Folder? = nil
@@ -236,7 +241,7 @@ local function pensar(npc: Npc): nil
 		local mejor = p.RadioAgro
 		for _, jugador in CombatManager.Jugadores() do
 			local d = (jugador.Raiz.Position - pos).Magnitude
-			if d <= mejor and not CombatManager.EsInvisible(jugador) then
+			if d <= mejor and not CombatManager.EsInvisible(jugador) and (npc.Ignora[jugador] or 0) <= ahora() then
 				cercano, mejor = jugador, d
 			end
 		end
@@ -330,6 +335,8 @@ function EnemyManager.Crear(params: ParametrosNpc): Npc?
 		ProximoAtaque = 0,
 		Volviendo = false,
 		Muerto = false,
+		Ignora = {},
+		DemoraCadaver = nil,
 		AlTick = nil,
 		AlMorir = nil,
 		AlReiniciar = nil,
@@ -445,7 +452,9 @@ function EnemyManager.Init(zona: string?)
 			if not npc or not fuente or not fuente.Player or npc.Params.Pasivo then
 				return -- los muñecos de práctica no llevan amenaza ni aportes
 			end
-			npc.Amenaza[fuente] = (npc.Amenaza[fuente] or 0) + amenaza
+			if (npc.Ignora[fuente] or 0) <= ahora() then
+				npc.Amenaza[fuente] = (npc.Amenaza[fuente] or 0) + amenaza
+			end
 			local uid = (fuente.Player :: Player).UserId
 			npc.Aportes[uid] = (npc.Aportes[uid] or 0) + cantidad
 		end
@@ -481,6 +490,19 @@ function EnemyManager.Init(zona: string?)
 		end
 	end)
 
+	-- Negociación Turbia y parecidas: un monstruo común deja de perseguir a
+	-- alguien por unos segundos (los jefes y élites no caen).
+	CombatManager.AgroPerdido:Connect(function(objetivo: Combatiente, fuente: Combatiente, duracion: number)
+		local npc = npcs[objetivo]
+		if not npc or npc.Modelo:GetAttribute("Elite") == true then
+			CombatManager.Anunciar(objetivo, "Inmune")
+			return
+		end
+		npc.Amenaza[fuente] = nil
+		npc.Ignora[fuente] = ahora() + duracion
+		CombatManager.Anunciar(objetivo, "Confundido")
+	end)
+
 	CombatManager.InvisibilidadIniciada:Connect(function(c: Combatiente)
 		for _, npc in npcs do
 			npc.Amenaza[c] = nil
@@ -498,11 +520,12 @@ function EnemyManager.Init(zona: string?)
 		end
 		npc.Muerto = true
 		npcs[c] = nil
+		EnemyManager.NpcMurio:Fire(npc)
 		local alMorir = npc.AlMorir
 		if alMorir then
 			task.spawn(alMorir, npc)
 		end
-		task.delay(3, function()
+		task.delay(npc.DemoraCadaver or 3, function()
 			npc.Modelo:Destroy()
 		end)
 	end)

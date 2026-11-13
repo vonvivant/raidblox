@@ -366,6 +366,8 @@ local function iniciarJefe(inst: Instancia)
 		return
 	end
 	inst.Jefe = npc
+	npc.Modelo:SetAttribute("Elite", true)
+	npc.Modelo:SetAttribute("JefeMazmorra", true)
 	local ahora = os.clock()
 	for i, m in d.Mecanicas do
 		if m.Cada then

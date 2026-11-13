@@ -120,6 +120,28 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 	Zafiro = { Nombre = "Zafiro", Tipo = "Material", Apilable = true, PrecioVenta = 35 },
 	Rubi = { Nombre = "Rubí", Tipo = "Material", Apilable = true, PrecioVenta = 40 },
 	Diamante = { Nombre = "Diamante", Tipo = "Material", Apilable = true, PrecioVenta = 100 },
+	-- Materiales del Spoil del Chatarrero
+	Chatarra = {
+		Nombre = "Chatarra",
+		Tipo = "Material",
+		Apilable = true,
+		PrecioVenta = 2,
+		Descripcion = "Restos de metal. Sale del Spoil y de desmantelar equipo.",
+	},
+	Engranaje = {
+		Nombre = "Engranaje",
+		Tipo = "Material",
+		Apilable = true,
+		PrecioVenta = 15,
+		Descripcion = "Pieza mecánica rara que el Chatarrero saca de los restos.",
+	},
+	NucleoTitan = {
+		Nombre = "Núcleo de Titán",
+		Tipo = "Material",
+		Apilable = true,
+		PrecioVenta = 400,
+		Descripcion = "Componente legendario. Solo sale con Extracción Quirúrgica de un jefe.",
+	},
 	NucleoObsidiana = { Nombre = "Núcleo de Obsidiana", Tipo = "Material", Apilable = true, PrecioVenta = 30 },
 	SedaArana = { Nombre = "Seda de Araña", Tipo = "Material", Apilable = true, PrecioVenta = 20 },
 	PecheraCuero = {

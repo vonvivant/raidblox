@@ -4,7 +4,17 @@
 
 export type Rareza = "Comun" | "Raro" | "Epico" | "Mistico" | "Unico"
 
-export type Clase = "SinClase" | "Tanque" | "Guerrero" | "Mago" | "Arquero" | "Asesino" | "Healer" | "Druida" | "Buffer"
+export type Clase =
+	"SinClase"
+	| "Tanque"
+	| "Guerrero"
+	| "Mago"
+	| "Arquero"
+	| "Asesino"
+	| "Healer"
+	| "Druida"
+	| "Buffer"
+	| "Chatarrero"
 
 export type SkinEstructura = "Ninguna" | "Gotica" | "Hielo" | "Jade"
 
@@ -142,6 +152,10 @@ export type DatosJugador = {
 	MascotaEquipada: string?,
 	Apariencias: { string }?, -- apariencias (transmog) obtenidas
 	Transmog: { [string]: string }?, -- slot de equipo -> apariencia que se muestra
+	-- Chatarrero: ids de las habilidades equipadas en sus barras (hasta 16) y
+	-- recargas largas en curso (id -> hora del servidor en que quedan listas).
+	Barras: { string }?,
+	CooldownsLargos: { [string]: number }?,
 	CodigosCanjeados: { [string]: number }?, -- código -> os.time()
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,

@@ -22,7 +22,9 @@ local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Workspace = game:GetService("Workspace")
 local Signal = require(ReplicatedStorage.Modules.Signal)
+local ChatarreroConfig = require(ReplicatedStorage.Configs.ChatarreroConfig)
 
 type DatosJugador = Types.DatosJugador
 type ItemInstancia = Types.ItemInstancia
@@ -213,6 +215,12 @@ local function perfilActivo(player: Player): Perfil?
 	return nil
 end
 
+-- Habilidades equipadas en las barras (clases con barras). Sin elección
+-- guardada: las barras por defecto.
+function DataManager.Barras(datos: DatosJugador): { string }
+	return datos.Barras or ChatarreroConfig.BarrasPorDefecto
+end
+
 -- Valor de una sección tal como se manda al cliente.
 local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 	if seccion == "Nivel" then
@@ -247,6 +255,7 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 			MascotaEquipada = datos.MascotaEquipada or false,
 			Apariencias = datos.Apariencias or {},
 			Transmog = datos.Transmog or {},
+			Barras = DataManager.Barras(datos),
 		}
 	else
 		return datos.Equipamiento
@@ -435,6 +444,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		MascotaEquipada = d.MascotaEquipada or false,
 		Apariencias = d.Apariencias or {},
 		Transmog = d.Transmog or {},
+		Barras = DataManager.Barras(d),
 		Profesiones = d.Profesiones,
 		Ajustes = d.Ajustes,
 	}
@@ -1548,6 +1558,29 @@ end
 -- mascotas, apariencias, códigos), cuyos campos son opcionales. `cambiar` NO
 -- debe pausar (sin yields): corre en el mismo bloque que el resto del cambio.
 -- Devuelve false si el perfil no está activo.
+-- Recarga larga de una habilidad (nil = borrarla). No se manda al cliente:
+-- el combate le avisa por su lado.
+function DataManager.SetCooldownLargo(player: Player, id: string, hasta: number?)
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return
+	end
+	local mapa: { [string]: number } = perfil.Data.CooldownsLargos or {}
+	perfil.Data.CooldownsLargos = mapa
+	if hasta then
+		mapa[id] = hasta
+	else
+		mapa[id] = nil
+	end
+	-- Limpieza: fuera las que ya vencieron.
+	local ahora = Workspace:GetServerTimeNow()
+	for otro, t in mapa do
+		if t <= ahora then
+			mapa[otro] = nil
+		end
+	end
+end
+
 function DataManager.Mutar(player: Player, seccion: Types.SeccionDatos, cambiar: (Types.DatosJugador) -> ()): boolean
 	local perfil = perfilActivo(player)
 	if not perfil then

@@ -23,7 +23,7 @@ src/
 │   │   ├── ItemCatalog.luau          Definición de ítems
 │   │   ├── ZoneConfig.luau           Zonas/places, nivel mínimo y temas de carga
 │   │   ├── GuerraConfig.luau         Balance de la Guerra de Arquitectos
-│   │   ├── ClassConfig.luau          8 clases, stats por nivel y habilidades
+│   │   ├── ClassConfig.luau          Clases, stats por nivel y habilidades
 │   │   ├── ItemRarityConfig.luau     Rarezas, efectos secundarios y pasivas
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
 │   │   ├── RaidBloxConfig.luau       Jefes de mundo

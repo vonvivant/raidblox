@@ -1,5 +1,6 @@
 --!strict
--- ClassConfig: las 8 clases jugables, sus estadísticas por nivel y sus 4 habilidades.
+-- ClassConfig: las clases jugables, sus estadísticas por nivel y sus habilidades
+-- (8 clases con 4 habilidades y el Chatarrero con 30, ver ChatarreroConfig).
 -- El servidor calcula todo a partir de esta tabla; el cliente la lee solo para
 -- mostrar nombres, costos y tiempos de recarga.
 --
@@ -9,45 +10,13 @@
 --   mitigación      = Defensa / (Defensa + 100)
 --   crítico         = x1.5 (el Asesino por la espalda: crítico seguro x2.25)
 
-export type Stat = "Ataque" | "Poder" | "Defensa"
+local HabilidadTipos = require(script.Parent.HabilidadTipos)
+local ChatarreroConfig = require(script.Parent.ChatarreroConfig)
 
-export type Efecto =
-	{ Tipo: "Danio", Escuela: "Fisico" | "Magico", Base: number, Escala: Stat, Factor: number }
-	| { Tipo: "Cura", Base: number, Factor: number }
-	| { Tipo: "CuraTiempo", Base: number, Factor: number, Duracion: number, Intervalo: number }
-	| {
-		Tipo: "DanioTiempo",
-		Escuela: "Fisico" | "Magico",
-		Base: number,
-		Escala: Stat,
-		Factor: number,
-		Duracion: number,
-		Intervalo: number,
-	}
-	| { Tipo: "Aturdir", Duracion: number }
-	| { Tipo: "Provocar", Duracion: number }
-	| { Tipo: "Aura", Stat: Stat, Porcentaje: number, Duracion: number }
-	| { Tipo: "Invisible", Duracion: number }
-
--- A quién afecta la habilidad:
---   Enemigo / Aliado: un objetivo seleccionado (Aliado acepta al propio jugador).
---   Propio: solo quien la lanza.
---   AreaEnemigos / AreaAliados: todos en `Radio` alrededor de `Centro`.
-export type TipoObjetivo = "Enemigo" | "Aliado" | "Propio" | "AreaEnemigos" | "AreaAliados"
-
-export type Habilidad = {
-	Id: string,
-	Nombre: string,
-	Descripcion: string,
-	CostoMana: number,
-	Cooldown: number, -- segundos
-	Rango: number, -- studs hasta el objetivo (o hasta el centro del área)
-	TiempoCasteo: number, -- 0 = instantánea
-	Objetivo: TipoObjetivo,
-	Centro: ("Objetivo" | "Propio")?, -- solo áreas
-	Radio: number?, -- solo áreas y auras
-	Efectos: { Efecto },
-}
+export type Stat = HabilidadTipos.Stat
+export type Efecto = HabilidadTipos.Efecto
+export type TipoObjetivo = HabilidadTipos.TipoObjetivo
+export type Habilidad = HabilidadTipos.Habilidad
 
 export type EstadisticasBase = {
 	Vida: number,
@@ -67,6 +36,11 @@ export type DefinicionClase = {
 	PorNivel: EstadisticasBase,
 	MultiplicadorAmenaza: number, -- el Tanque genera 3x
 	MultiplicadorEspalda: number?, -- el Asesino: crítico seguro y extra por la espalda
+	Recurso: string?, -- nombre del recurso que gastan las habilidades (por defecto "Maná")
+	ColorRecurso: Color3?,
+	-- Clases con más de 4 habilidades: cantidad de barras de 4 botones. El
+	-- jugador equipa 4 habilidades de cada categoría (Habilidad.Categoria).
+	Barras: number?,
 	Habilidades: { Habilidad },
 }
 
@@ -592,10 +566,26 @@ local Clases: { [string]: DefinicionClase } = {
 	},
 }
 
+-- Novena clase: sus 30 habilidades viven en ChatarreroConfig.
+Clases.Chatarrero = {
+	Nombre = "Chatarrero",
+	Rol = "Saqueador y artesano",
+	Descripcion = "Marca monstruos para sacarles materiales, despliega yunques, trampas y torretas. 30 habilidades en 4 barras.",
+	Base = stats(130, 100, 4, 11, 4, 14, 0.06),
+	PorNivel = stats(15, 2, 0.05, 1.6, 0.4, 1.8, 0),
+	MultiplicadorAmenaza = 0.7, -- baja amenaza
+	Recurso = "Stamina",
+	ColorRecurso = Color3.fromRGB(230, 190, 50),
+	Barras = 4,
+	Habilidades = ChatarreroConfig.Habilidades,
+}
+
 local ClassConfig = {
 	Clases = Clases,
 	-- Orden de presentación en el selector.
-	Orden = { "Tanque", "Guerrero", "Mago", "Arquero", "Asesino", "Healer", "Druida", "Buffer" },
+	Orden = { "Tanque", "Guerrero", "Mago", "Arquero", "Asesino", "Healer", "Druida", "Buffer", "Chatarrero" },
+	-- Cooldowns desde este valor (segundos) sobreviven a morir y a desconectarse.
+	CooldownLargo = 60,
 	-- Stats de quien todavía no eligió clase.
 	SinClase = {
 		Base = stats(100, 50, 2, 8, 6, 6, 0.05),

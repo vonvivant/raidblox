@@ -13,8 +13,8 @@
 -- El cliente solo pide; el servidor valida rango, maná, cooldown y estado.
 -- HUD (Fase 7): marco del jugador (retrato, nivel, vida, maná, XP), marco del
 -- objetivo (vida y buffs/debuffs con cuenta regresiva), barra de casteo y
--- barra de acción de 8 ranuras con recarga circular: 4 habilidades, parry,
--- poción de vida (5), poción de maná (6) y montura (G).
+-- barra de acción con recarga circular: las habilidades (4, o 4 barras de 4
+-- para el Chatarrero), parry, poción de vida (5), de maná (6) y montura (G).
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -31,12 +31,14 @@ local Apuntado = require(ReplicatedStorage.Modules.Apuntado)
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local Hud = require(ReplicatedStorage.Modules.Hud)
+local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local ChatarreroConfig = require(ReplicatedStorage.Configs.ChatarreroConfig)
+local CollectionService = game:GetService("CollectionService")
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
 
 local ALCANCE_TAB = 60
-local TECLAS: { Enum.KeyCode } = { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four }
 local BOTONES: { Enum.KeyCode } =
 	{ Enum.KeyCode.ButtonX, Enum.KeyCode.ButtonY, Enum.KeyCode.ButtonB, Enum.KeyCode.DPadUp }
 
@@ -255,14 +257,6 @@ local function parry()
 	NetworkBridge.Client.Fire("Parry")
 end
 
-for i = 1, 4 do
-	ContextActionService:BindAction(`HabilidadRaidBlox{i}`, function(_, estado: Enum.UserInputState)
-		if estado == Enum.UserInputState.Begin then
-			usarHabilidad(i)
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, TECLAS[i], BOTONES[i])
-end
 ContextActionService:BindAction("ParryRaidBlox", function(_, estado: Enum.UserInputState)
 	if estado == Enum.UserInputState.Begin then
 		parry()
@@ -497,26 +491,45 @@ local barraCasteo, textoCasteo =
 	barraPx(marcoCasteo, Vector2.new(3, 3), Vector2.new(294, 16), Color3.fromRGB(230, 190, 60))
 
 ------------------------------------------------------------------------
--- Barra de acción: 8 ranuras con recarga circular
+-- Barra de acción con recarga circular.
+--   * Clases comunes: 4 habilidades (1 2 3 4).
+--   * Clases con barras (Chatarrero): 4 barras de 4 botones, una por
+--     categoría de recarga: I = 1 2 3 4, II = Z X C V, III = 7 8 9 0,
+--     IV = Y U H J. El botón "⚙ Habilidades" elige cuáles van en cada barra.
+--   * Siempre al final: parry (F), pociones (5, 6) y montura (G).
 ------------------------------------------------------------------------
 
-local TAM_RANURA = 58
+local TECLAS_BARRAS: { { Enum.KeyCode } } = {
+	{ Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four },
+	{ Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V },
+	{ Enum.KeyCode.Seven, Enum.KeyCode.Eight, Enum.KeyCode.Nine, Enum.KeyCode.Zero },
+	{ Enum.KeyCode.Y, Enum.KeyCode.U, Enum.KeyCode.H, Enum.KeyCode.J },
+}
+local NOMBRES_TECLAS: { { string } } = {
+	{ "1", "2", "3", "4" },
+	{ "Z", "X", "C", "V" },
+	{ "7", "8", "9", "0" },
+	{ "Y", "U", "H", "J" },
+}
+local COLORES_BARRA: { Color3 } = {
+	Color3.fromRGB(110, 110, 150),
+	Color3.fromRGB(80, 150, 255),
+	Color3.fromRGB(180, 90, 255),
+	Color3.fromRGB(255, 170, 40),
+}
+
 local barraAccion = Instance.new("Frame")
 barraAccion.Name = "BarraAccion"
 barraAccion.BackgroundTransparency = 1
 barraAccion.Parent = gui
 Hud.Registrar(barraAccion)
-local grillaAccion = Instance.new("UIGridLayout")
-grillaAccion.CellSize = UDim2.fromOffset(TAM_RANURA, TAM_RANURA)
-grillaAccion.CellPadding = UDim2.fromOffset(6, 6)
-grillaAccion.SortOrder = Enum.SortOrder.LayoutOrder
-grillaAccion.HorizontalAlignment = Enum.HorizontalAlignment.Center
-grillaAccion.Parent = barraAccion
 
 type TipoRanura = "Habilidad" | "Parry" | "Pocion" | "Montura"
 type Ranura = {
 	Tipo: TipoRanura,
-	Indice: number,
+	Indice: number, -- índice en las habilidades de la clase
+	Barra: number, -- 1..4 (habilidades)
+	Pos: number, -- 1..4 dentro de la barra
 	ItemId: string?,
 	Boton: TextButton,
 	Nombre: TextLabel,
@@ -528,6 +541,9 @@ type Ranura = {
 	Velo: Frame,
 }
 local ranuras: { Ranura } = {}
+local ranuraMontura: Ranura? = nil
+local tamRanura = 58
+local conBarras = false
 local pocionLista = 0
 
 -- Velo circular de recarga: dos mitades recortadas, cada una con un círculo
@@ -584,10 +600,18 @@ end
 
 local usarRanura: (Ranura) -> ()
 
-local function crearRanura(orden: number, tipo: TipoRanura, indice: number, tecla: string, itemId: string?): Ranura
+local function crearRanura(
+	orden: number,
+	tipo: TipoRanura,
+	indice: number,
+	tecla: string,
+	colorBorde: Color3,
+	itemId: string?
+): Ranura
 	local boton = Instance.new("TextButton")
 	boton.Name = `Ranura{orden}`
 	boton.LayoutOrder = orden
+	boton.Size = UDim2.fromOffset(tamRanura, tamRanura)
 	boton.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
 	boton.AutoButtonColor = true
 	boton.Text = ""
@@ -595,10 +619,7 @@ local function crearRanura(orden: number, tipo: TipoRanura, indice: number, tecl
 	esquinas.CornerRadius = UDim.new(0, 10)
 	esquinas.Parent = boton
 	local borde = Instance.new("UIStroke")
-	borde.Color = if tipo == "Habilidad"
-		then Color3.fromRGB(110, 110, 150)
-		elseif tipo == "Pocion" then Color3.fromRGB(80, 140, 90)
-		else Color3.fromRGB(150, 130, 80)
+	borde.Color = colorBorde
 	borde.Thickness = 1.5
 	borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	borde.Parent = boton
@@ -621,6 +642,8 @@ local function crearRanura(orden: number, tipo: TipoRanura, indice: number, tecl
 	local r: Ranura = {
 		Tipo = tipo,
 		Indice = indice,
+		Barra = 0,
+		Pos = 0,
 		ItemId = itemId,
 		Boton = boton,
 		Nombre = nombre,
@@ -637,18 +660,6 @@ local function crearRanura(orden: number, tipo: TipoRanura, indice: number, tecl
 	velo.Visible = false
 	return r
 end
-
-for i = 1, 4 do
-	table.insert(ranuras, crearRanura(i, "Habilidad", i, tostring(i)))
-end
-table.insert(ranuras, crearRanura(5, "Parry", 0, "F"))
-table.insert(ranuras, crearRanura(6, "Pocion", 0, "5", "PocionVida"))
-table.insert(ranuras, crearRanura(7, "Pocion", 0, "6", "PocionMana"))
-table.insert(ranuras, crearRanura(8, "Montura", 0, "G"))
-ranuras[5].Nombre.Text = "Parry"
-ranuras[6].Nombre.Text = "Poción vida"
-ranuras[7].Nombre.Text = "Poción maná"
-ranuras[8].Nombre.Text = "Montura"
 
 local function usarPocion(itemId: string)
 	local inv = EstadoCliente.Get("Inventario")
@@ -683,6 +694,36 @@ usarRanura = function(r: Ranura)
 	elseif r.Tipo == "Montura" then
 		local dragon = jugador:GetAttribute("Pase_MonturaDragon") == true
 		NetworkBridge.Client.Invoke("MonturaAlternar", if dragon then "Dragon" else "Caballo")
+	end
+end
+
+-- Teclas de las 4 barras (la I también con los botones del gamepad).
+for b = 1, 4 do
+	for p = 1, 4 do
+		local botonGamepad = if b == 1 then BOTONES[p] else nil
+		local function alPulsar(_: string, estado: Enum.UserInputState): Enum.ContextActionResult
+			if estado ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() ~= nil then
+				return Enum.ContextActionResult.Pass
+			end
+			for _, r in ranuras do
+				if r.Tipo == "Habilidad" and r.Barra == b and r.Pos == p then
+					usarRanura(r)
+					return Enum.ContextActionResult.Sink
+				end
+			end
+			return Enum.ContextActionResult.Pass
+		end
+		if botonGamepad then
+			ContextActionService:BindAction(
+				`HabilidadRaidBlox{b}_{p}`,
+				alPulsar,
+				false,
+				TECLAS_BARRAS[b][p],
+				botonGamepad
+			)
+		else
+			ContextActionService:BindAction(`HabilidadRaidBlox{b}_{p}`, alPulsar, false, TECLAS_BARRAS[b][p])
+		end
 	end
 end
 
@@ -733,6 +774,24 @@ EstadoCliente.Cambio:Connect(function(campo: string)
 	end
 end)
 
+-- Botón para elegir las habilidades de las barras (solo clases con barras).
+local botonBarras = Instance.new("TextButton")
+botonBarras.Name = "ElegirHabilidades"
+botonBarras.Size = UDim2.fromOffset(150, 24)
+botonBarras.BackgroundColor3 = Color3.fromRGB(40, 40, 58)
+botonBarras.TextColor3 = Color3.fromRGB(255, 215, 90)
+botonBarras.Font = Enum.Font.GothamBold
+botonBarras.TextSize = 14
+botonBarras.Text = "⚙ Habilidades (K)"
+botonBarras.Visible = false
+local esquinasBarras = Instance.new("UICorner")
+esquinasBarras.CornerRadius = UDim.new(0, 8)
+esquinasBarras.Parent = botonBarras
+botonBarras.Parent = gui
+Hud.Registrar(botonBarras)
+
+local ESPACIO = 5
+
 -- Ubicación según dispositivo y mano.
 local function ubicarHud()
 	local tactil = Hud.EsTactil()
@@ -740,24 +799,308 @@ local function ubicarHud()
 	-- Marco del jugador: arriba, del lado contrario al minimapa.
 	marcoJugador.AnchorPoint = Vector2.new(if zurdo then 1 else 0, 0)
 	marcoJugador.Position = if zurdo then UDim2.new(1, -8, 0, 8) else UDim2.fromOffset(8, 8)
-	-- Barra de acción: en PC y consola una fila centrada; en táctil un bloque
-	-- de 4×2 del lado de la mano hábil (derecha, o izquierda si es zurdo).
+
+	local viejo = barraAccion:FindFirstChildWhichIsA("UILayout")
+	if viejo then
+		viejo:Destroy()
+	end
+	local separadores = 0
+	for _, hijo in barraAccion:GetChildren() do
+		if hijo.Name == "Separador" and hijo:IsA("GuiObject") then
+			hijo.Visible = not tactil
+			separadores += 1
+		end
+	end
+	local n = #ranuras
 	if tactil then
-		local ancho = 4 * TAM_RANURA + 3 * 6
-		barraAccion.Size = UDim2.fromOffset(ancho, 2 * TAM_RANURA + 6)
+		-- Bloque de 4 columnas del lado de la mano hábil.
+		local grilla = Instance.new("UIGridLayout")
+		grilla.CellSize = UDim2.fromOffset(tamRanura, tamRanura)
+		grilla.CellPadding = UDim2.fromOffset(ESPACIO, ESPACIO)
+		grilla.SortOrder = Enum.SortOrder.LayoutOrder
+		grilla.FillDirectionMaxCells = 4
+		grilla.Parent = barraAccion
+		local filas = math.ceil(n / 4)
+		barraAccion.Size = UDim2.fromOffset(4 * tamRanura + 3 * ESPACIO, filas * tamRanura + (filas - 1) * ESPACIO)
 		barraAccion.AnchorPoint = Vector2.new(if zurdo then 0 else 1, 1)
 		barraAccion.Position = if zurdo then UDim2.new(0, 12, 1, -150) else UDim2.new(1, -12, 1, -150)
 	else
-		barraAccion.Size = UDim2.fromOffset(8 * TAM_RANURA + 7 * 6, TAM_RANURA)
+		-- Una fila centrada, con un espacio entre barra y barra.
+		local fila = Instance.new("UIListLayout")
+		fila.FillDirection = Enum.FillDirection.Horizontal
+		fila.Padding = UDim.new(0, ESPACIO)
+		fila.SortOrder = Enum.SortOrder.LayoutOrder
+		fila.VerticalAlignment = Enum.VerticalAlignment.Bottom
+		fila.Parent = barraAccion
+		local ancho = n * tamRanura + (n + separadores - 1) * ESPACIO + separadores * 6
+		barraAccion.Size = UDim2.fromOffset(ancho, tamRanura)
 		barraAccion.AnchorPoint = Vector2.new(0.5, 1)
 		barraAccion.Position = UDim2.new(0.5, 0, 1, -12)
 	end
 	for _, r in ranuras do
 		r.Tecla.Visible = not tactil
 	end
+	botonBarras.Visible = conBarras
+	botonBarras.AnchorPoint = barraAccion.AnchorPoint
+	botonBarras.Position = barraAccion.Position - UDim2.fromOffset(0, barraAccion.Size.Y.Offset + 8)
+end
+
+-- Arma las ranuras según la clase y las habilidades equipadas.
+local function armarBarra()
+	for _, hijo in barraAccion:GetChildren() do
+		if hijo:IsA("GuiObject") then
+			hijo:Destroy()
+		end
+	end
+	table.clear(ranuras)
+	local def = claseActual()
+	conBarras = def ~= nil and def.Barras ~= nil
+	tamRanura = if conBarras then 46 else 58
+	local orden = 0
+	local function separador()
+		orden += 1
+		local s = Instance.new("Frame")
+		s.Name = "Separador"
+		s.Size = UDim2.fromOffset(6, tamRanura)
+		s.BackgroundTransparency = 1
+		s.LayoutOrder = orden
+		s.Parent = barraAccion
+	end
+	if def and conBarras then
+		local equipadas = EstadoCliente.Get("Barras")
+		local lista: { string } = if typeof(equipadas) == "table" then equipadas else ChatarreroConfig.BarrasPorDefecto
+		for b = 1, def.Barras or 4 do
+			local pos = 0
+			-- En el orden del catálogo de la clase.
+			for indice, hab in def.Habilidades do
+				if hab.Categoria == b and table.find(lista, hab.Id) and pos < 4 then
+					pos += 1
+					orden += 1
+					local calidad = if hab.Calidad then ChatarreroConfig.Calidades[hab.Calidad] else nil
+					local r = crearRanura(
+						orden,
+						"Habilidad",
+						indice,
+						NOMBRES_TECLAS[b][pos],
+						if calidad then calidad.Color else COLORES_BARRA[b]
+					)
+					r.Barra, r.Pos = b, pos
+					table.insert(ranuras, r)
+				end
+			end
+			-- Lugares vacíos, para que cada barra siempre tenga sus 4 botones.
+			while pos < 4 do
+				pos += 1
+				orden += 1
+				local r = crearRanura(orden, "Habilidad", 0, NOMBRES_TECLAS[b][pos], COLORES_BARRA[b])
+				r.Barra, r.Pos = b, pos
+				r.Boton.BackgroundTransparency = 0.6
+				table.insert(ranuras, r)
+			end
+			separador()
+		end
+	else
+		for i = 1, 4 do
+			orden += 1
+			local r = crearRanura(orden, "Habilidad", i, tostring(i), COLORES_BARRA[1])
+			r.Barra, r.Pos = 1, i
+			table.insert(ranuras, r)
+		end
+	end
+	local utilidad = Color3.fromRGB(150, 130, 80)
+	local verde = Color3.fromRGB(80, 140, 90)
+	local function extra(tipo: TipoRanura, tecla: string, nombre: string, color: Color3, itemId: string?): Ranura
+		orden += 1
+		local r = crearRanura(orden, tipo, 0, tecla, color, itemId)
+		r.Nombre.Text = nombre
+		table.insert(ranuras, r)
+		return r
+	end
+	extra("Parry", "F", "Parry", utilidad)
+	extra("Pocion", "5", "Poción vida", verde, "PocionVida")
+	extra("Pocion", "6", "Poción maná", verde, "PocionMana")
+	ranuraMontura = extra("Montura", "G", "Montura", utilidad)
+	refrescarRanuras()
+	ubicarHud()
 end
 Hud.Cambio:Connect(ubicarHud)
-ubicarHud()
+
+------------------------------------------------------------------------
+-- Ventana "Habilidades": elegir 4 por barra (clases con barras)
+------------------------------------------------------------------------
+
+local guiHabilidades = UIKit.Gui("HabilidadesUI", 64)
+local ventanaHab, contenidoHab = UIKit.Ventana(guiHabilidades, "Habilidades", UDim2.fromScale(0.6, 0.84))
+local listaHab = UIKit.Lista(contenidoHab, UDim2.fromScale(1, 1))
+
+local function formatoRecarga(s: number): string
+	return if s >= 60 then `{s // 60} min` else `{s} s`
+end
+
+local function dibujarHabilidades()
+	UIKit.Limpiar(listaHab)
+	local def = claseActual()
+	if not def or not def.Barras then
+		return
+	end
+	local equipadas = EstadoCliente.Get("Barras")
+	local lista: { string } = if typeof(equipadas) == "table" then equipadas else ChatarreroConfig.BarrasPorDefecto
+	local recurso = def.Recurso or "Maná"
+	local orden = 0
+	for b = 1, def.Barras do
+		local puestas = 0
+		for _, hab in def.Habilidades do
+			if hab.Categoria == b and table.find(lista, hab.Id) then
+				puestas += 1
+			end
+		end
+		orden += 1
+		local cat = ChatarreroConfig.Categorias[b]
+		local titulo = UIKit.Texto(
+			listaHab,
+			`Barra {if cat then cat.Nombre else tostring(b)}  ·  recarga {if cat then cat.Recarga else "?"}  ·  {puestas}/4  ·  teclas {table.concat(
+				NOMBRES_TECLAS[b],
+				" "
+			)}`,
+			UDim2.new(1, 0, 0, 24)
+		)
+		titulo.TextXAlignment = Enum.TextXAlignment.Left
+		titulo.TextColor3 = COLORES_BARRA[b]
+		titulo.LayoutOrder = orden
+		for _, hab in def.Habilidades do
+			if hab.Categoria ~= b then
+				continue
+			end
+			orden += 1
+			local puesta = table.find(lista, hab.Id) ~= nil
+			local fila = Instance.new("Frame")
+			fila.Size = UDim2.new(1, 0, 0, 58)
+			fila.BackgroundColor3 = UIKit.Colores.Fondo
+			fila.BackgroundTransparency = if puesta then 0 else 0.35
+			fila.LayoutOrder = orden
+			UIKit.Esquinas(fila, 8)
+			fila.Parent = listaHab
+			local calidad = if hab.Calidad then ChatarreroConfig.Calidades[hab.Calidad] else nil
+			local nombre = UIKit.Texto(
+				fila,
+				`{hab.Numero or ""}. {hab.Nombre}{if calidad then `  ({calidad.Nombre})` else ""}`,
+				UDim2.new(0.5, 0, 0, 20),
+				UDim2.fromOffset(10, 4)
+			)
+			nombre.TextXAlignment = Enum.TextXAlignment.Left
+			nombre.TextColor3 = if calidad then calidad.Color else UIKit.Colores.Texto
+			local datos = UIKit.Texto(
+				fila,
+				`{formatoRecarga(hab.Cooldown)}  ·  {hab.CostoMana} {recurso}`,
+				UDim2.new(0.26, 0, 0, 18),
+				UDim2.new(0.5, 10, 0, 5)
+			)
+			datos.TextXAlignment = Enum.TextXAlignment.Left
+			datos.Font = Enum.Font.GothamMedium
+			datos.TextColor3 = UIKit.Colores.TextoSuave
+			local desc = UIKit.Texto(fila, hab.Descripcion, UDim2.new(0.78, -10, 0, 30), UDim2.fromOffset(10, 25))
+			desc.TextXAlignment = Enum.TextXAlignment.Left
+			desc.TextYAlignment = Enum.TextYAlignment.Top
+			desc.TextWrapped = true
+			desc.Font = Enum.Font.Gotham
+			desc.TextColor3 = UIKit.Colores.TextoSuave
+			local boton = UIKit.Boton(
+				fila,
+				if puesta then "✔ Quitar" else "Equipar",
+				UDim2.new(0.2, -10, 0, 34),
+				UDim2.new(0.8, 0, 0, 12),
+				if puesta then UIKit.Colores.Boton else UIKit.Colores.BotonPrimario
+			)
+			local id = hab.Id
+			boton.Activated:Connect(function()
+				NetworkBridge.Client.Invoke("BarraAlternar", id)
+			end)
+		end
+	end
+end
+
+local function alternarVentanaHabilidades()
+	if not conBarras then
+		return
+	end
+	ventanaHab.Visible = not ventanaHab.Visible
+	if ventanaHab.Visible then
+		dibujarHabilidades()
+	end
+end
+botonBarras.Activated:Connect(alternarVentanaHabilidades)
+ContextActionService:BindAction("HabilidadesRaidBlox", function(_, estado: Enum.UserInputState)
+	if estado == Enum.UserInputState.Begin and UserInputService:GetFocusedTextBox() == nil and conBarras then
+		alternarVentanaHabilidades()
+		return Enum.ContextActionResult.Sink
+	end
+	return Enum.ContextActionResult.Pass
+end, false, Enum.KeyCode.K)
+
+EstadoCliente.Cambio:Connect(function(campo: string)
+	if (campo == "Cosmeticos" or campo == "*") and conBarras then
+		armarBarra()
+		if ventanaHab.Visible then
+			dibujarHabilidades()
+		end
+	end
+end)
+
+------------------------------------------------------------------------
+-- Olfato de Chatarrero: resalta metales y restos cercanos por un rato
+------------------------------------------------------------------------
+
+NetworkBridge.Client.OnEvent("ChatarreroOlfato", function(segundos: any, radio: any)
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if typeof(segundos) ~= "number" or typeof(radio) ~= "number" or not raiz or not raiz:IsA("BasePart") then
+		return
+	end
+	local candidatos: { { Objeto: Instance, D: number, Resto: boolean } } = {}
+	local function sumar(objeto: Instance, resto: boolean)
+		local pos: Vector3? = if objeto:IsA("BasePart")
+			then objeto.Position
+			elseif objeto:IsA("Model") then objeto:GetPivot().Position
+			else nil
+		if pos then
+			local d = (pos - raiz.Position).Magnitude
+			if d <= radio then
+				table.insert(candidatos, { Objeto = objeto, D = d, Resto = resto })
+			end
+		end
+	end
+	for _, nodo in CollectionService:GetTagged("NodoRecoleccion") do
+		local recurso = nodo:GetAttribute("Nodo")
+		-- Solo vetas de metal (los nodos de mineral).
+		if typeof(recurso) == "string" and string.find(string.lower(recurso), "mineral") then
+			sumar(nodo, false)
+		end
+	end
+	for _, resto in CollectionService:GetTagged("RestosSpoil") do
+		sumar(resto, true)
+	end
+	table.sort(candidatos, function(a, b)
+		return a.D < b.D
+	end)
+	local encontrados = math.min(#candidatos, 20) -- Roblox dibuja pocos Highlights a la vez
+	for i = 1, encontrados do
+		local c = candidatos[i]
+		local brillo = Instance.new("Highlight")
+		brillo.Adornee = c.Objeto
+		brillo.FillColor = if c.Resto then Color3.fromRGB(190, 230, 60) else Color3.fromRGB(255, 200, 60)
+		brillo.OutlineColor = Color3.fromRGB(255, 240, 150)
+		brillo.FillTransparency = 0.5
+		brillo.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		brillo.Parent = playerGui
+		task.delay(segundos, function()
+			brillo:Destroy()
+		end)
+	end
+	Avisos.Mostrar(
+		if encontrados > 0 then `Olfato: {encontrados} hallazgos cerca.` else "Olfato: no hay metales ni restos cerca.",
+		"Info"
+	)
+end)
 
 -- Selector de clase.
 local selector = Instance.new("Frame")
@@ -781,7 +1124,7 @@ grilla.BackgroundTransparency = 1
 grilla.ZIndex = 11
 grilla.Parent = selector
 local layoutGrilla = Instance.new("UIGridLayout")
-layoutGrilla.CellSize = UDim2.fromScale(0.235, 0.47)
+layoutGrilla.CellSize = UDim2.fromScale(0.188, 0.47) -- 5 columnas: 9 clases
 layoutGrilla.CellPadding = UDim2.fromScale(0.015, 0.03)
 layoutGrilla.SortOrder = Enum.SortOrder.LayoutOrder
 layoutGrilla.Parent = grilla
@@ -823,12 +1166,21 @@ EventosCliente.AbrirSelectorClase:Connect(function()
 	selector.Visible = not selector.Visible
 end)
 
+local claseMostrada: any = false
+
 local function revisarClase()
 	local clase = jugador:GetAttribute("Clase")
 	if clase == "SinClase" then
 		selector.Visible = true
 	elseif typeof(clase) == "string" then
 		selector.Visible = false
+	end
+	-- Otra clase: otras habilidades y otras recargas (el servidor reenvía las largas).
+	if clase ~= claseMostrada then
+		claseMostrada = clase
+		table.clear(cooldowns)
+		ventanaHab.Visible = false
+		armarBarra()
 	end
 	refrescarRanuras()
 end
@@ -929,6 +1281,7 @@ RunService.RenderStepped:Connect(function()
 		textoNivel.Text = tostring(nivel)
 	end
 	local def = claseActual()
+	barraMana.BackgroundColor3 = if def and def.ColorRecurso then def.ColorRecurso else COLOR_MANA
 	tituloJugador.Text = `{jugador.DisplayName} · {if def then def.Nombre else "Sin clase"}`
 	local bando = jugador:GetAttribute("Bando")
 	local colorBando = if typeof(bando) == "string" then (GameConfig.Bandos.Colores :: any)[bando] else nil
@@ -989,9 +1342,12 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	-- La montura se marca mientras estás montado.
-	ranuras[8].Boton.BackgroundColor3 = if typeof(jugador:GetAttribute("Montura")) == "string"
-		then Color3.fromRGB(60, 110, 60)
-		else Color3.fromRGB(28, 28, 40)
+	local rm = ranuraMontura
+	if rm then
+		rm.Boton.BackgroundColor3 = if typeof(jugador:GetAttribute("Montura")) == "string"
+			then Color3.fromRGB(60, 110, 60)
+			else Color3.fromRGB(28, 28, 40)
+	end
 end)
 
 -- Con la mira, el marco de objetivo muestra al combatiente que tengas en la mira

@@ -87,7 +87,21 @@ export type Combatiente = {
 	MultiplicadorDanio: number, -- Furia de los RaidBlox
 	ProvocadoPor: Combatiente?,
 	ProvocadoHasta: number,
+	Escudo: number, -- daño que todavía absorbe
+	EscudoHasta: number,
+	SilenciadoHasta: number,
+	IgnoraArmaduraHasta: number,
+	ReduccionDanio: number, -- 0..1
+	ReduccionHasta: number,
 	Conexiones: { RBXScriptConnection },
+}
+
+-- Mecánica propia de una habilidad (Habilidad.Especial). `Puede` devuelve el
+-- motivo por el que no se puede usar (o nil); `Hacer` corre al ejecutarla,
+-- después de cobrar el recurso y aplicar los efectos normales.
+export type Especial = {
+	Puede: ((c: Combatiente, hab: Habilidad, objetivo: Combatiente?) -> string?)?,
+	Hacer: (c: Combatiente, hab: Habilidad, objetivo: Combatiente?) -> (),
 }
 
 local CombatManager = {}
@@ -98,6 +112,16 @@ CombatManager.CuraAplicada = Signal.new() :: Signal.Signal<Combatiente, Combatie
 CombatManager.Murio = Signal.new() :: Signal.Signal<Combatiente, Combatiente?>
 CombatManager.Provocado = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
 CombatManager.InvisibilidadIniciada = Signal.new() :: Signal.Signal<Combatiente>
+-- (npc, quien lo confundió, segundos): el NPC deja de perseguirlo.
+CombatManager.AgroPerdido = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
+
+local especiales: { [string]: Especial } = {}
+-- Recargas largas (ClassConfig.CooldownLargo o más): sobreviven a morir.
+local cooldownsLargos: { [Player]: { [string]: number } } = {}
+-- Paredes que cortan las habilidades a distancia.
+local obstaculos: { Instance } = {}
+-- Inmovilizados: velocidad a devolver y hasta cuándo.
+local inmoviles: { [Combatiente]: { Hasta: number, Velocidad: number } } = {}
 
 local combatientes: { [Model]: Combatiente } = {}
 local porJugador: { [Player]: Combatiente } = {}
@@ -180,6 +204,14 @@ local function sincronizarMana(c: Combatiente)
 		player:SetAttribute("Mana", math.floor(c.Mana))
 		player:SetAttribute("ManaMax", c.Stats.ManaMax)
 	end
+end
+
+-- Nombre del recurso de la clase del jugador ("maná" o "stamina").
+local function nombreRecurso(c: Combatiente): string
+	local player = c.Player
+	local datos = player and DataManager.GetData(player)
+	local def = datos and ClassConfig.Clases[datos.Clase]
+	return string.lower((def and def.Recurso) or "Maná")
 end
 
 local function marcarCombate(c: Combatiente)
@@ -299,6 +331,29 @@ aplicarDanio = function(
 		return
 	end
 
+	if objetivo.ReduccionHasta > t then
+		cantidad *= 1 - objetivo.ReduccionDanio
+	end
+	if objetivo.Escudo > 0 then
+		if objetivo.EscudoHasta <= t then
+			objetivo.Escudo = 0
+		else
+			local absorbido = math.min(objetivo.Escudo, cantidad)
+			objetivo.Escudo -= absorbido
+			cantidad -= absorbido
+			if cantidad < 1 then
+				marcarCombate(objetivo)
+				if fuente then
+					marcarCombate(fuente)
+				end
+				emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, "Absorbido")
+				-- El golpe cuenta para la amenaza aunque no haya sacado vida.
+				CombatManager.DanioAplicado:Fire(fuente, objetivo, 0, absorbido)
+				return
+			end
+		end
+	end
+
 	local final = math.max(1, math.floor(cantidad))
 	local h = objetivo.Humanoid
 	h.Health = math.max(0, h.Health - final)
@@ -385,7 +440,7 @@ local function calcularDanio(
 	end
 
 	local defensa = statEfectivo(objetivo, "Defensa")
-	local mitigacion = defensa / (defensa + 100)
+	local mitigacion = if fuente.IgnoraArmaduraHasta > ahora() then 0 else defensa / (defensa + 100)
 	return bruto * mult * (1 - mitigacion), critico
 end
 
@@ -439,8 +494,15 @@ local function publicarEfectos(c: Combatiente)
 	agregar("Aturdido", c.AturdidoHasta, false)
 	agregar("Provocado", if c.ProvocadoPor then c.ProvocadoHasta else 0, false)
 	agregar("Invisible", c.InvisibleHasta, true)
+	agregar("Silenciado", c.SilenciadoHasta, false)
+	agregar("Escudo", if c.Escudo > 0 then c.EscudoHasta else 0, true)
+	agregar("Perforante", c.IgnoraArmaduraHasta, true)
+	agregar("Blindado", c.ReduccionHasta, true)
+	local inmovil = inmoviles[c]
+	agregar("Inmóvil", if inmovil then inmovil.Hasta else 0, false)
 	for _, b in c.Buffs do
-		agregar(`+{b.Porcentaje}% {NOMBRES_STAT[b.Stat] or b.Stat}`, b.Hasta, true)
+		local signo = if b.Porcentaje >= 0 then "+" else ""
+		agregar(`{signo}{b.Porcentaje}% {NOMBRES_STAT[b.Stat] or b.Stat}`, b.Hasta, b.Porcentaje >= 0)
 	end
 	for _, p in c.Periodicos do
 		if p.Tipo == "Cura" then
@@ -508,7 +570,7 @@ local function aplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto:
 	elseif efecto.Tipo == "Aura" then
 		-- La misma habilidad no se acumula: renueva su propio buff.
 		for i = #objetivo.Buffs, 1, -1 do
-			if objetivo.Buffs[i].Fuente == idHabilidad then
+			if objetivo.Buffs[i].Fuente == idHabilidad and objetivo.Buffs[i].Stat == efecto.Stat then
 				table.remove(objetivo.Buffs, i)
 			end
 		end
@@ -518,13 +580,140 @@ local function aplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto:
 			Porcentaje = efecto.Porcentaje,
 			Hasta = t + efecto.Duracion,
 		})
-		emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, `+{efecto.Porcentaje}% {efecto.Stat}`)
+		emitir(
+			objetivo.Raiz.Position,
+			"Estado",
+			objetivo.Modelo,
+			`{if efecto.Porcentaje >= 0 then "+" else ""}{efecto.Porcentaje}% {efecto.Stat}`
+		)
 	elseif efecto.Tipo == "Invisible" then
 		objetivo.InvisibleHasta = t + efecto.Duracion
 		aplicarTransparencia(objetivo, true)
 		CombatManager.InvisibilidadIniciada:Fire(objetivo)
+	elseif efecto.Tipo == "Empujar" then
+		-- Solo monstruos comunes: la física de los jugadores es de su cliente y
+		-- los jefes no se dejan mover.
+		if objetivo.Player == nil and objetivo.ReduccionAturdir >= 1 and not objetivo.Raiz.Anchored then
+			local d = objetivo.Raiz.Position - fuente.Raiz.Position
+			local plano = Vector3.new(d.X, 0, d.Z)
+			if plano.Magnitude > 0.1 then
+				objetivo.Raiz.AssemblyLinearVelocity = plano.Unit * efecto.Fuerza
+					+ Vector3.new(0, efecto.Fuerza * 0.35, 0)
+			end
+		end
+	elseif efecto.Tipo == "Interrumpir" then
+		if objetivo.Estado == "Casting" then
+			objetivo.Casteo = nil
+			objetivo.Estado = "Idle"
+			emitir(objetivo.Raiz.Position, "CasteoFin", objetivo.Modelo, nil)
+			emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, "Interrumpido")
+			local po = objetivo.Player
+			if po then
+				NetworkBridge.Server.FireClient("HabilidadEstado", po, { Cancelado = true })
+			end
+		end
+	elseif efecto.Tipo == "Recurso" then
+		objetivo.Mana = math.min(objetivo.Stats.ManaMax, objetivo.Mana + efecto.Cantidad)
+		sincronizarMana(objetivo)
+	elseif efecto.Tipo == "Escudo" then
+		CombatManager.DarEscudo(objetivo, efecto.Base, efecto.Duracion)
+	elseif efecto.Tipo == "IgnorarArmadura" then
+		objetivo.IgnoraArmaduraHasta = t + efecto.Duracion
+	elseif efecto.Tipo == "Reduccion" then
+		objetivo.ReduccionDanio = math.clamp(efecto.Porcentaje / 100, 0, 0.9)
+		objetivo.ReduccionHasta = t + efecto.Duracion
+	elseif efecto.Tipo == "Silenciar" then
+		objetivo.SilenciadoHasta = math.max(objetivo.SilenciadoHasta, t + efecto.Duracion)
+		if objetivo.Estado == "Casting" then
+			objetivo.Casteo = nil
+			objetivo.Estado = "Idle"
+			emitir(objetivo.Raiz.Position, "CasteoFin", objetivo.Modelo, nil)
+			local po = objetivo.Player
+			if po then
+				NetworkBridge.Server.FireClient("HabilidadEstado", po, { Cancelado = true })
+			end
+		end
+		emitir(objetivo.Raiz.Position, "Estado", objetivo.Modelo, "Silenciado")
+	elseif efecto.Tipo == "PerderAgro" then
+		if objetivo.Player == nil then
+			CombatManager.AgroPerdido:Fire(objetivo, fuente, efecto.Duracion)
+		end
+	elseif efecto.Tipo == "Inmovilizar" then
+		CombatManager.Inmovilizar(objetivo, efecto.Duracion)
 	end
 	publicarEfectos(objetivo)
+end
+
+-- Para otros sistemas (trampas, torretas): aplica un efecto como si viniera de
+-- una habilidad de `fuente`. No cobra recurso ni revisa rango.
+function CombatManager.AplicarEfecto(fuente: Combatiente, objetivo: Combatiente, efecto: Efecto, id: string)
+	if vivo(objetivo) then
+		aplicarEfecto(fuente, objetivo, efecto, id)
+	end
+end
+
+function CombatManager.DarEscudo(c: Combatiente, cantidad: number, duracion: number)
+	local t = ahora()
+	local actual = if c.EscudoHasta > t then c.Escudo else 0
+	c.Escudo = math.max(actual, math.floor(cantidad))
+	c.EscudoHasta = t + duracion
+	emitir(c.Raiz.Position, "Estado", c.Modelo, `Escudo {c.Escudo}`)
+	publicarEfectos(c)
+end
+
+-- Deja al combatiente sin poder caminar (sí atacar). Los jefes son inmunes.
+function CombatManager.Inmovilizar(c: Combatiente, duracion: number)
+	if not vivo(c) or c.ReduccionAturdir < 1 then
+		return
+	end
+	local t = ahora()
+	local previo = inmoviles[c]
+	local velocidad = if previo then previo.Velocidad else c.Humanoid.WalkSpeed
+	inmoviles[c] = { Hasta = math.max(if previo then previo.Hasta else 0, t + duracion), Velocidad = velocidad }
+	c.Humanoid.WalkSpeed = 0
+	emitir(c.Raiz.Position, "Estado", c.Modelo, "Inmóvil")
+	publicarEfectos(c)
+end
+
+function CombatManager.Liberar(c: Combatiente)
+	local previo = inmoviles[c]
+	if previo then
+		inmoviles[c] = nil
+		if c.Humanoid.WalkSpeed == 0 then
+			c.Humanoid.WalkSpeed = previo.Velocidad
+		end
+		publicarEfectos(c)
+	end
+end
+
+function CombatManager.Silenciado(c: Combatiente): boolean
+	return c.SilenciadoHasta > ahora()
+end
+
+function CombatManager.RegistrarEspecial(nombre: string, especial: Especial)
+	especiales[nombre] = especial
+end
+
+-- Una pared: las habilidades a distancia no la atraviesan mientras exista.
+function CombatManager.RegistrarObstaculo(parte: BasePart)
+	table.insert(obstaculos, parte)
+	parte.Destroying:Connect(function()
+		local i = table.find(obstaculos, parte)
+		if i then
+			table.remove(obstaculos, i)
+		end
+	end)
+end
+
+local paramsObstaculo = RaycastParams.new()
+paramsObstaculo.FilterType = Enum.RaycastFilterType.Include
+
+local function hayObstaculo(desde: Vector3, hasta: Vector3): boolean
+	if #obstaculos == 0 then
+		return false
+	end
+	paramsObstaculo.FilterDescendantsInstances = obstaculos
+	return Workspace:Raycast(desde, hasta - desde, paramsObstaculo) ~= nil
 end
 
 local function esOfensiva(hab: Habilidad): boolean
@@ -617,6 +806,9 @@ local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatie
 		return true, pedido, nil
 	elseif tipo == "Enemigo" or (tipo == "AreaEnemigos" and centro == "Objetivo") then
 		if pedido == nil or not puedeAtacar(c, pedido) or not vivo(pedido) then
+			if hab.ObjetivoOpcional then
+				return true, nil, nil
+			end
 			if pedido and pedido.Player and c.Player and pedido ~= c then
 				local bp = BandoManager.De(pedido.Player)
 				return false,
@@ -633,6 +825,9 @@ local function resolverObjetivo(c: Combatiente, hab: Habilidad, pedido: Combatie
 		end
 		if distancia(c, pedido) > alcance then
 			return false, nil, "Fuera de alcance."
+		end
+		if hab.Rango > ClassConfig.RangoCuerpoACuerpo and hayObstaculo(c.Raiz.Position, pedido.Raiz.Position) then
+			return false, nil, "Hay una pared en el medio."
 		end
 		return true, pedido, nil
 	end
@@ -746,7 +941,13 @@ local function resolverApuntado(
 	end
 	if tipo == "Enemigo" then
 		if not elegido then
+			if hab.ObjetivoOpcional then
+				return true, nil, nil, nil, nil
+			end
 			return false, nil, "No hay ningún enemigo en la mira (o está fuera de alcance).", nil, nil
+		end
+		if hayObstaculo(c.Raiz.Position, elegido.Raiz.Position) then
+			return false, nil, "Hay una pared en el medio.", nil, nil
 		end
 		return true, elegido, nil, nil, nil
 	end
@@ -764,13 +965,20 @@ local function ejecutar(
 )
 	local t = ahora()
 	if c.Mana < hab.CostoMana then
-		avisar(c.Player, "No tenés maná suficiente.")
+		avisar(c.Player, `No tenés {nombreRecurso(c)} suficiente.`)
 		c.Estado = "Idle"
 		return
 	end
 	c.Mana -= hab.CostoMana
 	sincronizarMana(c)
 	c.Cooldowns[hab.Id] = t + hab.Cooldown
+	local duenio = c.Player
+	if duenio and hab.Cooldown >= ClassConfig.CooldownLargo then
+		local largos = cooldownsLargos[duenio] or {}
+		cooldownsLargos[duenio] = largos
+		largos[hab.Id] = t + hab.Cooldown
+		DataManager.SetCooldownLargo(duenio, hab.Id, t + hab.Cooldown)
+	end
 	c.Estado = "Attacking"
 	c.BloqueoHasta = t + ClassConfig.GCD
 	c.Casteo = nil
@@ -788,6 +996,22 @@ local function ejecutar(
 		objetivos = if hab.Objetivo == "AreaEnemigos"
 			then enemigosEnRadio(c, centro, hab.Radio or 10)
 			else aliadosEnRadio(c, centro, hab.Radio or 10)
+		-- Cono hacia adelante (áreas centradas en quien lanza).
+		local cono = hab.Cono
+		if cono then
+			local frente = c.Raiz.CFrame.LookVector
+			local plano = Vector3.new(frente.X, 0, frente.Z)
+			local coseno = math.cos(math.rad(cono))
+			local dentro: { Combatiente } = {}
+			for _, o in objetivos do
+				local v = o.Raiz.Position - c.Raiz.Position
+				local vp = Vector3.new(v.X, 0, v.Z)
+				if vp.Magnitude < 2.5 or (plano.Magnitude > 0.01 and vp.Unit:Dot(plano.Unit) >= coseno) then
+					table.insert(dentro, o)
+				end
+			end
+			objetivos = dentro
+		end
 	elseif objetivo then
 		objetivos = { objetivo }
 	end
@@ -813,6 +1037,24 @@ local function ejecutar(
 			if vivo(o) or efecto.Tipo == "Aura" then
 				aplicarEfecto(c, o, efecto, hab.Id)
 			end
+		end
+	end
+
+	local propios = hab.EfectosPropios
+	if propios then
+		for _, efecto in propios do
+			aplicarEfecto(c, c, efecto, hab.Id)
+		end
+	end
+	local especial = if hab.Especial then especiales[hab.Especial] else nil
+	if especial then
+		local hacer = especial.Hacer
+		local okEspecial, err = pcall(function(): nil
+			hacer(c, hab, objetivo)
+			return nil
+		end)
+		if not okEspecial then
+			warn(`[Combate] Error en la habilidad {hab.Id}: {err}`)
 		end
 	end
 
@@ -900,6 +1142,11 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 	if not hab then
 		return
 	end
+	-- Clases con barras: solo se usan las habilidades equipadas.
+	if def.Barras and datos and not table.find(DataManager.Barras(datos), hab.Id) then
+		avisar(player, "Esa habilidad no está en tus barras.")
+		return
+	end
 
 	actualizarEstado(c)
 	if c.Estado == "Stunned" then
@@ -909,11 +1156,15 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 		return -- casteando o en GCD: se ignora en silencio
 	end
 	local t = ahora()
+	if t < c.SilenciadoHasta then
+		avisar(player, "Estás silenciado.")
+		return
+	end
 	if t < (c.Cooldowns[hab.Id] or 0) then
 		return
 	end
 	if c.Mana < hab.CostoMana then
-		avisar(player, "No tenés maná suficiente.")
+		avisar(player, `No tenés {nombreRecurso(c)} suficiente.`)
 		return
 	end
 	local ok, objetivo, motivo, centro, lista
@@ -925,6 +1176,14 @@ local function intentarHabilidad(c: Combatiente, indice: number, pedido: Combati
 	if not ok then
 		avisar(player, motivo or "No se puede usar ahora.")
 		return
+	end
+	local especial = if hab.Especial then especiales[hab.Especial] else nil
+	if especial and especial.Puede then
+		local impedimento = especial.Puede(c, hab, objetivo)
+		if impedimento then
+			avisar(player, impedimento)
+			return
+		end
 	end
 
 	if hab.TiempoCasteo <= 0 then
@@ -1025,6 +1284,12 @@ local function nuevoCombatiente(
 		MultiplicadorDanio = 1,
 		ProvocadoPor = nil,
 		ProvocadoHasta = 0,
+		Escudo = 0,
+		EscudoHasta = 0,
+		SilenciadoHasta = 0,
+		IgnoraArmaduraHasta = 0,
+		ReduccionDanio = 0,
+		ReduccionHasta = 0,
 		Conexiones = {},
 	}
 	humanoid.MaxHealth = stats.VidaMax
@@ -1057,6 +1322,7 @@ function CombatManager.Quitar(modelo: Model)
 		conexion:Disconnect()
 	end
 	combatientes[modelo] = nil
+	inmoviles[c] = nil
 	local player = c.Player
 	if player and porJugador[player] == c then
 		porJugador[player] = nil
@@ -1095,6 +1361,48 @@ function CombatManager.RecalcularJugador(player: Player)
 	sincronizarMana(c)
 end
 
+-- Copia al combatiente las recargas largas que siguen corriendo y se las
+-- manda al cliente (después de morir, de entrar o de cambiar de clase).
+local function restaurarCooldowns(player: Player, c: Combatiente, conDemora: boolean)
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return
+	end
+	local largos = cooldownsLargos[player]
+	if not largos then
+		local guardados: { [string]: number } = datos.CooldownsLargos or {}
+		local nuevos: { [string]: number } = table.clone(guardados)
+		largos = nuevos
+		cooldownsLargos[player] = nuevos
+	end
+	local t = ahora()
+	local def = ClassConfig.Clases[datos.Clase]
+	local pendientes: { { Indice: number, ListoEn: number } } = {}
+	for id, hasta in largos do
+		if hasta <= t then
+			largos[id] = nil
+			continue
+		end
+		c.Cooldowns[id] = hasta
+		if def then
+			for indice, hab in def.Habilidades do
+				if hab.Id == id then
+					table.insert(pendientes, { Indice = indice, ListoEn = hasta })
+				end
+			end
+		end
+	end
+	if #pendientes > 0 then
+		task.delay(if conDemora then 1 else 0.3, function()
+			if player.Parent == Players then
+				for _, p in pendientes do
+					NetworkBridge.Server.FireClient("HabilidadEstado", player, p)
+				end
+			end
+		end)
+	end
+end
+
 local function alAparecer(player: Player, personaje: Model)
 	local datos = DataManager.WaitForData(player, 70)
 	if not datos or player.Character ~= personaje then
@@ -1130,6 +1438,49 @@ local function alAparecer(player: Player, personaje: Model)
 	porJugador[player] = c
 	player:SetAttribute("Clase", datos.Clase)
 	sincronizarMana(c)
+	restaurarCooldowns(player, c, true)
+end
+
+-- API para otros sistemas.
+function CombatManager.Ahora(): number
+	return ahora()
+end
+
+function CombatManager.EnemigosEnRadio(c: Combatiente, centro: Vector3, radio: number): { Combatiente }
+	return enemigosEnRadio(c, centro, radio)
+end
+
+function CombatManager.AliadosEnRadio(c: Combatiente, centro: Vector3, radio: number): { Combatiente }
+	return aliadosEnRadio(c, centro, radio)
+end
+
+-- Pone en cero las recargas de las habilidades que cumplan `filtro`.
+function CombatManager.ReiniciarCooldowns(c: Combatiente, filtro: (Habilidad) -> boolean)
+	local player = c.Player
+	local datos = player and DataManager.GetData(player)
+	local def = datos and ClassConfig.Clases[datos.Clase]
+	if not player or not def then
+		return
+	end
+	local largos = cooldownsLargos[player]
+	for indice, hab in def.Habilidades do
+		if filtro(hab) and (c.Cooldowns[hab.Id] or 0) > ahora() then
+			c.Cooldowns[hab.Id] = 0
+			if largos then
+				largos[hab.Id] = nil
+			end
+			DataManager.SetCooldownLargo(player, hab.Id, nil)
+			NetworkBridge.Server.FireClient("HabilidadEstado", player, { Indice = indice, ListoEn = 0 })
+		end
+	end
+end
+
+-- ¿La habilidad está en recarga? (para no dejar cambiarla de barra)
+function CombatManager.EnRecarga(player: Player, idHabilidad: string): boolean
+	local c = porJugador[player]
+	local largos = cooldownsLargos[player]
+	local t = ahora()
+	return (c ~= nil and (c.Cooldowns[idHabilidad] or 0) > t) or (largos ~= nil and (largos[idHabilidad] or 0) > t)
 end
 
 ------------------------------------------------------------------------
@@ -1292,6 +1643,10 @@ local function tick(dt: number): nil
 		if c.ProvocadoPor and c.ProvocadoHasta <= t then
 			c.ProvocadoPor = nil
 		end
+		local inmovil = inmoviles[c]
+		if inmovil and inmovil.Hasta <= t then
+			CombatManager.Liberar(c)
+		end
 
 		if cadaSegundo then
 			publicarEfectos(c)
@@ -1347,6 +1702,7 @@ function CombatManager.Init()
 		if c then
 			CombatManager.Quitar(c.Modelo)
 		end
+		cooldownsLargos[player] = nil
 	end)
 
 	-- Si el perfil tardó más que la espera inicial, se registra al terminar de cargar.
@@ -1368,7 +1724,7 @@ function CombatManager.Init()
 	NetworkBridge.Server.OnEvent(
 		"UsarHabilidad",
 		function(player: Player, indice: unknown, objetivo: unknown, punto: unknown)
-			local n = NetworkBridge.Guard.Integer(indice, 1, 4)
+			local n = NetworkBridge.Guard.Integer(indice, 1, 40)
 			local c = porJugador[player]
 			if not n or not c or not vivo(c) then
 				return
@@ -1414,6 +1770,7 @@ function CombatManager.Init()
 			c.Humanoid.Health = c.Humanoid.MaxHealth
 			c.Mana = c.Stats.ManaMax
 			sincronizarMana(c)
+			restaurarCooldowns(player, c, false) -- las recargas largas no se saltean cambiando de clase
 		end
 		return NetworkBridge.Ok(id)
 	end)

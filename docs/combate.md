@@ -7,7 +7,7 @@ objetivo" o "parry"; el servidor valida estado, cooldown, maná, rango y aplica 
 
 | Módulo | Lado | Responsabilidad |
 | --- | --- | --- |
-| `ClassConfig` | Compartido | 8 clases, stats por nivel, 4 habilidades cada una |
+| `ClassConfig` | Compartido | 8 clases con 4 habilidades cada una, más el [Chatarrero](chatarrero.md) con 30 |
 | `ItemRarityConfig` | Compartido | Rarezas, efectos secundarios y pasivas |
 | `EnemigosConfig` / `RaidBloxConfig` | Compartido | Enemigos, spawns, jefes y tablas de botín |
 | `Estadisticas` | Servidor | Stats de combate: clase + nivel + equipo |

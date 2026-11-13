@@ -66,6 +66,7 @@ flowchart LR
 - [Zonas y teletransporte](docs/zonas.md): portales, pantalla de carga y validaciones de llegada.
 - [Guerra de Arquitectos](docs/guerra-arquitectos.md): ciclo de partida, recursos, construcción y recompensas.
 - [Combate](docs/combate.md): máquina de estados, 8 clases, enemigos, RaidBlox, rarezas y botín.
+- [Chatarrero](docs/chatarrero.md): novena clase, 30 habilidades en 4 barras, Spoil y construcciones.
 - [Economía](docs/economia.md): inventario, profesiones, crafteo, recolección, Casa de Subastas y comercio 1v1.
 - [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
 - [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.

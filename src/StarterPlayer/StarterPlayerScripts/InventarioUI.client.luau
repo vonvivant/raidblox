@@ -270,6 +270,19 @@ local function accionesRanura(clave: string): { Accion }
 			end,
 		})
 	end
+	-- Chatarrero: desmantelar equipo común o raro (al lado de su Yunque Portátil).
+	if
+		jugador:GetAttribute("Clase") == "Chatarrero"
+		and def.Tipo == "Equipo"
+		and (item.Rareza == "Comun" or item.Rareza == "Raro")
+	then
+		table.insert(acciones, {
+			Texto = "Desmantelar",
+			Fn = function()
+				NetworkBridge.Client.Invoke("ChatarreroDesmantelar", tonumber(clave))
+			end,
+		})
+	end
 	if item.Cantidad > 1 then
 		table.insert(acciones, {
 			Texto = `Dividir ({item.Cantidad // 2})`,

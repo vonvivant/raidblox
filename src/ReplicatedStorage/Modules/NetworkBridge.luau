@@ -82,6 +82,10 @@ local DEFINICIONES: { [string]: Definicion } = {
 	EquiparSkinCastillo = { Tipo = "Function", Critico = false }, -- (skin)
 	EquiparTransmog = { Tipo = "Function", Critico = false }, -- (slot, apariencia|"")
 	EquiparMascota = { Tipo = "Function", Critico = false }, -- (mascota|"")
+	-- Chatarrero
+	BarraAlternar = { Tipo = "Function", Critico = false }, -- (idHabilidad): equipa o quita de su barra
+	ChatarreroDesmantelar = { Tipo = "Function", Critico = false }, -- (ranura), cerca de tu Yunque Portátil
+	ChatarreroOlfato = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (segundos, radio)
 	-- Fase 7.4: panel de administración (el servidor valida que seas admin)
 	AdminAccion = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (accion, a, b, c)
 	AdminInfo = { Tipo = "Function", Critico = false },
@@ -137,7 +141,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	ComercioInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (jugador)
 	ComercioEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	-- Fase 3: combate y botín
-	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice 1..4, modeloObjetivo?)
+	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice en las habilidades de la clase, modeloObjetivo?, punto?)
 	Parry = { Tipo = "Event", Critico = true },
 	RecogerBotin = { Tipo = "Event", Critico = true }, -- (idBotin)
 	ElegirClase = { Tipo = "Function", Critico = false }, -- (clase)
