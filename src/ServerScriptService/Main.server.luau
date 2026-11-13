@@ -95,4 +95,4 @@ DebugStudio.Init()
 NpcsPrueba.Init()
 EditorPiedra.Init()
 
-print(`[RaidBlox] Servidor iniciado - Fase 6 (zona: {zona or "sin configurar"})`)
+print(`[RaidBlox] Servidor iniciado (zona: {zona or "sin configurar"})`)

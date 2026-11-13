@@ -37,6 +37,7 @@ PasesManager.Cambio = Signal.new() :: Signal.Signal<Player, string, boolean>
 
 local tiene: { [Player]: { [string]: boolean } } = {}
 local precios: { [number]: number? } = {}
+local reintentarPrecio: { [number]: number } = {}
 local ultimoTitulo: { [Player]: number } = {}
 local iniciado = false
 
@@ -193,11 +194,17 @@ local function precio(id: number): number?
 	if id == 0 then
 		return nil
 	end
-	if precios[id] == nil then
+	-- Si la consulta falla, no se reintenta hasta dentro de un minuto: así abrir
+	-- la tienda no dispara un pedido por producto cada vez.
+	if precios[id] == nil and os.clock() >= (reintentarPrecio[id] or 0) then
 		local ok, info = pcall(function(): any
 			return MarketplaceService:GetProductInfo(id, Enum.InfoType.GamePass)
 		end)
-		precios[id] = if ok and typeof(info) == "table" then info.PriceInRobux else nil
+		if ok and typeof(info) == "table" and typeof(info.PriceInRobux) == "number" then
+			precios[id] = info.PriceInRobux
+		else
+			reintentarPrecio[id] = os.clock() + 60
+		end
 	end
 	return precios[id]
 end

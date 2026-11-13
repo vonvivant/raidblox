@@ -152,8 +152,28 @@ end
 
 type RegistroBaneo = { Motivo: string, Por: number, Fecha: number }
 
+-- Llamada al DataStore con hasta 3 intentos y espera creciente (1 s, 2 s).
+local function conReintentos<T>(fn: () -> T): (boolean, T?)
+	local espera = 1
+	for intento = 1, 3 do
+		local ok, valor = pcall(fn)
+		if ok then
+			return true, valor
+		end
+		warn(`[Admin] DataStore de baneos, intento {intento}/3: {valor}`)
+		if intento < 3 then
+			task.wait(espera)
+			espera *= 2
+		end
+	end
+	return false, nil
+end
+
+-- Si el DataStore no responde se deja entrar: el baneo oficial de Roblox
+-- (Players:BanAsync) ya frena al jugador antes de llegar acá; este registro es
+-- el respaldo y lo que usa Studio.
 local function leerBaneo(userId: number): (boolean, RegistroBaneo?)
-	local ok, valor = pcall(function()
+	local ok, valor = conReintentos(function(): any
 		return store():GetAsync(`U_{userId}`)
 	end)
 	if not ok then
@@ -172,11 +192,11 @@ local function banear(admin: Player, userId: number, motivo: string): Respuesta
 		return NetworkBridge.Fail("NOT_ALLOWED")
 	end
 	local registro: RegistroBaneo = { Motivo = motivo, Por = admin.UserId, Fecha = os.time() }
-	local ok, err = pcall(function()
+	local ok = conReintentos(function(): boolean
 		store():SetAsync(`U_{userId}`, registro)
+		return true
 	end)
 	if not ok then
-		warn(`[Admin] No se pudo guardar el baneo: {err}`)
 		avisar(admin, "No se pudo guardar el baneo. Probá de nuevo.", "Error")
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
@@ -205,11 +225,11 @@ local function banear(admin: Player, userId: number, motivo: string): Respuesta
 end
 
 local function desbanear(admin: Player, userId: number): Respuesta
-	local ok, err = pcall(function()
+	local ok = conReintentos(function(): boolean
 		store():RemoveAsync(`U_{userId}`)
+		return true
 	end)
 	if not ok then
-		warn(`[Admin] No se pudo quitar el baneo: {err}`)
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
 	if not RunService:IsStudio() then

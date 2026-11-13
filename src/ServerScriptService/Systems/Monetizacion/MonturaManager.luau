@@ -75,7 +75,7 @@ local function construir(id: string, raiz: BasePart): Model
 		CFrame.new(0, y + 1.4, -2.3) * CFrame.Angles(math.rad(30), 0, 0),
 		color
 	)
-	pieza(modelo, raiz, Vector3.new(1.3, 1.1, 2), CFrame.new(0, y + 2.4, -3.2), color)
+	local cabeza = pieza(modelo, raiz, Vector3.new(1.3, 1.1, 2), CFrame.new(0, y + 2.4, -3.2), color)
 	-- Patas.
 	for _, px in { -0.75, 0.75 } do
 		for _, pz in { -1.7, 2.1 } do
@@ -95,7 +95,6 @@ local function construir(id: string, raiz: BasePart): Model
 			)
 		end
 		local cola = pieza(modelo, raiz, Vector3.new(0.7, 0.7, 3), CFrame.new(0, y + 0.2, 3.8), color)
-		local cabeza = modelo:GetChildren()[3] :: BasePart
 		for _, parte in { cabeza, cola } do
 			local fuego = Instance.new("ParticleEmitter")
 			fuego.Texture = "rbxasset://textures/particles/fire_main.dds"

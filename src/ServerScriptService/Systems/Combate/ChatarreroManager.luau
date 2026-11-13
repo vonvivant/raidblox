@@ -20,6 +20,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -322,9 +323,19 @@ end
 -- Habilidades especiales
 ------------------------------------------------------------------------
 
+-- Los muñecos de práctica no cuentan: reaparecen solos y no pelean, así que
+-- darían materiales sin ningún riesgo.
+local function esMuneco(objetivo: Combatiente): boolean
+	local npc = EnemyManager.Obtener(objetivo)
+	return npc ~= nil and npc.Params.Pasivo == true
+end
+
 local function soloMonstruos(_c: Combatiente, _hab: ClassConfig.Habilidad, objetivo: Combatiente?): string?
 	if not objetivo or objetivo.Player ~= nil then
 		return "Solo funciona sobre monstruos."
+	end
+	if esMuneco(objetivo) then
+		return "No funciona con muñecos de práctica."
 	end
 	return nil
 end
@@ -348,7 +359,7 @@ local function registrar()
 				return nil
 			end
 			if objetivo and objetivo.Player == nil then
-				return nil
+				return if esMuneco(objetivo) then "No funciona con muñecos de práctica." else nil
 			end
 			return "Necesitás un monstruo vivo como objetivo o restos tuyos a menos de 10 studs."
 		end,
@@ -632,11 +643,12 @@ local function registrar()
 				Enum.Material.Metal,
 				false
 			)
-			dron.Anchored = false
-			local vuelo = Instance.new("BodyVelocity")
-			vuelo.Velocity = Vector3.new(0, 14, 0)
-			vuelo.MaxForce = Vector3.one * 1e5
-			vuelo.Parent = dron
+			dron.CastShadow = false
+			TweenService:Create(
+				dron,
+				TweenInfo.new(3.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{ CFrame = dron.CFrame + Vector3.new(0, 60, 0) }
+			):Play()
 			local luz = Instance.new("PointLight")
 			luz.Color = Color3.fromRGB(120, 255, 160)
 			luz.Parent = dron

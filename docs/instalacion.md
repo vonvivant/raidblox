@@ -69,7 +69,7 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
 
 ## Cómo comprobar que funciona
 
-1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 4 (zona: Pruebas)`
+1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado (zona: Pruebas)`
    y, del cliente, `Datos cargados: nivel 1, oro 0`.
 2. En la barra de comandos (vista de **Servidor**: *Prueba → Cambiar vista de cliente*) podés probar la API.
    Ojo: un `require` desde la barra de comandos crea **otra copia** de los módulos, sin tu perfil. Por eso en Studio
@@ -144,6 +144,24 @@ Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-e
 Abrí la mochila con I. Cerca del spawn hay estaciones de crafteo, nodos de recolección y la Casa de Subastas. La guía
 completa está en [economia.md](economia.md#probar-en-studio).
 
+## Probar las fases 5 a 7 y el Chatarrero en Studio
+
+| Qué | Cómo |
+| --- | --- |
+| Misiones | Hablá con los NPCs con "!" cerca del spawn. Guía: [misiones.md](misiones.md) |
+| Grupo y hermandad | Botones del menú lateral. Para probar con otro jugador: *Prueba → Clientes y servidores → 2 jugadores*. [grupos.md](grupos.md), [hermandades.md](hermandades.md) |
+| Voz | Botón Voz; necesita la voz activada en la experiencia. [voz.md](voz.md) |
+| Mazmorra | Entrada de la Cripta en la zona de pruebas. [mazmorras.md](mazmorras.md) |
+| Tienda | Botón 🛒. Con Id 0, los pases y productos se **simulan**. Pestaña Pase: simulá "Pase de Batalla" en Pases y reclamá el nivel 1 Premium para tener la mascota Lumi. Códigos: `RAIDBLOX`, `BIENVENIDA`. [monetizacion.md](monetizacion.md) |
+| Montura | G o el botón de la barra |
+| HUD y ajustes | Panel Personaje → Interfaz: mano (zurdo), tamaño, números de daño, minimapa. [interfaz.md](interfaz.md) |
+| Minimapa y mapa | Zoom con + y −; **M** abre el mapa del mundo |
+| Panel de admin | Botón 🛡 Admin (en Studio lo tiene cualquiera). Probá "Invocar RaidBlox" |
+| Chatarrero | Personaje → Cambiar clase → Chatarrero. **K** abre "Habilidades". Marcá un lobo con Extracción Rápida (3), matalo y volvé a usarla al lado de los restos. Los muñecos de práctica no dan Spoil. [chatarrero.md](chatarrero.md) |
+
+Teclas: 1-4 habilidades · F parry · 5 y 6 pociones · G montura · Q mira · Tab objetivo · I mochila · M mapa ·
+K habilidades (Chatarrero: además Z X C V, 7 8 9 0 y Y U H J) · / chat.
+
 ## API del servidor (resumen)
 
 **DataManager**
@@ -153,7 +171,7 @@ completa está en [economia.md](economia.md#probar-en-studio).
 - `AddItem(player, itemId, cantidad, rareza?, meta?)`: todo o nada; si no entra, devuelve `false, "INVENTORY_FULL"`
 - `RemoveItem`, `RemoveItemByUid`, `HasItem`, `CountItem`, `SetMaxSlots`
 - `EnviarOroOffline(userId, cantidad, motivo)`: buzón para jugadores desconectados (lo usa la Casa de Subastas)
-- `AddPremium`, `SpendPremium`, `ReciboYaProcesado`, `MarcarRecibo`: **solo** para el futuro MonetizationManager
+- `AddPremium`, `SpendPremium`, `ReciboYaProcesado`, `MarcarRecibo`: **solo** para la monetización (`ProductosManager`)
 - Señales: `PerfilCargado(player, datos)`, `DatosCambiados(player, seccion)`
 
 **NetworkBridge**
@@ -173,7 +191,7 @@ completa está en [economia.md](economia.md#probar-en-studio).
 - `Gracia(player, segundos)`: llamalo antes de mover al jugador desde el servidor (teleports, empujones)
 - `SetVelocidadPermitida(player, n)`: monturas y buffs de velocidad
 - Atributos del jugador `Montado` / `Volando` = `true` para vuelo legítimo
-- Señal `Infraccion(player, tipo, detalle)` para logs o el panel de admin
+- Señal `Infraccion(player, tipo, detalle)` para logs
 
 ## Cambios respecto al prompt original
 
@@ -194,9 +212,10 @@ activá la voz en **Configuración del juego → Comunicación**. Detalle en
 
 ## Interfaz: menú lateral y chat
 
-- Los botones (Personaje, Grupo, Hermandad, Tienda, Voz, Mira, Montura) van en
-  una **columna vertical** a la izquierda (`Modules/MenuLateral.luau`); los
-  marcos de vida quedan a su derecha.
+- Los botones (Personaje, Grupo, Hermandad, Tienda, Voz, Mira, Montura, Mochila
+  y Admin) van en una **columna vertical** a la izquierda
+  (`Modules/MenuLateral.luau`), o a la derecha con el ajuste "Zurdo". El resto
+  del HUD está en [interfaz.md](interfaz.md).
 - El **chat** es una ventana propia (`ChatUI.client.luau`): se **mueve**
   arrastrando la barra de arriba y se **agranda o achica** desde la esquina ◢.
   Posición, tamaño y minimizado se guardan en los ajustes. Usa TextChatService

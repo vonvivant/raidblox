@@ -53,6 +53,15 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 | Comercio sin custodia intermedia | Los ítems no salen del inventario hasta el intercambio síncrono final: nada queda "en el aire" |
 | Herramientas en un slot de equipo propio | "Requiere herramienta equipada" sin afectar las stats de combate |
 | `EstadoCliente` como único receptor de datos | Ninguna interfaz pierde el snapshot inicial por cargar tarde |
+| Diario en el perfil para lo que cruza DataStores | Un corte a mitad de una subasta o del banco de hermandad no duplica ni pierde nada |
+| Campos nuevos del perfil como opcionales | No hace falta subir la versión ni republicar para sumar un sistema |
+| Pases y productos con Id 0 simulables en pruebas | Se prueba toda la tienda antes de crear nada en el Creator Hub |
+| Cajas con probabilidades visibles y PolicyService | Lo exige Roblox para ítems aleatorios pagos |
+| Cosméticos sin stats (transmog, mascotas, skins) | Lo que se paga no da ventaja en combate |
+| HUD en píxeles con `UIScale` | Un solo diseño para PC, celular y consola, con tamaño ajustable y modo zurdo |
+| Minimapa como radar 2D, no ViewportFrame | No hay que clonar ni redibujar el mapa; con muchos jugadores cuesta casi lo mismo |
+| Chatarrero dentro del combate existente | Comparte validación, mira, marco de objetivo y reglas de PvP en vez de duplicarlas |
+| Recargas largas guardadas en el perfil | Morir o reconectar no saltea una ulti de 20 minutos |
 
 ## Pendientes conocidos
 
@@ -63,3 +72,23 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 - Configurar los PlaceId reales en `ZoneConfig` cuando se creen los places.
 - El texto de diseño del Prompt 7.4 llegó cortado en el punto 4 (logs de Discord); se implementó lo que se lee.
 - Antes de lanzar: crear pases y productos en el Creator Hub, PlaceId reales, apagar `ModoPruebas`, cargar `ConfigServidor.Admins`.
+
+## Después del catálogo
+
+Hecho (ver [chatarrero](chatarrero.md), [combate](combate.md) e [interfaz](interfaz.md)): esquiva y fallo, clase
+Chatarrero, minimapa con marco y mapa del mundo, y una pasada de buenas prácticas sobre todo el código.
+
+Pedidos en cola, en este orden:
+
+1. **NPCs:** módulo base con facciones (Rojo / Azul / Neutral), Guardián de Portales y los 38 arquetipos.
+2. **Vault global:** banco con pestañas, filtros y buscador.
+3. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
+4. **Raza Artesano y firma de autoría** en los ítems.
+5. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
+6. **NPC vendedor** con probador en vivo.
+7. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
+8. **Mapas de prueba** de la Ciudad y el Bosque.
+
+Sistemas que todavía no existen y varios de esos pedidos necesitan: durabilidad del equipo, banco personal (lo trae
+el Vault), razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
+

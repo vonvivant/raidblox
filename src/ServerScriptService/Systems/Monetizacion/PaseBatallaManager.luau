@@ -10,6 +10,7 @@
 --   (para saber cuánto trae cada creador).
 
 local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -202,6 +203,10 @@ function PaseBatallaManager.Init()
 		for _, player in participantes do
 			PaseBatallaManager.SumarXp(player, if esJefe then CFG.Xp.Jefe else CFG.Xp.Enemigo)
 		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player: Player)
+		ultimo[player] = nil
 	end)
 
 	local function conEspera(player: Player): boolean

@@ -249,6 +249,7 @@ end)
 ------------------------------------------------------------------------
 
 local MEDIO = TAM / 2
+local ultimaX, ultimaZ = math.huge, math.huge
 local GRIS = Color3.fromRGB(190, 190, 190)
 
 RunService.RenderStepped:Connect(function()
@@ -320,7 +321,11 @@ RunService.RenderStepped:Connect(function()
 		pool[i].Marco.Visible = false
 	end
 
-	textoCoords.Text = `X {math.floor(centro.X)}  ·  Z {math.floor(centro.Z)}`
+	local cx, cz = math.floor(centro.X), math.floor(centro.Z)
+	if cx ~= ultimaX or cz ~= ultimaZ then
+		ultimaX, ultimaZ = cx, cz
+		textoCoords.Text = `X {cx}  ·  Z {cz}`
+	end
 end)
 
 local function ubicar()

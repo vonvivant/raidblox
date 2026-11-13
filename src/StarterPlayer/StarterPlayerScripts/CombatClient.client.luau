@@ -929,6 +929,7 @@ Hud.Cambio:Connect(ubicarHud)
 -- Ventana "Habilidades": elegir 4 por barra (clases con barras)
 ------------------------------------------------------------------------
 
+local firmaBarras = ""
 local guiHabilidades = UIKit.Gui("HabilidadesUI", 64)
 local ventanaHab, contenidoHab = UIKit.Ventana(guiHabilidades, "Habilidades", UDim2.fromScale(0.6, 0.84))
 local listaHab = UIKit.Lista(contenidoHab, UDim2.fromScale(1, 1))
@@ -1038,10 +1039,17 @@ ContextActionService:BindAction("HabilidadesRaidBlox", function(_, estado: Enum.
 end, false, Enum.KeyCode.K)
 
 EstadoCliente.Cambio:Connect(function(campo: string)
+	-- "Cosmeticos" llega seguido (cada XP del pase de batalla): las barras solo
+	-- se rehacen si de verdad cambió qué habilidades están equipadas.
 	if (campo == "Cosmeticos" or campo == "*") and conBarras then
-		armarBarra()
-		if ventanaHab.Visible then
-			dibujarHabilidades()
+		local equipadas = EstadoCliente.Get("Barras")
+		local firma = if typeof(equipadas) == "table" then table.concat(equipadas, ",") else ""
+		if firma ~= firmaBarras then
+			firmaBarras = firma
+			armarBarra()
+			if ventanaHab.Visible then
+				dibujarHabilidades()
+			end
 		end
 	end
 end)
@@ -1250,25 +1258,40 @@ local function formatoSegundos(s: number): string
 	return if s >= 60 then `{math.ceil(s / 60)}m` elseif s >= 1 then tostring(math.ceil(s)) else ""
 end
 
+-- Últimos valores dibujados en el marco del jugador.
+local visto: { [string]: any } = {}
+
 RunService.RenderStepped:Connect(function()
 	local t = ahora()
 
-	-- Vida, maná y experiencia propios.
+	-- Vida, maná y experiencia propios. Corre en cada frame: los textos solo se
+	-- rearman cuando cambia el valor (así no se crea un string por frame).
 	local personaje = jugador.Character
 	local h = personaje and personaje:FindFirstChildOfClass("Humanoid")
 	if h and h.MaxHealth > 0 then
-		barraVida.Size = UDim2.fromScale(math.clamp(h.Health / h.MaxHealth, 0, 1), 1)
-		textoVida.Text = `{math.floor(h.Health)} / {math.floor(h.MaxHealth)}`
+		local vida, vidaMax = math.floor(h.Health), math.floor(h.MaxHealth)
+		if vida ~= visto.Vida or vidaMax ~= visto.VidaMax then
+			visto.Vida, visto.VidaMax = vida, vidaMax
+			barraVida.Size = UDim2.fromScale(math.clamp(h.Health / h.MaxHealth, 0, 1), 1)
+			textoVida.Text = `{vida} / {vidaMax}`
+		end
 	end
 	local mana = jugador:GetAttribute("Mana")
 	local manaMax = jugador:GetAttribute("ManaMax")
-	if typeof(mana) == "number" and typeof(manaMax) == "number" and manaMax > 0 then
+	if
+		typeof(mana) == "number"
+		and typeof(manaMax) == "number"
+		and manaMax > 0
+		and (mana ~= visto.Mana or manaMax ~= visto.ManaMax)
+	then
+		visto.Mana, visto.ManaMax = mana, manaMax
 		barraMana.Size = UDim2.fromScale(math.clamp(mana / manaMax, 0, 1), 1)
 		textoMana.Text = `{mana} / {manaMax}`
 	end
 	local nivel = EstadoCliente.Get("Nivel")
 	local xp = EstadoCliente.Get("Experiencia")
-	if typeof(nivel) == "number" and typeof(xp) == "number" then
+	if typeof(nivel) == "number" and typeof(xp) == "number" and (nivel ~= visto.Nivel or xp ~= visto.Xp) then
+		visto.Nivel, visto.Xp = nivel, xp
 		local cfg = GameConfig.Progresion
 		if nivel >= cfg.NivelMaximo then
 			barraXp.Size = UDim2.fromScale(1, 1)
@@ -1281,11 +1304,15 @@ RunService.RenderStepped:Connect(function()
 		textoNivel.Text = tostring(nivel)
 	end
 	local def = claseActual()
-	barraMana.BackgroundColor3 = if def and def.ColorRecurso then def.ColorRecurso else COLOR_MANA
-	tituloJugador.Text = `{jugador.DisplayName} · {if def then def.Nombre else "Sin clase"}`
+	local clase = jugador:GetAttribute("Clase")
 	local bando = jugador:GetAttribute("Bando")
-	local colorBando = if typeof(bando) == "string" then (GameConfig.Bandos.Colores :: any)[bando] else nil
-	bordeRetrato.Color = if colorBando then colorBando else Color3.new(1, 1, 1)
+	if clase ~= visto.Clase or bando ~= visto.Bando then
+		visto.Clase, visto.Bando = clase, bando
+		barraMana.BackgroundColor3 = if def and def.ColorRecurso then def.ColorRecurso else COLOR_MANA
+		tituloJugador.Text = `{jugador.DisplayName} · {if def then def.Nombre else "Sin clase"}`
+		local colorBando = if typeof(bando) == "string" then (GameConfig.Bandos.Colores :: any)[bando] else nil
+		bordeRetrato.Color = if colorBando then colorBando else Color3.new(1, 1, 1)
+	end
 
 	-- Objetivo.
 	if objetivo and not combatienteVivo(objetivo) then

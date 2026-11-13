@@ -232,6 +232,8 @@ end, false, Enum.KeyCode.M, Enum.KeyCode.ButtonR1)
 -- Actualización (solo con el mapa abierto)
 ------------------------------------------------------------------------
 
+local ultimaX, ultimaZ = math.huge, math.huge
+
 RunService.RenderStepped:Connect(function()
 	if not marco.Visible then
 		return
@@ -244,9 +246,11 @@ RunService.RenderStepped:Connect(function()
 	pin.Position = UDim2.fromScale(u, v)
 	local frente = raiz.CFrame.LookVector
 	pin.Rotation = math.deg(math.atan2(frente.X, -frente.Z))
-	pie.Text = `Tu posición: X {math.floor(raiz.Position.X)} · Z {math.floor(raiz.Position.Z)}{if dentro
-		then ""
-		else "  (fuera del mapa)"}   ·   M para cerrar`
+	local px, pz = math.floor(raiz.Position.X), math.floor(raiz.Position.Z)
+	if px ~= ultimaX or pz ~= ultimaZ then
+		ultimaX, ultimaZ = px, pz
+		pie.Text = `Tu posición: X {px} · Z {pz}{if dentro then "" else "  (fuera del mapa)"}   ·   M para cerrar`
+	end
 
 	local usados = 0
 	for _, e in Radar.Entidades() do
