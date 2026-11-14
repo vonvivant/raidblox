@@ -343,6 +343,36 @@ local function abrir(player: Player, npc: Npc)
 	NetworkBridge.Server.FireClient("NpcAbrir", player, npc.Id, npc.ArquetipoId, npc.Faccion, datos)
 end
 
+-- Cartel con el número del NPC (1 a 39) flotando sobre su cabeza.
+local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, faccion: Faccion)
+	local cabeza = modelo:FindFirstChild("Head")
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "NumeroNpc"
+	cartel.Adornee = if cabeza and cabeza:IsA("BasePart") then cabeza else raiz
+	cartel.Size = UDim2.fromOffset(64, 30)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0) -- por encima del nombre
+	cartel.MaxDistance = 70
+	cartel.LightInfluence = 0
+	cartel.ResetOnSpawn = false
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+	texto.BackgroundTransparency = 0.25
+	texto.Font = Enum.Font.GothamBlack
+	texto.TextScaled = true
+	texto.Text = `#{arquetipo.Numero}`
+	texto.TextColor3 = NpcArquetiposConfig.ColoresFaccion[faccion]
+	texto.Parent = cartel
+	local esquinas = Instance.new("UICorner")
+	esquinas.CornerRadius = UDim.new(0, 8)
+	esquinas.Parent = texto
+	local margen = Instance.new("UIPadding")
+	margen.PaddingTop = UDim.new(0, 3)
+	margen.PaddingBottom = UDim.new(0, 3)
+	margen.Parent = texto
+	cartel.Parent = modelo
+end
+
 local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt, arquetipoId: string, faccion: Faccion)
 	local arquetipo = NpcArquetiposConfig.Arquetipos[arquetipoId]
 	contador += 1
@@ -352,6 +382,8 @@ local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt,
 	modelo:SetAttribute("NpcId", npc.Id)
 	modelo:SetAttribute("Arquetipo", arquetipoId)
 	modelo:SetAttribute("Faccion", faccion)
+	modelo:SetAttribute("Numero", arquetipo.Numero)
+	ponerNumero(modelo, raiz, arquetipo, faccion)
 
 	-- Los artesanos cuentan como estación de su oficio (sin cartel propio).
 	if arquetipo.Estacion and arquetipo.Estado ~= "Pendiente" then

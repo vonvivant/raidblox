@@ -84,7 +84,8 @@ La lista completa, con qué funciona hoy, qué falta y el estado de cada uno, es
 2. Agregale el tag **`NpcArquetipo`**.
 3. Atributos: `Arquetipo` (la clave, por ejemplo `HerreroGeneral`) y `Faccion` (`Rojo`, `Azul` o `Neutral`).
 
-`NpcManager` le pone el cartel de "Hablar" y lo registra. También se pueden crear por código:
+`NpcManager` le pone el cartel de "Hablar" y lo registra. Cada NPC lleva sobre la cabeza un cartel con su **número** (#1 a #39, el mismo
+de la [matriz](npcs-matriz.md)), del color de su facción. También se pueden crear por código:
 `NpcManager.Crear("Boticario", "Rojo", posicion)`.
 
 En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen 14 de prueba (`NpcArquetiposConfig.DePrueba`)
