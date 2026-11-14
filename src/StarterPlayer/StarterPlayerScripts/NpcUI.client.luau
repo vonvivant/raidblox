@@ -12,6 +12,7 @@ local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NpcArquetiposConfig = require(ReplicatedStorage.Configs.NpcArquetiposConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
+local EventosCliente = require(ReplicatedStorage.Modules.EventosCliente)
 local ItemInfo = require(ReplicatedStorage.Modules.ItemInfo)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
 
@@ -46,6 +47,8 @@ type Sesion = {
 	Posicion: Vector3?,
 	Destinos: { any },
 	Costos: { [string]: any }, -- servicioId -> oro (servicios con costo variable)
+	-- Stock rotativo: índices de `Vende` a la venta, hora en que cambia y lo ya comprado.
+	Rotacion: { Activas: { [number]: boolean }, Termina: number, Comprado: { [string]: any } }?,
 }
 
 -- Operaciones sobre un ítem: qué se está por confirmar y para qué ítem se
@@ -65,14 +68,14 @@ local function honor(): number
 	return if typeof(v) == "number" then v else 0
 end
 
-local function pedir(remoto: string, ...: any): boolean
+local function pedir(remoto: string, ...: any): (boolean, any)
 	if ocupado then
-		return false
+		return false, nil
 	end
 	ocupado = true
 	local r = NetworkBridge.Client.Invoke(remoto, ...)
 	ocupado = false
-	return r.Success
+	return r.Success, r.Data
 end
 
 ------------------------------------------------------------------------
@@ -177,39 +180,77 @@ local function seccionServicios(s: Sesion)
 		local disponible = servicio.Accion ~= nil
 		local cotizado = s.Costos[servicio.Id]
 		local precio = if servicio.Cotiza and typeof(cotizado) == "number" then cotizado else servicio.Costo
-		local costo = if precio > 0 then `{precio} oro` elseif servicio.Cotiza then "Nada que hacer" else "Gratis"
-		local activo = disponible and oro() >= precio and not (servicio.Cotiza and precio <= 0)
+		local costo = if servicio.Etiqueta
+			then servicio.Etiqueta
+			elseif precio > 0 then `{precio} oro`
+			elseif servicio.Cotiza then "Nada que hacer"
+			else "Gratis"
+		local activo = disponible
+			and (servicio.Etiqueta ~= nil or (oro() >= precio and not (servicio.Cotiza and precio <= 0)))
 		local f = fila(servicio.Nombre, servicio.Descripcion)
 		boton(f, if disponible then costo else "Próximamente", 1.5, activo, function()
 			if not activo or not pedir("NpcServicio", s.NpcId, servicio.Id) then
 				return
 			end
 			-- Estos abren otra ventana o dejan viejo el costo mostrado.
-			if servicio.Accion == "Subasta" or servicio.Accion == "Vault" or servicio.Cotiza then
+			if
+				servicio.Accion == "Subasta"
+				or servicio.Accion == "Vault"
+				or servicio.Accion == "BancoClan"
+				or (servicio.Cotiza and not servicio.Etiqueta)
+			then
 				ventana.Visible = false
 			end
 		end)
 	end
 end
 
+local function textoEspera(segundos: number): string
+	local minutos = math.max(1, math.ceil(segundos / 60))
+	return if minutos >= 60 then `{minutos // 60} h {minutos % 60} min` else `{minutos} min`
+end
+
 local function seccionVenta(s: Sesion)
+	local rotacion = s.Rotacion
 	encabezado("En venta")
+	if rotacion then
+		nota(`La mercadería especial cambia en {textoEspera(rotacion.Termina - os.time())}.`)
+	end
 	local ofertas: { NpcArquetiposConfig.Oferta } = s.Arquetipo.Vende or {}
 	for indice, oferta in ofertas do
 		local def = ItemCatalog[oferta.ItemId]
 		if not def or (oferta.Solo and oferta.Solo ~= s.Faccion) then
 			continue
 		end
+		if oferta.Rotativa and not (rotacion and rotacion.Activas[indice]) then
+			continue
+		end
 		local conHonor = oferta.Moneda == "Honor"
 		local moneda = if conHonor then "honor" else "oro"
 		local tengo = if conHonor then honor() else oro()
-		local f = fila(def.Nombre, `{oferta.Precio} {moneda} c/u`)
-		boton(f, "Comprar", 1, tengo >= oferta.Precio, function()
-			pedir("NpcComprar", s.NpcId, indice, 1)
+		local detalle = `{oferta.Precio} {moneda} c/u`
+		local quedan = math.huge
+		if oferta.Rotativa and rotacion then
+			local comprado = rotacion.Comprado[oferta.ItemId]
+			quedan = (oferta.Limite or 1) - (if typeof(comprado) == "number" then comprado else 0)
+			detalle ..= if quedan > 0 then `  ·  te quedan {quedan}` else "  ·  agotado para vos"
+		end
+		local f = fila(def.Nombre, detalle, if oferta.Rotativa then UIKit.Colores.Oro else nil)
+		local function comprar(cantidad: number)
+			local ok, datos = pedir("NpcComprar", s.NpcId, indice, cantidad)
+			if ok and rotacion and typeof(datos) == "table" and typeof(datos.Comprado) == "table" then
+				rotacion.Comprado = datos.Comprado
+				redibujar()
+			end
+		end
+		boton(f, "Comprar", 1, tengo >= oferta.Precio and quedan >= 1, function()
+			if quedan >= 1 then
+				comprar(1)
+			end
 		end)
-		if def.Apilable then
+		if def.Apilable and quedan >= 10 then
 			boton(f, "x10", 2, tengo >= oferta.Precio * 10, function()
-				pedir("NpcComprar", s.NpcId, indice, 10)
+				comprar(10)
 			end)
 		end
 	end
@@ -238,7 +279,17 @@ local function seccionCompra(s: Sesion, compra: { Factor: number, Tipos: { strin
 		local def = ItemCatalog[item.ItemId]
 		local precio = math.floor(def.PrecioVenta * compra.Factor)
 		local f = fila(`{ItemInfo.Nombre(item)} x{item.Cantidad}`, `{precio} oro c/u`, ItemInfo.Color(item))
-		boton(f, "Vender 1", 1, true, function()
+		-- El equipo que no es Común pide un segundo clic: no se recupera.
+		local marca = `Vender:{clave}`
+		local delicado = def.Tipo == "Equipo" and item.Rareza ~= "Comun"
+		local confirmando = delicado and porConfirmar == marca
+		boton(f, if confirmando then "¿Seguro?" else "Vender 1", 1, true, function()
+			if delicado and not confirmando then
+				porConfirmar = marca
+				redibujar()
+				return
+			end
+			porConfirmar = nil
 			pedir("NpcVender", s.NpcId, clave, 1)
 		end)
 		if item.Cantidad > 1 then
@@ -403,7 +454,23 @@ NetworkBridge.Client.OnEvent("NpcAbrir", function(npcId: any, arquetipoId: any, 
 		Posicion = if typeof(extra.Posicion) == "Vector3" then extra.Posicion else nil,
 		Destinos = if typeof(extra.Destinos) == "table" then extra.Destinos else {},
 		Costos = if typeof(extra.Costos) == "table" then extra.Costos else {},
+		Rotacion = nil,
 	}
+	local rotacion = extra.Rotacion
+	if typeof(rotacion) == "table" and typeof(rotacion.Activas) == "table" then
+		local activas: { [number]: boolean } = {}
+		for _, indice in rotacion.Activas do
+			if typeof(indice) == "number" then
+				activas[indice] = true
+			end
+		end
+		local nueva: Sesion = sesion :: Sesion
+		nueva.Rotacion = {
+			Activas = activas,
+			Termina = if typeof(rotacion.Termina) == "number" then rotacion.Termina else os.time(),
+			Comprado = if typeof(rotacion.Comprado) == "table" then rotacion.Comprado else {},
+		}
+	end
 	porConfirmar = nil
 	eligiendoGema = nil
 	if tituloVentana then
@@ -414,6 +481,13 @@ NetworkBridge.Client.OnEvent("NpcAbrir", function(npcId: any, arquetipoId: any, 
 	redibujar()
 	ventana.Visible = true
 	UIKit.EnfocarPrimero(ventana)
+end)
+
+-- El servidor pide abrir otra ventana (por ejemplo, el banco de la hermandad).
+NetworkBridge.Client.OnEvent("NpcVentana", function(nombre: any)
+	if nombre == "BancoHermandad" then
+		EventosCliente.AbrirBancoHermandad:Fire()
+	end
 end)
 
 EstadoCliente.Cambio:Connect(function(campo: string)

@@ -9,6 +9,8 @@ local EventosCliente = {
 	AbrirSelectorClase = Signal.new() :: Signal.Signal<>,
 	-- El botón "M" del minimapa (y la tecla M) abren o cierran el mapa del mundo.
 	AlternarMapa = Signal.new() :: Signal.Signal<>,
+	-- El Banquero de Clan abre la ventana de hermandad en la pestaña Banco.
+	AbrirBancoHermandad = Signal.new() :: Signal.Signal<>,
 }
 
 return EventosCliente

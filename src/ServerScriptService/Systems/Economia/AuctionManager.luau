@@ -763,7 +763,7 @@ local function cancelar(player: Player, id: string): Respuesta
 	return NetworkBridge.Ok(nil)
 end
 
-local function buscar(texto: string?, rareza: string?): Respuesta
+local function buscar(texto: string?, rareza: string?, categoria: string?, precioMaximo: number?): Respuesta
 	local ahora = os.clock()
 	if ahora - cache.hora > CFG.CacheBusquedaSegundos then
 		local todas: { any } = {}
@@ -803,6 +803,15 @@ local function buscar(texto: string?, rareza: string?): Respuesta
 			continue
 		end
 		if rareza and typeof(r.Item) == "table" and r.Item.Rareza ~= rareza then
+			continue
+		end
+		if categoria then
+			local def = if typeof(r.Item) == "table" then ItemCatalog[r.Item.ItemId] else nil
+			if not def or def.Tipo ~= categoria then
+				continue
+			end
+		end
+		if precioMaximo and (typeof(r.Precio) ~= "number" or r.Precio > precioMaximo) then
 			continue
 		end
 		table.insert(resultado, r)
@@ -930,18 +939,31 @@ function AuctionManager.Init()
 	end
 	CollectionService:GetInstanceAddedSignal(TAG_CASA):Connect(prepararTablon)
 
-	NetworkBridge.Server.OnInvoke("SubastaBuscar", function(player: Player, texto: unknown, rareza: unknown): Respuesta
-		local filtro = if texto == nil or texto == "" then nil else NetworkBridge.Guard.String(texto, 40)
-		local r = if rareza == nil or rareza == ""
-			then nil
-			else NetworkBridge.Guard.OneOf(rareza, ItemRarityConfig.Rarezas)
-		if not enfriado(player, "Buscar") then
-			return NetworkBridge.Fail("RATE_LIMITED")
+	local CATEGORIAS = { Material = true, Consumible = true, Equipo = true, Herramienta = true, Cosmetico = true }
+	NetworkBridge.Server.OnInvoke(
+		"SubastaBuscar",
+		function(player: Player, texto: unknown, rareza: unknown, categoria: unknown, precioMaximo: unknown): Respuesta
+			local filtro = if texto == nil or texto == "" then nil else NetworkBridge.Guard.String(texto, 40)
+			local r = if rareza == nil or rareza == ""
+				then nil
+				else NetworkBridge.Guard.OneOf(rareza, ItemRarityConfig.Rarezas)
+			local c = if categoria == nil or categoria == ""
+				then nil
+				else NetworkBridge.Guard.OneOf(categoria, CATEGORIAS)
+			local tope = if precioMaximo == nil
+				then nil
+				else NetworkBridge.Guard.Integer(precioMaximo, 1, CFG.PrecioMaximo)
+			if (categoria ~= nil and categoria ~= "" and not c) or (precioMaximo ~= nil and not tope) then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			if not enfriado(player, "Buscar") then
+				return NetworkBridge.Fail("RATE_LIMITED")
+			end
+			return conCandado(player, function()
+				return buscar(filtro, r, c, tope)
+			end)
 		end
-		return conCandado(player, function()
-			return buscar(filtro, r)
-		end)
-	end)
+	)
 
 	NetworkBridge.Server.OnInvoke("SubastaPublicar", function(player: Player, uid: unknown, precio: unknown): Respuesta
 		local u = NetworkBridge.Guard.String(uid, 64)

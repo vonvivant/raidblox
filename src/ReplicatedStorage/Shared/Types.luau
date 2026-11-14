@@ -166,6 +166,8 @@ export type DatosJugador = {
 	-- Mejoras temporales de consumibles y NPCs: categoría -> definición de
 	-- ConsumiblesConfig, vencimiento (os.time()) y si salió el efecto malo.
 	Buffs: { [string]: { Id: string, Hasta: number, Malo: boolean? } }?,
+	-- Compras de ofertas rotativas de NPC: arquetipo -> ciclo y cantidad por ítem.
+	ComprasRotativas: { [string]: { Ciclo: number, Items: { [string]: number } } }?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía

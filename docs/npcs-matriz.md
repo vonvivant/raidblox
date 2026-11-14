@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja (14 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja (16 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **17** implementados sin verificar, **7** en desarrollo y **15** pendientes (total 39).
+Hoy: **19** implementados sin verificar, **6** en desarrollo y **14** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -58,11 +58,11 @@ Hoy: **17** implementados sin verificar, **7** en desarrollo y **15** pendientes
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
 | NPC-014 | Banquero (`Banquero`) | Rojo, Azul, Neutral | Abrir la bóveda | — | Implementado sin verificar |
-| NPC-015 | Banquero de Clan (`BanqueroClan`) | Rojo, Azul, Neutral | el sistema existe en: Banco de hermandad (botón Hermandad del menú) | — | En desarrollo |
-| NPC-016 | Subastador (`Subastador`) | Rojo, Azul | Casa de Subastas | — | Implementado sin verificar |
+| NPC-015 | Banquero de Clan (`BanqueroClan`) | Rojo, Azul, Neutral | Banco de la hermandad | Límite diario de retiro por rango; Exigir estar junto al NPC para operar | Implementado sin verificar |
+| NPC-016 | Subastador (`Subastador`) | Rojo, Azul | Casa de Subastas | Pujas con reserva de fondos y devolución al superado; Filtro por nivel | Implementado sin verificar |
 | NPC-017 | Comerciante de Excedentes (`ComercianteExcedentes`) | Rojo, Azul, Neutral | vende 2 ítems, compra excedentes | Hacha; Caña de pescar | Implementado sin verificar |
-| NPC-018 | Prestamista (`Prestamista`) | Rojo, Azul, Neutral | — | Divisas de evento | Pendiente |
-| NPC-019 | Vendedor del Mercado Negro (`MercadoNegro`) | Neutral | vende 5 ítems | Cosméticos raros; Recetas especiales; Contenedores aleatorios por oro (con probabilidades a la vista) | Implementado sin verificar |
+| NPC-018 | Cambista (`Prestamista`) | Rojo, Azul, Neutral | Cambiar 10 de honor, Cambiar 100 de honor, Cambiar 1.000 de honor | Divisas de evento; Mostrar el oro como Bronce / Plata / Oro | Implementado sin verificar |
+| NPC-019 | Vendedor del Mercado Negro (`MercadoNegro`) | Neutral | vende 9 ítems | Requisito de reputación; Recetas exclusivas; Cosméticos raros | Implementado sin verificar |
 
 ### Grupo D — Viajes, cartografía y logística
 
@@ -125,7 +125,7 @@ Hoy: **17** implementados sin verificar, **7** en desarrollo y **15** pendientes
 1. ~~Infraestructura: registro, facciones, vendedor, artesano, servicios, viajes~~ (hecho).
 2. ~~Efectos de consumibles y Grupo A: NPC 001, 002, 003 y 006~~ (hecho). Faltan 004 (necesita talentos) y 005 (pergaminos).
 3. ~~Grupo B: durabilidad y reparación (009), gemas (010), desencantar (011), reforja (012), transmutación (013)~~ (hecho). Quedan mejoras menores anotadas en cada fila.
-4. Grupo C: banco de clan desde el NPC (015), filtros y pujas en subastas (016), cambista (018), stock rotativo del mercado negro (019).
+4. ~~Grupo C: banco de clan desde el NPC (015), filtros de subastas (016), cambista (018), stock rotativo del mercado negro (019)~~ (hecho). **Falta decidir** las pujas y la separación de subastas por bando.
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
 6. Grupo E: descanso y rumores (025), diarias y contratos (026), reputación (027), entrenador (028).
 7. Grupo F: barbero (029), transfigurador desde el NPC (030), tintes (031), mascotas por oro (032).

@@ -73,6 +73,7 @@ classDiagram
         map? CooldownsLargos
         Vault? Vault
         map? Buffs
+        map? ComprasRotativas
     }
 
     DatosJugador *-- Inventario

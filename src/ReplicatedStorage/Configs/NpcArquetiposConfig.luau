@@ -35,6 +35,10 @@ export type Oferta = {
 	Precio: number,
 	Moneda: ("Oro" | "Honor")?, -- por defecto Oro
 	Solo: Faccion?, -- solo lo vende la versión de ese bando
+	-- Oferta rotativa: solo está a la venta en algunos ciclos (ver `Rotacion`
+	-- del arquetipo) y cada jugador puede comprar hasta `Limite` por ciclo.
+	Rotativa: boolean?,
+	Limite: number?,
 }
 
 export type Servicio = {
@@ -46,6 +50,8 @@ export type Servicio = {
 	-- El costo depende del jugador (por ejemplo, reparar): lo calcula y lo cobra
 	-- la propia acción, y el servidor lo informa al abrir la ventana.
 	Cotiza: boolean?,
+	Etiqueta: string?, -- texto del botón cuando el costo no es oro (por ejemplo, honor)
+	Lote: number?, -- cantidad que mueve el servicio (Cambista)
 }
 
 -- Operación sobre un ítem de la mochila (desencantar, reforjar, engarzar).
@@ -74,6 +80,8 @@ export type Arquetipo = {
 	Servicios: { Servicio }?,
 	Viajes: boolean?, -- Guardián de Portales
 	SobreItem: { OperacionItem }?,
+	-- Stock rotativo: cada `Cada` segundos cambian las `Cantidad` ofertas rotativas a la venta.
+	Rotacion: { Cada: number, Cantidad: number }?,
 	Tags: { string }?, -- tags de CollectionService que recibe la raíz del NPC
 	Parametros: { [string]: any },
 }
@@ -419,18 +427,23 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Tesorero: inventario y fondos de la hermandad.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Parcial",
-		Sistema = "Banco de hermandad (botón Hermandad del menú)",
+		Estado = "Listo",
 		Color = ORO,
 		Servicios = {
 			{
 				Id = "BancoClan",
 				Nombre = "Banco de la hermandad",
-				Descripcion = "4 pestañas de 28 lugares.",
+				Descripcion = "Oro y 4 pestañas de ítems, con permisos por rango y registro de movimientos.",
 				Costo = 0,
+				Accion = "BancoClan",
 			},
 		},
-		Parametros = { Pestanas = 4, RanurasPorPestana = 28 },
+		Parametros = {
+			Pestanas = 4,
+			RanurasPorPestana = 28,
+			Sistema = "HermandadManager (permisos por rango, registro y candado entre servidores)",
+			Futuro = { "Límite diario de retiro por rango", "Exigir estar junto al NPC para operar" },
+		},
 	},
 	Subastador = {
 		Numero = 16,
@@ -455,6 +468,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 			-- Hoy la Casa de Subastas es una sola para todos. Separarla por bando
 			-- cambia la economía actual: queda apagado hasta decidirlo.
 			SeparacionActiva = false,
+			Futuro = { "Pujas con reserva de fondos y devolución al superado", "Filtro por nivel" },
 		},
 	},
 	ComercianteExcedentes = {
@@ -472,45 +486,77 @@ local Arquetipos: { [string]: Arquetipo } = {
 	},
 	Prestamista = {
 		Numero = 18,
-		Nombre = "Prestamista",
+		Nombre = "Cambista",
 		Categoria = "Economia",
-		Descripcion = "Cambista: convierte monedas y divisas de eventos.",
+		Descripcion = "Cambia puntos de honor por oro. No hace préstamos.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = ORO,
 		Servicios = {
-			{ Id = "Cambiar", Nombre = "Cambiar divisas", Descripcion = "Divisas de evento por oro.", Costo = 0 },
+			{
+				Id = "Cambiar10",
+				Nombre = "Cambiar 10 de honor",
+				Descripcion = "Recibís 5 de oro.",
+				Costo = 0,
+				Accion = "CambiarHonor",
+				Cotiza = true,
+				Etiqueta = "10 honor",
+				Lote = 10,
+			},
+			{
+				Id = "Cambiar100",
+				Nombre = "Cambiar 100 de honor",
+				Descripcion = "Recibís 50 de oro.",
+				Costo = 0,
+				Accion = "CambiarHonor",
+				Cotiza = true,
+				Etiqueta = "100 honor",
+				Lote = 100,
+			},
+			{
+				Id = "Cambiar1000",
+				Nombre = "Cambiar 1.000 de honor",
+				Descripcion = "Recibís 500 de oro.",
+				Costo = 0,
+				Accion = "CambiarHonor",
+				Cotiza = true,
+				Etiqueta = "1.000 honor",
+				Lote = 1000,
+			},
 		},
 		Parametros = {
-			Monedas = { Bronce = 1, Plata = 100, Oro = 10000 }, -- el juego usa una sola moneda (oro); esto es solo de presentación
-			Comision = 0.05,
-			Requiere = "Divisas de evento",
+			Tasa = "NpcArquetiposConfig.Cambio.OroPorHonor",
+			-- El juego usa una sola moneda (oro): Bronce / Plata / Oro sería solo
+			-- una forma de mostrarla.
+			Futuro = { "Divisas de evento", "Mostrar el oro como Bronce / Plata / Oro" },
 		},
 	},
 	MercadoNegro = {
 		Numero = 19,
 		Nombre = "Vendedor del Mercado Negro",
 		Categoria = "Economia",
-		Descripcion = "Rarezas, recetas especiales y contenedores por oro, para cualquiera.",
+		Descripcion = "Rarezas con stock limitado que cambia cada 6 horas, para cualquiera.",
 		Interfaces = { "IVendor" },
 		Facciones = NEUTRAL,
 		Estado = "Listo",
 		Color = Color3.fromRGB(60, 50, 70),
 		Vende = {
-			{ ItemId = "Amatista", Precio = 90 },
-			{ ItemId = "Esmeralda", Precio = 130 },
-			{ ItemId = "Zafiro", Precio = 150 },
-			{ ItemId = "Rubi", Precio = 170 },
 			{ ItemId = "SedaArana", Precio = 80 },
+			{ ItemId = "Amatista", Precio = 90, Rotativa = true, Limite = 3 },
+			{ ItemId = "Esmeralda", Precio = 130, Rotativa = true, Limite = 3 },
+			{ ItemId = "Zafiro", Precio = 150, Rotativa = true, Limite = 3 },
+			{ ItemId = "Rubi", Precio = 170, Rotativa = true, Limite = 3 },
+			{ ItemId = "Diamante", Precio = 420, Rotativa = true, Limite = 1 },
+			{ ItemId = "PolvoEncantamiento", Precio = 45, Rotativa = true, Limite = 6 },
+			{ ItemId = "EsenciaMagica", Precio = 140, Rotativa = true, Limite = 2 },
+			{ ItemId = "NucleoObsidiana", Precio = 160, Rotativa = true, Limite = 2 },
 		},
+		Rotacion = { Cada = 21600, Cantidad = 3 },
 		Parametros = {
 			Ubicacion = "Zonas neutrales o tabernas libres",
-			Futuro = {
-				"Cosméticos raros",
-				"Recetas especiales",
-				"Contenedores aleatorios por oro (con probabilidades a la vista)",
-			},
+			Stock = "Límite por jugador y por ciclo (no un stock compartido entre servidores)",
+			Futuro = { "Requisito de reputación", "Recetas exclusivas", "Cosméticos raros" },
 		},
 	},
 
@@ -861,6 +907,11 @@ return {
 		Neutral = Color3.fromRGB(200, 200, 210),
 	} :: { [string]: Color3 },
 
+	-- Cambista: oro que da por cada punto de honor. Es de una sola vía (no vende
+	-- honor) y está por debajo de lo que rinde gastar el honor en el Intendente
+	-- y revender, así que no abre ningún circuito de ganancia.
+	Cambio = { OroPorHonor = 0.5 },
+
 	DistanciaInteraccion = 14, -- studs: más lejos, el servidor rechaza
 
 	-- Guardián de Portales: costo = Base + PorNivel × nivel mínimo de la zona.
@@ -897,5 +948,7 @@ return {
 		{ Arquetipo = "ReforjadorAtributos", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 52) },
 		{ Arquetipo = "MaestroEncantador", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 52) },
 		{ Arquetipo = "Fundidor", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 52) },
+		{ Arquetipo = "BanqueroClan", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 52) },
+		{ Arquetipo = "Prestamista", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 62) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

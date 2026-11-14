@@ -52,6 +52,27 @@ registran con `NpcManager.RegistrarAccionItem`.
 Las acciones no deben ceder el hilo (sin `task.wait` ni llamadas a DataStore): entre la verificación del oro y el
 cobro no puede cambiar el saldo.
 
+## Stock rotativo (Mercado Negro)
+
+Un arquetipo con `Rotacion = { Cada, Cantidad }` tiene ofertas marcadas `Rotativa`: en cada ciclo salen a la venta
+solo `Cantidad` de ellas. El ciclo sale de la hora (`os.time() // Cada`) y el sorteo usa una semilla fija, así que
+todos los servidores muestran lo mismo sin coordinarse. Cada oferta rotativa tiene un `Limite` de compras **por
+jugador y por ciclo**, guardado en el perfil (`ComprasRotativas`); no es un stock compartido entre servidores.
+El Mercado Negro rota cada 6 horas y muestra 3 de 8.
+
+## Cambista
+
+Cambia puntos de honor por oro en lotes fijos (10, 100 y 1.000), a `NpcArquetiposConfig.Cambio.OroPorHonor`
+(0,5). Es de una sola vía: no vende honor. La tasa queda por debajo de lo que rinde gastar el honor en el
+Intendente y revender, y una prueba automática lo verifica. Cada cambio queda en el log del servidor. No hace
+préstamos. El juego usa una sola moneda (oro); mostrarla como Bronce / Plata / Oro queda pendiente.
+
+## Banquero de Clan
+
+Abre la ventana de la hermandad en la pestaña Banco. Los permisos por rango, el registro de movimientos y el
+candado entre servidores son los de `HermandadManager` ([hermandades](hermandades.md)). El banco se sigue
+pudiendo abrir desde el menú: exigir estar junto al NPC queda pendiente.
+
 ## Guardián de Portales
 
 Cada zona de `ZoneConfig` tiene un `Territorio` (`Rojo`, `Azul` o `Neutral`).
@@ -104,7 +125,8 @@ al oeste del punto de inicio: los que ya funcionan, incluidos tres Guardianes de
 - Cada pedido revalida: NPC existente, distancia (`DistanciaInteraccion`, 14 studs), bando y datos cargados.
 - Cantidades con tope (99 por compra; 10 si el ítem no se apila) y todos los argumentos pasan por `Guard`.
 - Compra: se verifica el saldo, se agrega el ítem (todo o nada) y se cobra, sin ceder el hilo en el medio.
-- Venta: solo desde ranuras de la mochila (nunca lo equipado) y solo los tipos que ese NPC compra.
+- Venta: solo desde ranuras de la mochila (nunca lo equipado) y solo los tipos que ese NPC compra. Vender
+  equipo que no es Común pide un segundo clic.
 
 ## Pendiente de decidir
 

@@ -116,6 +116,10 @@ sequenceDiagram
 
 Compartida por todos los servidores de la experiencia.
 
+La búsqueda filtra por **nombre, rareza, categoría** (Materiales, Consumibles, Equipo, Herramientas,
+Cosméticos) y **precio máximo**; los filtros se aplican en el servidor. Se abre desde el tablón o hablando con el
+Subastador ([NPCs](npcs.md)). Es de compra directa: no hay pujas.
+
 | Almacenamiento | Clave | Uso |
 | --- | --- | --- |
 | DataStore (fuente de verdad) | `L_<id>` | Publicación: ítem, precio, vendedor, estado, vencimiento |

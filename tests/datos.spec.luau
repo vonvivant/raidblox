@@ -220,3 +220,43 @@ prueba("NPCs: las operaciones sobre ítems que declaran existen en la forja", fu
 		end
 	end
 end)
+
+prueba("NPCs: el stock rotativo está bien armado", function()
+	for id, a in Npcs.Arquetipos do
+		local rotativas = 0
+		for _, oferta in a.Vende or {} do
+			if oferta.Rotativa then
+				rotativas += 1
+				exigir(oferta.Limite and oferta.Limite >= 1, id .. ": oferta rotativa sin límite: " .. oferta.ItemId)
+			end
+		end
+		if a.Rotacion then
+			exigir(a.Rotacion.Cada >= 60, id .. " rota demasiado seguido")
+			exigir(a.Rotacion.Cantidad >= 1 and a.Rotacion.Cantidad <= rotativas, id .. " muestra más ofertas rotativas de las que tiene")
+		else
+			exigir(rotativas == 0, id .. " tiene ofertas rotativas pero no define Rotacion")
+		end
+	end
+end)
+
+prueba("Cambista: cambiar honor rinde menos que gastarlo en un NPC y revender", function()
+	local tasa = Npcs.Cambio.OroPorHonor
+	exigir(tasa > 0, "tasa inválida")
+	local mejor = 0
+	for _, a in Npcs.Arquetipos do
+		for _, oferta in a.Vende or {} do
+			if oferta.Moneda == "Honor" then
+				mejor = math.max(mejor, ItemCatalog[oferta.ItemId].PrecioVenta / oferta.Precio)
+			end
+		end
+	end
+	exigir(mejor > 0, "no hay nada que se compre con honor")
+	exigir(tasa <= mejor, "el Cambista paga " .. tasa .. " por honor y la reventa rinde " .. mejor)
+	for id, a in Npcs.Arquetipos do
+		for _, s in a.Servicios or {} do
+			if s.Accion == "CambiarHonor" then
+				exigir(s.Lote and math.floor(s.Lote * tasa) >= 1, id .. ": lote que no da oro: " .. s.Id)
+			end
+		end
+	end
+end)

@@ -80,7 +80,24 @@ local rarezaFiltro: string? = nil
 local botonRareza = UIKit.Boton(vBuscar, "Todas las rarezas", UDim2.new(0.25, -6, 0, 34), UDim2.new(0.5, 6, 0, 0))
 local botonBuscar =
 	UIKit.Boton(vBuscar, "Buscar", UDim2.new(0.25, -12, 0, 34), UDim2.new(0.75, 12, 0, 0), UIKit.Colores.BotonPrimario)
-local listaBuscar = UIKit.Lista(vBuscar, UDim2.new(1, 0, 1, -44), UDim2.fromOffset(0, 44))
+-- Segunda fila de filtros: categoría y precio máximo.
+local CATEGORIAS = { "Material", "Consumible", "Equipo", "Herramienta", "Cosmetico" }
+local NOMBRES_CATEGORIA: { [string]: string } = {
+	Material = "Materiales",
+	Consumible = "Consumibles",
+	Equipo = "Equipo",
+	Herramienta = "Herramientas",
+	Cosmetico = "Cosméticos",
+}
+local categoriaFiltro: string? = nil
+local botonCategoria = UIKit.Boton(vBuscar, "Todas las categorías", UDim2.new(0.5, 0, 0, 30), UDim2.fromOffset(0, 40))
+local cajaPrecio = UIKit.Entrada(vBuscar, "Precio máximo (oro)", UDim2.new(0.5, -6, 0, 30), UDim2.new(0.5, 6, 0, 40))
+botonCategoria.Activated:Connect(function()
+	local i = if categoriaFiltro then table.find(CATEGORIAS, categoriaFiltro) else 0
+	categoriaFiltro = CATEGORIAS[(i or 0) + 1]
+	botonCategoria.Text = if categoriaFiltro then NOMBRES_CATEGORIA[categoriaFiltro] else "Todas las categorías"
+end)
+local listaBuscar = UIKit.Lista(vBuscar, UDim2.new(1, 0, 1, -80), UDim2.fromOffset(0, 80))
 
 local ORDEN_RAREZAS = { "Comun", "Raro", "Epico", "Mistico", "Unico" }
 botonRareza.Activated:Connect(function()
@@ -92,7 +109,10 @@ end)
 
 local function buscar()
 	UIKit.Limpiar(listaBuscar)
-	local r = NetworkBridge.Client.Invoke("SubastaBuscar", caja.Text, rarezaFiltro or "")
+	local tope = tonumber(cajaPrecio.Text)
+	local precioMaximo = if tope and tope >= 1 then math.floor(tope) else nil
+	local r =
+		NetworkBridge.Client.Invoke("SubastaBuscar", caja.Text, rarezaFiltro or "", categoriaFiltro or "", precioMaximo)
 	if not r.Success or typeof(r.Data) ~= "table" then
 		Avisos.Mostrar("No se pudo buscar en la Casa de Subastas.", "Error")
 		return

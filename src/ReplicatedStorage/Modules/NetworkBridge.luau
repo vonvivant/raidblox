@@ -126,6 +126,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	TiendaPruebaComprar = { Tipo = "Function", Critico = false }, -- (itemId, cantidad)
 	-- NPCs por arquetipo (NpcManager)
 	NpcAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId, arquetipo, faccion, datos)
+	NpcVentana = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (nombre): abre otra ventana del cliente
 	NpcComprar = { Tipo = "Function", Critico = false }, -- (npcId, indiceOferta, cantidad)
 	NpcVender = { Tipo = "Function", Critico = false }, -- (npcId, ranura, cantidad)
 	NpcServicio = { Tipo = "Function", Critico = false }, -- (npcId, servicioId)
@@ -143,7 +144,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 
 	-- Fase 4: Casa de Subastas
 	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
-	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)
+	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza, categoria?, precioMaximo?)
 	SubastaPublicar = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (uid, precio)
 	SubastaComprar = { Tipo = "Function", Critico = false, Timeout = 50 }, -- (id)
 	SubastaCancelar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (id)

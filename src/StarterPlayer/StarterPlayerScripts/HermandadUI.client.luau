@@ -17,6 +17,7 @@ local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
+local EventosCliente = require(ReplicatedStorage.Modules.EventosCliente)
 local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local ItemInfo = require(ReplicatedStorage.Modules.ItemInfo)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
@@ -606,6 +607,14 @@ abrir.Activated:Connect(function()
 		task.spawn(recargar, false)
 		UIKit.EnfocarPrimero(ventana)
 	end
+end)
+
+EventosCliente.AbrirBancoHermandad:Connect(function()
+	vistaActual = "Banco"
+	ventana.Visible = true
+	redibujar()
+	task.spawn(recargar, true)
+	UIKit.EnfocarPrimero(ventana)
 end)
 
 for _, nombre in { "Banco", "Registro" } do

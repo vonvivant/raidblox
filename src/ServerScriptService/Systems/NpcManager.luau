@@ -32,6 +32,7 @@ local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local Types = require(ReplicatedStorage.Shared.Types)
 local BandoManager = require(script.Parent.BandoManager)
 local DataManager = require(script.Parent.DataManager)
+local HermandadManager = require(script.Parent.HermandadManager)
 local NpcFactory = require(script.Parent.NpcFactory)
 local ZoneManager = require(script.Parent.ZoneManager)
 local BuffManager = require(script.Parent.Combate.BuffManager)
@@ -195,11 +196,80 @@ end
 -- Vendedor
 ------------------------------------------------------------------------
 
+-- Stock rotativo -------------------------------------------------------
+-- El ciclo sale de la hora (igual en todos los servidores) y las ofertas del
+-- ciclo se sortean con una semilla fija: todos ven lo mismo sin coordinarse.
+
+local function cicloDe(arquetipo: Arquetipo): number
+	local rotacion = arquetipo.Rotacion
+	return if rotacion then os.time() // rotacion.Cada else 0
+end
+
+-- Índices (dentro de `Vende`) de las ofertas rotativas a la venta en este ciclo.
+local function rotativasActivas(npc: Npc): { [number]: boolean }
+	local activas: { [number]: boolean } = {}
+	local rotacion = npc.Arquetipo.Rotacion
+	local vende = npc.Arquetipo.Vende
+	if not rotacion or not vende then
+		return activas
+	end
+	local candidatas: { number } = {}
+	for indice, oferta in vende do
+		if oferta.Rotativa then
+			table.insert(candidatas, indice)
+		end
+	end
+	local azar = Random.new(cicloDe(npc.Arquetipo) * 7919 + npc.Arquetipo.Numero)
+	for i = #candidatas, 2, -1 do
+		local j = azar:NextInteger(1, i)
+		candidatas[i], candidatas[j] = candidatas[j], candidatas[i]
+	end
+	for i = 1, math.min(rotacion.Cantidad, #candidatas) do
+		activas[candidatas[i]] = true
+	end
+	return activas
+end
+
+-- Cuánto compró el jugador de cada ítem rotativo en el ciclo actual.
+local function compradoEnCiclo(player: Player, npc: Npc): { [string]: number }
+	local datos = DataManager.GetData(player)
+	local registro = datos and datos.ComprasRotativas and datos.ComprasRotativas[npc.ArquetipoId]
+	if not registro or registro.Ciclo ~= cicloDe(npc.Arquetipo) then
+		return {}
+	end
+	return registro.Items
+end
+
+local function anotarCompra(player: Player, npc: Npc, itemId: string, cantidad: number)
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return
+	end
+	local mapa: { [string]: { Ciclo: number, Items: { [string]: number } } } = datos.ComprasRotativas or {}
+	datos.ComprasRotativas = mapa
+	local ciclo = cicloDe(npc.Arquetipo)
+	local actual = mapa[npc.ArquetipoId]
+	local items: { [string]: number } = if actual and actual.Ciclo == ciclo then actual.Items else {}
+	items[itemId] = (items[itemId] or 0) + cantidad
+	mapa[npc.ArquetipoId] = { Ciclo = ciclo, Items = items }
+end
+
 local function comprar(player: Player, npc: Npc, indice: number, cantidad: number): Types.Respuesta
 	local vende = npc.Arquetipo.Vende
 	local oferta = if vende then vende[indice] else nil
 	if not oferta or (oferta.Solo and oferta.Solo ~= npc.Faccion) then
 		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	if oferta.Rotativa then
+		if not rotativasActivas(npc)[indice] then
+			avisar(player, "Eso ya no está a la venta.")
+			return NetworkBridge.Fail("NOT_FOUND")
+		end
+		local limite = oferta.Limite or 1
+		if (compradoEnCiclo(player, npc)[oferta.ItemId] or 0) + cantidad > limite then
+			avisar(player, `Solo te vendo {limite} hasta el próximo cambio de mercadería.`)
+			return NetworkBridge.Fail("NOT_ALLOWED")
+		end
 	end
 	local def = ItemCatalog[oferta.ItemId]
 	if not def then
@@ -234,8 +304,11 @@ local function comprar(player: Player, npc: Npc, indice: number, cantidad: numbe
 		DataManager.RemoveItem(player, oferta.ItemId, cantidad)
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
+	if oferta.Rotativa then
+		anotarCompra(player, npc, oferta.ItemId, cantidad)
+	end
 	avisar(player, `Compraste {def.Nombre} x{cantidad}.`, "Oro")
-	return NetworkBridge.Ok(nil)
+	return NetworkBridge.Ok({ Comprado = compradoEnCiclo(player, npc) })
 end
 
 local function vender(player: Player, npc: Npc, clave: string, cantidad: number): Types.Respuesta
@@ -350,6 +423,41 @@ local function registrarAccionesBase()
 		return BuffManager.Dar(player, "ServicioAfilar")
 	end)
 
+	-- Banquero de Clan: abre el banco de la hermandad (permisos, registro y
+	-- candado entre servidores los maneja HermandadManager).
+	NpcManager.RegistrarAccion("BancoClan", function(player: Player): boolean
+		if not HermandadManager.HermandadDe(player) then
+			avisar(player, "No pertenecés a ninguna hermandad.")
+			return false
+		end
+		NetworkBridge.Server.FireClient("NpcVentana", player, "BancoHermandad")
+		return true
+	end)
+
+	-- Cambista: honor por oro, en lotes fijos. Una sola vía.
+	NpcManager.RegistrarAccion("CambiarHonor", function(player: Player, _npc: Npc, elegido: Servicio): boolean
+		local lote = elegido.Lote or 0
+		local oro = math.floor(lote * NpcArquetiposConfig.Cambio.OroPorHonor)
+		local datos = DataManager.GetData(player)
+		if lote < 1 or oro < 1 or not datos then
+			return false
+		end
+		if datos.PuntosHonor < lote then
+			avisar(player, `Necesitás {lote} puntos de honor.`)
+			return false
+		end
+		-- Primero se entrega el oro (puede fallar por el tope); el honor se
+		-- descuenta después y ya no puede fallar.
+		if not DataManager.AddGold(player, oro) then
+			avisar(player, "No podés llevar más oro.")
+			return false
+		end
+		DataManager.SpendHonor(player, lote)
+		print(`[Npc] Cambio de {player.UserId}: {lote} de honor por {oro} de oro`)
+		avisar(player, `Cambiaste {lote} de honor por {oro} de oro.`, "Oro")
+		return true
+	end)
+
 	-- Subastador: abre la Casa de Subastas.
 	NpcManager.RegistrarAccion("Subasta", function(player: Player): boolean
 		NetworkBridge.Server.FireClient("SubastaAbrir", player)
@@ -373,6 +481,17 @@ local function abrir(player: Player, npc: Npc)
 	local datos: { [string]: any } = { Posicion = npc.Raiz.Position }
 	if npc.Arquetipo.Viajes then
 		datos.Destinos = destinos(npc.Faccion)
+	end
+	if npc.Arquetipo.Rotacion then
+		local activas: { number } = {}
+		for indice in rotativasActivas(npc) do
+			table.insert(activas, indice)
+		end
+		datos.Rotacion = {
+			Activas = activas,
+			Termina = (cicloDe(npc.Arquetipo) + 1) * npc.Arquetipo.Rotacion.Cada,
+			Comprado = compradoEnCiclo(player, npc),
+		}
 	end
 	local costos: { [string]: number } = {}
 	local servicios: { Servicio } = npc.Arquetipo.Servicios or {}
