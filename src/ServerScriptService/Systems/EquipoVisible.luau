@@ -3,6 +3,9 @@
 --
 -- * Arma principal en la mano derecha, secundaria en la izquierda, casco en la
 --   cabeza y pechera en el torso, con los modelos de AparienciaEquipoConfig.
+-- * Si el ítem tiene un modelo en ReplicatedStorage.CustomizableItems, se
+--   dibuja ese modelo con la personalización guardada en el ítem (`Meta.Pers`),
+--   igual que en el probador del NPC personalizador.
 -- * Transmog: si el jugador eligió una apariencia para un slot y tiene un
 --   ítem puesto ahí, se dibuja la apariencia en vez del ítem. Las stats son
 --   siempre las del ítem.
@@ -15,6 +18,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Types = require(ReplicatedStorage.Shared.Types)
 local CFG = require(ReplicatedStorage.Configs.AparienciaEquipoConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Personalizador = require(ReplicatedStorage.Modules.Personalizador)
+local PersonalizadorConfig = require(ReplicatedStorage.Configs.PersonalizadorConfig)
 local DataManager = require(script.Parent.DataManager)
 
 type Respuesta = Types.Respuesta
@@ -82,7 +87,8 @@ local function construir(
 	color: Color3,
 	material: Enum.Material,
 	efecto: string?,
-	colorEfecto: Color3?
+	colorEfecto: Color3?,
+	slot: string
 )
 	local base, desplazamiento = anclaje(personaje, anclajeNombre)
 	if not base then
@@ -95,6 +101,7 @@ local function construir(
 	for _, p in modelo.Piezas do
 		local parte = Instance.new("Part")
 		parte.Name = "Pieza"
+		parte:SetAttribute("Slot", slot) -- el probador oculta lo que hay en el slot que se prueba
 		parte.Size = p.Tam
 		parte.Shape = p.Forma or Enum.PartType.Block
 		parte.Material = if p.Tinte then material else (p.Material or Enum.Material.SmoothPlastic)
@@ -117,6 +124,34 @@ local function construir(
 	end
 end
 
+-- Dibuja el ítem con su modelo de CustomizableItems y su personalización.
+-- Devuelve false si el ítem no tiene modelo (o no se pudo montar): en ese caso
+-- se dibuja con las piezas simples de siempre.
+local function dibujarModelo(carpeta: Model, personaje: Model, slot: string, item: Types.ItemInstancia): boolean
+	local entrada = Personalizador.Catalogo()[item.ItemId]
+	if not entrada then
+		return false
+	end
+	local clon = entrada.Modelo:Clone()
+	clon.Name = slot
+	clon:SetAttribute("Slot", slot)
+	local mapa = Personalizador.Mapa(clon) -- antes de montar
+	local pers = PersonalizadorConfig.Decodificar(if item.Meta then item.Meta.Pers else nil)
+	-- Aplicar ignora piezas, materiales o colores que ya no existan en el modelo.
+	Personalizador.Aplicar(entrada, mapa, pers or {})
+	if not Personalizador.Montar(clon, personaje, slot) then
+		clon:Destroy()
+		return false
+	end
+	for _, d in clon:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CastShadow = false
+		end
+	end
+	clon.Parent = carpeta
+	return true
+end
+
 -- (Un personaje nuevo no tiene la carpeta "EquipoVisible", así que se rehace igual.)
 local function firmaDe(datos: Types.DatosJugador): string
 	local partes: { string } = {}
@@ -124,7 +159,13 @@ local function firmaDe(datos: Types.DatosJugador): string
 	local transmog = datos.Transmog or {}
 	for _, slot in CFG.SlotsVisibles do
 		local item = equipamiento[slot]
-		table.insert(partes, `{slot}={if item then item.ItemId else ""}/{transmog[slot] or ""}`)
+		local pers = if item and item.Meta then item.Meta.Pers else nil
+		table.insert(
+			partes,
+			`{slot}={if item then item.ItemId else ""}/{transmog[slot] or ""}/{if typeof(pers) == "string"
+				then pers
+				else ""}`
+		)
 	end
 	return table.concat(partes, ";")
 end
@@ -162,6 +203,9 @@ function EquipoVisible.Actualizar(player: Player, forzar: boolean?)
 			nombreModelo, color, material = apariencia.Modelo, apariencia.Color, apariencia.Material
 			efecto, colorEfecto = apariencia.Efecto, apariencia.ColorEfecto
 		else
+			if dibujarModelo(carpeta, personaje, slot, item) then
+				continue
+			end
 			local visual = CFG.Items[item.ItemId]
 			if not visual then
 				continue
@@ -173,7 +217,7 @@ function EquipoVisible.Actualizar(player: Player, forzar: boolean?)
 			continue
 		end
 		local anclajeSlot: string = if slot == "ArmaSecundaria" then "ManoIzquierda" else modelo.Anclaje
-		construir(carpeta, personaje, modelo, anclajeSlot, color, material, efecto, colorEfecto)
+		construir(carpeta, personaje, modelo, anclajeSlot, color, material, efecto, colorEfecto, slot)
 	end
 	carpeta.Parent = personaje
 end

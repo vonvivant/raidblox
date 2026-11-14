@@ -74,6 +74,7 @@ classDiagram
         Vault? Vault
         map? Buffs
         map? ComprasRotativas
+        map? ComprasPersonalizador
     }
 
     DatosJugador *-- Inventario

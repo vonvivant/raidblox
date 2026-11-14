@@ -85,12 +85,15 @@ de misión que se expanden y se minimizan ([misiones](misiones.md)).
 infraestructura, el Grupo A casi completo ([consumibles](consumibles.md)) y el Grupo B ([forja](forja.md), con
 durabilidad del equipo).
 
+**Hecho (sin probar en Studio):** [NPC vendedor y personalizador 3D](personalizador.md), con probador sobre el
+avatar y material y color por pieza. Cubre también la parte de materiales y colores del pedido de forja estética;
+faltan stencils, escala y opacidad.
+
 Pedidos en cola, en este orden:
 
 1. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
 2. **Raza Artesano y firma de autoría** en los ítems.
 3. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
-4. **NPC vendedor** con probador en vivo.
 5. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
 6. **Mapas de prueba** de la Ciudad y el Bosque.
 

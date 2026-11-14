@@ -3,7 +3,19 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "$path": "src/ReplicatedStorage"
+      "$path": "src/ReplicatedStorage",
+      "CustomizableItems": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+        "Armas": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true
+        },
+        "Armaduras": {
+          "$className": "Folder",
+          "$ignoreUnknownInstances": true
+        }
+      }
     },
     "ServerScriptService": {
       "$path": "src/ServerScriptService"

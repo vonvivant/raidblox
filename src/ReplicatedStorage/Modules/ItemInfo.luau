@@ -6,6 +6,7 @@
 local ItemCatalog = require(script.Parent.Parent.Configs.ItemCatalog)
 local ItemRarityConfig = require(script.Parent.Parent.Configs.ItemRarityConfig)
 local ForjaConfig = require(script.Parent.Parent.Configs.ForjaConfig)
+local PersonalizadorConfig = require(script.Parent.Parent.Configs.PersonalizadorConfig)
 
 local ItemInfo = {}
 
@@ -85,6 +86,14 @@ function ItemInfo.Detalle(item: any): string
 		if meta.Aura == true then
 			table.insert(lineas, "Aura dorada")
 		end
+	end
+	local pers = if item.Meta then PersonalizadorConfig.Decodificar(item.Meta.Pers) else nil
+	if pers then
+		local piezas = 0
+		for _ in pers do
+			piezas += 1
+		end
+		table.insert(lineas, `Personalizada: {piezas} pieza(s) con material o color propio (solo estético)`)
 	end
 	local ranuras = ForjaConfig.RanurasGema(item)
 	if ranuras > 0 then

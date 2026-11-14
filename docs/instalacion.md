@@ -246,3 +246,19 @@ No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz so
    Con un equipo Raro o mejor en la mochila probá **Desencantador**, **Reforjador** y **Maestro Encantador**
    (las gemas las vende el Mercado Negro).
 6. **Guardián de Portales** de cada color con un personaje de cada bando: el contrario te tiene que rechazar.
+
+## Probar el vendedor personalizador
+
+1. En Studio, caminá al oeste del punto de inicio hasta el **Maestro Personalizador** y tocá "Probar y comprar".
+2. Elegí la Espada de Hierro: tiene que aparecer en tu mano, con el cartel VISTA PREVIA.
+3. Arrastrá para girar la cámara. Tocá la hoja: tiene que resaltarse y quedar elegida en la lista de piezas.
+4. Cambiale el material (por ejemplo, Neon) y el color. Abajo tiene que actualizarse el precio.
+5. COMPRAR → revisá el resumen → Confirmar. La espada tiene que aparecer en la mochila con la línea
+   "Personalizada" y el oro tiene que bajar exactamente el precio mostrado.
+6. Equipala: se tiene que ver igual que en el probador. Con dos jugadores (Test → Clients and Servers), el otro
+   también la tiene que ver así.
+7. Salí y volvé a entrar: la espada tiene que seguir personalizada.
+8. Alejate del vendedor con el probador abierto: se tiene que cerrar y devolverte la cámara.
+
+Para probar un modelo propio: ponelo en `ReplicatedStorage.CustomizableItems.Armas` con los atributos `ItemID`
+(por ejemplo `EspadaHierro`) y `BasePrice`, y una pieza `Handle`. Si algo falta, la consola del servidor lo dice.

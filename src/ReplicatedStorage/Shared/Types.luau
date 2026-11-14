@@ -167,6 +167,9 @@ export type DatosJugador = {
 	-- ConsumiblesConfig, vencimiento (os.time()) y si salió el efecto malo.
 	Buffs: { [string]: { Id: string, Hasta: number, Malo: boolean? } }?,
 	-- Compras de ofertas rotativas de NPC: arquetipo -> ciclo y cantidad por ítem.
+	-- Últimas compras al NPC personalizador, por id de pedido: un reintento del
+	-- mismo pedido devuelve el mismo resultado sin cobrar ni entregar de nuevo.
+	ComprasPersonalizador: { [string]: { Uid: string, ItemId: string, Precio: number, Firma: string, T: number } }?,
 	ComprasRotativas: { [string]: { Ciclo: number, Items: { [string]: number } } }?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,

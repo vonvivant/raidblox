@@ -134,6 +134,12 @@ local DEFINICIONES: { [string]: Definicion } = {
 	NpcSobreItem = { Tipo = "Function", Critico = false }, -- (npcId, operacion, ranura, extra?): desencantar, reforjar, engarzar
 	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
 
+	-- NPC vendedor y personalizador (PersonalizadorManager)
+	PersonalizadorAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (posicionNpc, categoria?)
+	PersonalizadorCerrar = { Tipo = "Event", Critico = false }, -- el cliente cerró el probador
+	PersonalizadorPresupuesto = { Tipo = "Function", Critico = false }, -- (itemId, personalizacion)
+	PersonalizadorComprar = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (itemId, requestId, personalizacion, precioVisto)
+
 	-- Bóveda global (VaultManager)
 	VaultAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (pestañas disponibles)
 	VaultDepositar = { Tipo = "Function", Critico = false }, -- (ranuraMochila, pestana, cantidad)

@@ -33,6 +33,7 @@ src/
 │   │   ├── NpcArquetiposConfig.luau  Los 39 arquetipos de NPC y sus facciones
 │   │   ├── ConsumiblesConfig.luau    Consumibles con efecto y mejoras temporales
 │   │   ├── ForjaConfig.luau          Durabilidad, reparación, desencantar, reforjar y gemas (reglas puras)
+│   │   ├── PersonalizadorConfig.luau NPC personalizador: formato, validadores y precio (reglas puras)
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
@@ -97,6 +98,7 @@ src/
 │       │   ├── CraftingManager.luau     Estaciones y recetas
 │       │   ├── VaultManager.luau        Bóveda global: depósito, retiro, pestañas y puntos de acceso
 │       │   ├── ForjaManager.luau        Desgaste del equipo y servicios de herrería de los NPC
+│       │   ├── PersonalizadorManager.luau NPC vendedor y personalizador: catálogo, presupuesto y compra
 │       │   ├── RecoleccionManager.luau  Nodos y minijuego
 │       │   ├── AuctionManager.luau      Casa de Subastas
 │       │   └── TradeManager.luau        Comercio 1v1
@@ -129,6 +131,7 @@ src/
         ├── CrafteoUI.client.luau         Recetas y minijuego de recolección
         ├── NpcUI.client.luau             Ventana de los NPCs por arquetipo (venta, servicios, viajes)
         ├── VaultUI.client.luau           Bóveda global: pestañas, buscador, filtros y mochila
+        ├── PersonalizadorUI.client.luau  Tienda y probador del NPC personalizador
         ├── SubastaUI.client.luau         Casa de Subastas
         ├── ComercioUI.client.luau        Comercio 1v1
         ├── MisionesUI.client.luau        Diálogos, seguimiento y marcadores
@@ -274,6 +277,9 @@ devuelven siempre `{ Success, ErrorCode, Data }`.
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaComprar` | Function | C → S |
 | NPCs por arquetipo | `NpcAbrir` | Event | S → C |
 | NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcSobreItem`, `NpcFabricar`, `NpcViajar` | Function | C → S |
+| NPC personalizador | `PersonalizadorAbrir` | Event | S → C |
+| NPC personalizador | `PersonalizadorCerrar` | Event | C → S |
+| NPC personalizador | `PersonalizadorPresupuesto`, `PersonalizadorComprar` | Function | C → S |
 | Bóveda global | `VaultAbrir` | Event | S → C |
 | Bóveda global | `VaultDepositar`, `VaultRetirar`, `VaultMover`, `VaultExpandir`, `VaultPersonalizar` | Function | C → S |
 | Fase 4: Casa de Subastas | `SubastaAbrir` | Event | S → C |
