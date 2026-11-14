@@ -13,7 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Workspace = game:GetService("Workspace")
 
 local RaidBloxConfig = require(ReplicatedStorage.Configs.RaidBloxConfig)
@@ -32,6 +32,7 @@ type Jefe = {
 	ProximoAtaque: { [string]: number },
 	ProximoEscalado: number,
 	Receptores: { [Player]: boolean }, -- quiénes ven la barra
+	Invocado: boolean, -- lo trajo un admin: no reaparece al morir
 }
 
 local RaidBloxManager = {}
@@ -164,8 +165,12 @@ end
 
 local function difundirEstado(jefe: Jefe)
 	local c = jefe.Npc.Combatiente
+	-- La barra gigante solo aparece si el jefe está peleando (y estás en su
+	-- radio) o si te acercás mucho: si no, parece que lo tuvieras seleccionado.
+	local peleando = workspace:GetServerTimeNow() - c.UltimoCombate < 8
+	local radio = if peleando then RaidBloxConfig.RadioHUD else math.min(40, RaidBloxConfig.RadioHUD)
 	local cerca: { [Player]: boolean } = {}
-	for _, jugador in jugadoresCerca(c.Raiz.Position, RaidBloxConfig.RadioHUD) do
+	for _, jugador in jugadoresCerca(c.Raiz.Position, radio) do
 		local player = jugador.Player
 		if player then
 			cerca[player] = true
@@ -194,7 +199,7 @@ end
 -- Ciclo de vida
 ------------------------------------------------------------------------
 
-local aparecer: (id: string, def: RaidBloxConfig.DefinicionRaidBlox) -> ()
+local aparecer: (id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado: boolean?) -> ()
 
 local function alMorir(jefe: Jefe)
 	local npc = jefe.Npc
@@ -224,14 +229,17 @@ local function alMorir(jefe: Jefe)
 			end
 		end
 	end
-	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre)
+	EnemyManager.Recompensar(npc, jefe.Def.Xp, jefe.Def.Oro, jefe.Def.Botin, jefe.Def.Nombre, jefe.Id)
 	NetworkBridge.Server.FireAll("AnuncioGlobal", `¡{jefe.Def.Nombre} fue derrotado!`, COLOR_ANUNCIO)
 
-	local espera = if RunService:IsStudio() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion
+	if jefe.Invocado then
+		return
+	end
+	local espera = if Pruebas.Activas() then jefe.Def.ReaparicionEnStudio else jefe.Def.Reaparicion
 	task.delay(espera, aparecer, jefe.Id, jefe.Def)
 end
 
-aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
+aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado: boolean?)
 	local npc = EnemyManager.Crear({
 		Nombre = def.Nombre,
 		Nivel = def.Nivel,
@@ -253,6 +261,7 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 		return
 	end
 	npc.Modelo:SetAttribute("RaidBlox", true)
+	npc.Modelo:SetAttribute("Elite", true) -- minimapa y reglas de jefe (Chatarrero)
 	npc.Combatiente.ReduccionAturdir = 0.5 -- los jefes resisten la mitad de los aturdimientos
 	npc.Combatiente.Humanoid.MaxHealth = vidaMaxima(def, 1)
 	npc.Combatiente.Humanoid.Health = vidaMaxima(def, 1)
@@ -266,6 +275,7 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 		ProximoAtaque = {},
 		ProximoEscalado = 0,
 		Receptores = {},
+		Invocado = invocado == true,
 	}
 	for _, ataque in def.Ataques do
 		jefe.ProximoAtaque[ataque.Nombre] = t + ataque.Cada
@@ -279,8 +289,8 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 			escalar(jefe)
 		end
 		revisarFuria(jefe)
-		if not CombatManager.PuedeActuar(npc.Combatiente) then
-			return
+		if not CombatManager.PuedeActuar(npc.Combatiente) or CombatManager.Silenciado(npc.Combatiente) then
+			return -- aturdido o silenciado: no lanza sus ataques especiales
 		end
 		for _, ataque in def.Ataques do
 			if ahoraT >= (jefe.ProximoAtaque[ataque.Nombre] or 0) then
@@ -306,6 +316,22 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox)
 		`¡{def.Nombre} (Nv. {def.Nivel}) apareció! Reuní a tu grupo.`,
 		COLOR_ANUNCIO
 	)
+end
+
+-- Panel de admin: trae un jefe de prueba a una posición. No reaparece al
+-- morir. Falla si ese jefe ya está vivo en este servidor.
+function RaidBloxManager.Invocar(id: string, posicion: Vector3): (boolean, string?)
+	local def = RaidBloxConfig.Jefes[id]
+	if not def then
+		return false, "No existe ese jefe."
+	end
+	if jefes[id] then
+		return false, "Ese jefe ya está en el servidor."
+	end
+	local copia = table.clone(def)
+	copia.Posicion = posicion
+	aparecer(id, copia, true)
+	return jefes[id] ~= nil, nil
 end
 
 function RaidBloxManager.Init(zona: string?)

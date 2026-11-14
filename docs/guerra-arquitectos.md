@@ -127,3 +127,32 @@ duración y la distancia que valida el servidor, aunque se hayan puesto a mano.
 - el place es el de la Guerra (`ZoneConfig.Zonas.GuerraArquitectos.PlaceId`), o
 - el Workspace tiene la carpeta `GuerraArquitectos`, o
 - se está en Studio con `GuerraConfig.ProbarEnStudio = true`.
+
+## Editor de la piedra del castillo (pruebas)
+
+Al lado del castillo azul está el **Cantero** (solo en modo pruebas, y solo
+para el creador y `ConfigServidor.Probadores`). Abre una ventana para cambiar la
+piedra base del castillo (la skin "Ninguna"):
+
+- **Material** (adoquín, pizarra, ladrillo, granito, mármol, metal…), **color**
+  (deslizadores RGB y colores rápidos), **brillo/metálico** (Reflectance),
+  **transparencia** y **física** (densidad, fricción, rebote).
+- Los cambios se ven al instante solo en tu pantalla, en el castillo y en una
+  muestra (muro y torre) junto al NPC. **Guardar** los aplica para todos, a lo
+  ya construido y a lo que se construya, y los guarda en el DataStore
+  `ConfigMundo` (`_Studio` en Studio): al reiniciar, siguen. Los otros
+  servidores los toman al reiniciarse.
+- La sección **Código** trae la línea para dejarlo fijo en
+  `GuerraConfig.Skins.Ninguna`.
+- La metalicidad y la rugosidad "de verdad" son texturas de MaterialVariant que
+  solo se cambian en Studio (los scripts del juego no pueden).
+
+- **Tus materiales**: la ventana también lista los materiales propios
+  (MaterialVariant) que crees en Studio con el **Gestor de materiales** (Ventana →
+  3D → Material). Al elegir uno se usa su material base y su textura, y el
+  deslizador **Tamaño del dibujo** cambia sus "studs por mosaico". El color, el
+  brillo y la física se siguen aplicando encima. Para que exista en el juego
+  publicado, guardá el place (Archivo → Guardar/Publicar en Roblox): los
+  materiales viven en MaterialService, que Rojo no toca.
+
+Las partes con esta piedra llevan la etiqueta `PiedraCastillo`.

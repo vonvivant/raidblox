@@ -20,12 +20,15 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Teams = game:GetService("Teams")
 
 local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
+local BandoManager = require(script.Parent.Parent.BandoManager)
 local AntiCheat = require(script.Parent.Parent.AntiCheat)
 local ArenaGuerra = require(script.Parent.ArenaGuerra)
 
@@ -71,13 +74,18 @@ local function enStudio(): boolean
 	return RunService:IsStudio()
 end
 
+-- Studio o ModoPruebas: arena generada y requisitos reducidos.
+local function modoPrueba(): boolean
+	return Pruebas.Activas()
+end
+
 local function requisitos(etapa: number): { [string]: number }
 	local def = GuerraConfig.Etapas[etapa]
 	local resultado: { [string]: number } = {}
 	if not def then
 		return resultado
 	end
-	local divisor = if enStudio() then GuerraConfig.DivisorRequisitosEnStudio else 1
+	local divisor = if modoPrueba() then GuerraConfig.DivisorRequisitosEnStudio else 1
 	for recurso, cantidad in def.Requisitos do
 		resultado[recurso] = math.max(1, math.ceil(cantidad / divisor))
 	end
@@ -182,7 +190,9 @@ local function snapshot(): { [string]: any }
 		TotalEtapas = TOTAL_ETAPAS,
 		Equipos = listaEquipos,
 		Ganador = ganador,
-		JugadoresMinimos = if enStudio() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos,
+		JugadoresMinimos = if modoPrueba()
+			then GuerraConfig.JugadoresMinimosEnStudio
+			else GuerraConfig.JugadoresMinimos,
 	}
 end
 
@@ -202,8 +212,37 @@ local function ponerEnEquipo(player: Player, estado: EstadoEquipo)
 	equipoPorUsuario[player.UserId] = estado.Def.Id
 end
 
+-- Equipo que corresponde por bando: Rojo y Azul juegan para su reino.
+local function equipoDeBando(player: Player): EstadoEquipo?
+	local bando = BandoManager.De(player)
+	return if bando ~= "Violeta" then equipos[bando] else nil
+end
+
+-- Ajuste "Ignorar Guerra de Arquitectos": el jugador no entra a ningún equipo.
+local function ignora(player: Player): boolean
+	local datos = DataManager.GetData(player)
+	return datos ~= nil and datos.Ajustes.IgnorarGuerra == true
+end
+
+local function sacarDeEquipo(player: Player)
+	player.Team = nil
+	player.Neutral = true
+	(player :: any).RespawnLocation = nil
+	equipoPorUsuario[player.UserId] = nil
+	cargas[player] = nil
+end
+
 local function asignarEquipo(player: Player)
-	-- Si ya jugaba esta partida y volvió a entrar, vuelve a su equipo.
+	if ignora(player) then
+		sacarDeEquipo(player)
+		return
+	end
+	local porBando = equipoDeBando(player)
+	if porBando then
+		ponerEnEquipo(player, porBando)
+		return
+	end
+	-- Violeta: si ya jugaba esta partida y volvió a entrar, vuelve a su equipo.
 	local previo = equipoPorUsuario[player.UserId]
 	if previo and equipos[previo] then
 		ponerEnEquipo(player, equipos[previo])
@@ -222,11 +261,21 @@ local function asignarEquipo(player: Player)
 end
 
 local function rebalancear()
-	-- Reparte en orden alternado para que los equipos queden parejos.
+	-- Rojos y azules van a su reino; los violetas se reparten para emparejar.
 	table.clear(equipoPorUsuario)
-	for i, player in Players:GetPlayers() do
-		local id = ordenEquipos[((i - 1) % #ordenEquipos) + 1]
-		ponerEnEquipo(player, equipos[id])
+	local violetas: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		local porBando = equipoDeBando(player)
+		if ignora(player) then
+			sacarDeEquipo(player)
+		elseif porBando then
+			ponerEnEquipo(player, porBando)
+		else
+			table.insert(violetas, player)
+		end
+	end
+	for _, player in violetas do
+		asignarEquipo(player)
 	end
 end
 
@@ -268,6 +317,9 @@ local function alRecolectar(player: Player, nodo: BasePart, pp: ProximityPrompt)
 		presiones[pp] = nil
 	end
 	if not puedeInteractuar(player, nodo) then
+		if fase ~= "EnCurso" then
+			avisar(player, "La partida todavía no empezó: esperá la cuenta regresiva.")
+		end
 		return
 	end
 	local recurso = nodo:GetAttribute("Recurso")
@@ -281,10 +333,16 @@ local function alRecolectar(player: Player, nodo: BasePart, pp: ProximityPrompt)
 	local ahora = os.clock()
 	if def.Duracion > 0 then
 		if not inicio then
+			warn(`[Guerra] {player.Name}: recolección sin inicio de presión registrado`)
+			avisar(player, "Mantené presionado hasta que se complete el círculo.")
 			return
 		end
 		local transcurrido = ahora - inicio
 		if transcurrido < def.Duracion * 0.8 or transcurrido > def.Duracion + 1.5 then
+			warn(
+				`[Guerra] {player.Name}: presión de {string.format("%.2f", transcurrido)} s (se esperaban {def.Duracion})`
+			)
+			avisar(player, "Mantené presionado hasta que se complete el círculo.")
 			return
 		end
 	end
@@ -433,6 +491,7 @@ end
 
 local function alDepositar(player: Player, estado: EstadoEquipo)
 	if fase ~= "EnCurso" then
+		avisar(player, "La partida todavía no empezó: esperá la cuenta regresiva.")
 		return
 	end
 	if player.Team ~= estado.Team then
@@ -440,6 +499,7 @@ local function alDepositar(player: Player, estado: EstadoEquipo)
 		return
 	end
 	if not cerca(player, estado.Base.Deposito) then
+		avisar(player, "Acercate más al depósito.")
 		return
 	end
 
@@ -456,6 +516,10 @@ local function alDepositar(player: Player, estado: EstadoEquipo)
 	if entregado == 0 then
 		avisar(player, "No llevás recursos. Recolectá en el centro del mapa.")
 		return
+	end
+	-- Un Violeta que aporta a un reino pasa a ese bando.
+	if BandoManager.De(player) == "Violeta" then
+		BandoManager.Unirse(player, estado.Def.Id :: any)
 	end
 	local uid = player.UserId
 	estado.AportesEtapa[uid] = (estado.AportesEtapa[uid] or 0) + entregado
@@ -504,7 +568,7 @@ local function iniciarPartida()
 end
 
 local function minimoJugadores(): number
-	return if enStudio() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos
+	return if modoPrueba() then GuerraConfig.JugadoresMinimosEnStudio else GuerraConfig.JugadoresMinimos
 end
 
 local function algunEquipoVacio(): boolean
@@ -549,11 +613,18 @@ local function tick(): nil
 		if cantidad == 0 then
 			reiniciar()
 			fase = "Esperando"
-		elseif not enStudio() and algunEquipoVacio() then
+		elseif not modoPrueba() and algunEquipoVacio() then
 			-- Evita ganar solo (por ejemplo, con una cuenta alternativa que se va).
 			terminarPartida(nil, true)
 		elseif ahora >= finPartida then
 			resolverPorTiempo()
+		end
+	end
+	-- Marca quién está jugando la partida: ahí vale el PvP entre bandos.
+	for _, player in Players:GetPlayers() do
+		local jugando = fase == "EnCurso" and equipoDe(player) ~= nil
+		if player:GetAttribute("EnGuerra") ~= jugando then
+			player:SetAttribute("EnGuerra", jugando)
 		end
 	end
 	difundir()
@@ -573,7 +644,7 @@ function ArchitectWarManager.DebeActivarse(): boolean
 	if workspace:FindFirstChild(GuerraConfig.NombreCarpetaMapa) then
 		return true
 	end
-	return enStudio() and GuerraConfig.ProbarEnStudio
+	return modoPrueba() and GuerraConfig.ProbarEnStudio
 end
 
 local function conectarPrompts(m: ArenaGuerra.Mapa)
@@ -598,9 +669,10 @@ local function conectarPrompts(m: ArenaGuerra.Mapa)
 			local presiones = inicioPresion[player]
 			local visto = presiones and presiones[pp]
 			if presiones and visto then
-				-- Triggered puede llegar justo después: se limpia con margen, y solo
-				-- si nadie empezó una presión nueva mientras tanto.
-				task.delay(0.1, function()
+				-- Con latencia real, Triggered puede llegar un rato después que
+				-- HoldEnded: se limpia con margen amplio, y solo si nadie empezó una
+				-- presión nueva mientras tanto.
+				task.delay(1, function()
 					if presiones[pp] == visto then
 						presiones[pp] = nil
 					end
@@ -625,7 +697,7 @@ function ArchitectWarManager.Init()
 	assert(not iniciado, "ArchitectWarManager.Init() se llamó dos veces")
 	iniciado = true
 
-	local m = ArenaGuerra.Obtener(enStudio() and GuerraConfig.ProbarEnStudio)
+	local m = ArenaGuerra.Obtener(modoPrueba() and GuerraConfig.ProbarEnStudio)
 	if not m then
 		warn("[Guerra] No se encontró un mapa válido; la Guerra de Arquitectos queda desactivada.")
 		return
@@ -664,6 +736,39 @@ function ArchitectWarManager.Init()
 		alEntrar(player)
 	end
 	Players.PlayerAdded:Connect(alEntrar)
+	-- Si alguien cambia de bando (atacando o aportando), pasa al equipo de su reino.
+	DataManager.DatosCambiados:Connect(function(player: Player, seccion: Types.SeccionDatos)
+		if seccion == "Ajustes" then
+			-- Cambió "Ignorar Guerra": sale de su equipo o vuelve a entrar.
+			if ignora(player) then
+				if equipoDe(player) then
+					sacarDeEquipo(player)
+					enviarCarga(player)
+				end
+			elseif not equipoDe(player) then
+				asignarEquipo(player)
+			end
+			return
+		end
+		if seccion ~= "Faccion" then
+			return
+		end
+		local porBando = equipoDeBando(player)
+		if porBando and player.Team ~= porBando.Team and not ignora(player) then
+			ponerEnEquipo(player, porBando)
+		end
+	end)
+	-- El bando se conoce recién cuando carga el perfil: se reasigna entonces.
+	DataManager.PerfilCargado:Connect(function(player: Player)
+		if ignora(player) then
+			sacarDeEquipo(player)
+			return
+		end
+		local porBando = equipoDeBando(player)
+		if porBando and player.Team ~= porBando.Team then
+			ponerEnEquipo(player, porBando)
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		cargas[player] = nil
 		inicioPresion[player] = nil

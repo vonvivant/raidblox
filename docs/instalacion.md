@@ -35,6 +35,13 @@ Cómo cargar el proyecto en Roblox Studio y qué probar en cada fase. Para el di
 | `CombatClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 | `CombatEffectsClient` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 | `Health` (vacío) | **Script** | StarterPlayer > StarterCharacterScripts |
+| `Configs/ProfesionesConfig` | ModuleScript | ReplicatedStorage > Configs |
+| `Modules/EstadoCliente`, `Modules/UIKit`, `Modules/ItemInfo` | ModuleScript | ReplicatedStorage > Modules |
+| `Systems/Buzon` | ModuleScript | ServerScriptService > Systems |
+| `Systems/BandoManager`, `Systems/AparienciaManager` | ModuleScript | ServerScriptService > Systems |
+| `Systems/Pruebas/NpcsPrueba` | ModuleScript | ServerScriptService > Systems > Pruebas |
+| `Systems/Economia/*` (5 módulos) | ModuleScript | ServerScriptService > Systems > Economia (Folder) |
+| `InventarioUI`, `CrafteoUI`, `SubastaUI`, `ComercioUI` | **LocalScript** | StarterPlayer > StarterPlayerScripts |
 
 Las carpetas (`Shared`, `Configs`, `Modules`, `Systems`, `Packages`) son objetos **Folder**.
 `ProfileStore` es la librería de loleris (licencia Apache 2.0, incluida en `ProfileStore.LICENSE.txt`).
@@ -42,7 +49,7 @@ Las carpetas (`Shared`, `Configs`, `Modules`, `Systems`, `Packages`) son objetos
 ## Opción A: Rojo (recomendada)
 
 1. Instalá Rojo (https://rojo.space) y su plugin de Studio.
-2. En la raíz del repo: `rojo serve`.
+2. En la raíz del repo: `rojo serve` (en Windows, si `rojo.exe` está en la carpeta del repo y no instalado en el PATH: `./rojo.exe serve`).
 3. En Studio: plugin Rojo > Connect. Los archivos se sincronizan solos.
 
 Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están configurados.
@@ -62,18 +69,45 @@ Con Rojo además podés usar `selene` (lint) y `stylua` (formato); ya están con
 
 ## Cómo comprobar que funciona
 
-1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado - Fase 3 (zona: Pruebas)`
+1. Play en Studio. En la consola tiene que aparecer `[RaidBlox] Servidor iniciado (zona: Pruebas)`
    y, del cliente, `Datos cargados: nivel 1, oro 0`.
-2. En la barra de comandos (lado servidor) podés probar la API:
+2. En la barra de comandos (vista de **Servidor**: *Prueba → Cambiar vista de cliente*) podés probar la API.
+   Ojo: un `require` desde la barra de comandos crea **otra copia** de los módulos, sin tu perfil. Por eso en Studio
+   el juego expone `ServerStorage.RaidBloxDebug`, que ejecuta las funciones de `DataManager` con la copia real:
    ```lua
-   local DM = require(game.ServerScriptService.Systems.DataManager)
-   local p = game.Players:GetPlayers()[1]
-   DM.AddGold(p, 500)
-   DM.AddItem(p, "Madera", 150)   -- llena una pila de 99 y abre otra de 51
-   DM.AddExperience(p, 1000)       -- sube varios niveles
+   local D = game.ServerStorage.RaidBloxDebug
+   D:Invoke("AddGold", 500)
+   D:Invoke("AddItem", "Madera", 150)   -- llena una pila de 99 y abre otra de 51
+   D:Invoke("AddExperience", 1000)       -- sube varios niveles
+   D:Invoke("Ver")                       -- imprime todos tus datos
    ```
+   Se aplica al primer jugador. Para otro: `D:Invoke("@NombreDeUsuario", "AddGold", 500)`.
    Cada cambio aparece en la consola del cliente (`Cambió Oro: 500`, etc.).
 3. Pará y volvé a darle Play: el oro, la madera y el nivel tienen que seguir ahí.
+
+## Probar con amigos (juego publicado)
+
+Casi todo el contenido de prueba (zona de práctica con enemigos y el Gólem, estaciones de crafteo, nodos de
+recolección, Casa de Subastas y arena de la Guerra) se crea solo en Studio... salvo que `GameConfig.ModoPruebas` esté
+en `true`: en ese caso también aparece en los servidores publicados, y se puede cambiar de clase libremente.
+
+1. Con Rojo conectado, *Archivo → Publicar en Roblox*.
+2. *Archivo → Configuración de experiencia → Permisos*: dejá el juego para amigos o agregá a cada uno.
+3. Entrá desde Roblox (no desde Studio) y que tus amigos se unan a tu servidor.
+
+Notas:
+- El progreso es el mismo que en Studio (comparten el guardado).
+- Con `ModoPruebas`, la Guerra arranca con 1 jugador, usa los requisitos reducidos y no se cancela si un equipo queda
+  vacío (la gente entra y sale mientras prueba). Para probar otras cosas sin ella: `GuerraConfig.ProbarEnStudio = false`.
+- Si algo falla en el juego publicado, apretá F9: la consola muestra los errores del servidor y del cliente.
+- Los comandos de prueba (`ServerStorage.RaidBloxDebug`) **no** existen en servidores publicados.
+- Junto a las estaciones de crafteo hay dos NPCs de prueba: el **Banquero** (+10.000 de oro por clic) y el
+  **Mercader de materiales** (cualquier material a 1 de oro, de a 1, 10 o 99). Solo aparecen con `ModoPruebas` o en
+  Studio. En un servidor publicado solo los puede usar el creador del juego y los UserIds anotados en
+  `ServerScriptService/Systems/ConfigServidor` (`Probadores`), una lista que los clientes no ven.
+- **Studio usa un guardado aparte** (`RaidBlox_Jugadores_v1_Studio` y la subasta `_Studio`): lo que hagas probando en
+  Studio no llega a tu perfil del juego publicado, y al revés.
+- Cuando estén los mapas reales: `ModoPruebas = false`.
 
 ## Probar la Fase 2 en Studio
 
@@ -105,6 +139,29 @@ dos castillos holográficos, nodos de recursos en el medio y depósitos.
 Elegí una clase en el selector y andá hacia −Z del spawn: hay muñecos de práctica, lobos, bandidos y el RaidBlox
 Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-en-studio).
 
+## Probar la Fase 4 en Studio
+
+Abrí la mochila con I. Cerca del spawn hay estaciones de crafteo, nodos de recolección y la Casa de Subastas. La guía
+completa está en [economia.md](economia.md#probar-en-studio).
+
+## Probar las fases 5 a 7 y el Chatarrero en Studio
+
+| Qué | Cómo |
+| --- | --- |
+| Misiones | Hablá con los NPCs con "!" cerca del spawn. Guía: [misiones.md](misiones.md) |
+| Grupo y hermandad | Botones del menú lateral. Para probar con otro jugador: *Prueba → Clientes y servidores → 2 jugadores*. [grupos.md](grupos.md), [hermandades.md](hermandades.md) |
+| Voz | Botón Voz; necesita la voz activada en la experiencia. [voz.md](voz.md) |
+| Mazmorra | Entrada de la Cripta en la zona de pruebas. [mazmorras.md](mazmorras.md) |
+| Tienda | Botón 🛒. Con Id 0, los pases y productos se **simulan**. Pestaña Pase: simulá "Pase de Batalla" en Pases y reclamá el nivel 1 Premium para tener la mascota Lumi. Códigos: `RAIDBLOX`, `BIENVENIDA`. [monetizacion.md](monetizacion.md) |
+| Montura | G o el botón de la barra |
+| HUD y ajustes | Panel Personaje → Interfaz: mano (zurdo), tamaño, números de daño, minimapa. [interfaz.md](interfaz.md) |
+| Minimapa y mapa | Zoom con + y −; **M** abre el mapa del mundo |
+| Panel de admin | Botón 🛡 Admin (en Studio lo tiene cualquiera). Probá "Invocar RaidBlox" |
+| Chatarrero | Personaje → Cambiar clase → Chatarrero. **K** abre "Habilidades". Marcá un lobo con Extracción Rápida (3), matalo y volvé a usarla al lado de los restos. Los muñecos de práctica no dan Spoil. [chatarrero.md](chatarrero.md) |
+
+Teclas: 1-4 habilidades · F parry · 5 y 6 pociones · G montura · Q mira · Tab objetivo · I mochila · M mapa ·
+K habilidades (Chatarrero: además Z X C V, 7 8 9 0 y Y U H J) · / chat.
+
 ## API del servidor (resumen)
 
 **DataManager**
@@ -114,7 +171,7 @@ Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-e
 - `AddItem(player, itemId, cantidad, rareza?, meta?)`: todo o nada; si no entra, devuelve `false, "INVENTORY_FULL"`
 - `RemoveItem`, `RemoveItemByUid`, `HasItem`, `CountItem`, `SetMaxSlots`
 - `EnviarOroOffline(userId, cantidad, motivo)`: buzón para jugadores desconectados (lo usa la Casa de Subastas)
-- `AddPremium`, `SpendPremium`, `ReciboYaProcesado`, `MarcarRecibo`: **solo** para el futuro MonetizationManager
+- `AddPremium`, `SpendPremium`, `ReciboYaProcesado`, `MarcarRecibo`: **solo** para la monetización (`ProductosManager`)
 - Señales: `PerfilCargado(player, datos)`, `DatosCambiados(player, seccion)`
 
 **NetworkBridge**
@@ -134,7 +191,7 @@ Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-e
 - `Gracia(player, segundos)`: llamalo antes de mover al jugador desde el servidor (teleports, empujones)
 - `SetVelocidadPermitida(player, n)`: monturas y buffs de velocidad
 - Atributos del jugador `Montado` / `Volando` = `true` para vuelo legítimo
-- Señal `Infraccion(player, tipo, detalle)` para logs o el panel de admin
+- Señal `Infraccion(player, tipo, detalle)` para logs
 
 ## Cambios respecto al prompt original
 
@@ -144,3 +201,48 @@ Gólem de Obsidiana. La guía completa está en [combate.md](combate.md#probar-e
 - **`MonedasRobux` pasó a llamarse `MonedasPremium`** y no se puede modificar desde la API general.
 - **Anti-noclip**: se detecta levitación (más de 3 s en el aire). Atravesar paredes no se chequea con rayos porque
   da falsos positivos al doblar esquinas. Igual no sirve de nada, porque cada acción valiosa valida la distancia en el servidor.
+
+## Chat de voz
+
+`default.project.json` pone `VoiceChatService.EnableDefaultVoice = false` y
+`UseAudioApi = Enabled` (el juego arma sus propios canales). Si Rojo no los
+aplica, ponelos a mano: **Explorador → VoiceChatService → Propiedades**. Además
+activá la voz en **Configuración del juego → Comunicación**. Detalle en
+[voz.md](voz.md).
+
+## Interfaz: menú lateral y chat
+
+- Los botones (Personaje, Grupo, Hermandad, Tienda, Voz, Mira, Montura, Mochila
+  y Admin) van en una **columna vertical** a la izquierda
+  (`Modules/MenuLateral.luau`), o a la derecha con el ajuste "Zurdo". El resto
+  del HUD está en [interfaz.md](interfaz.md).
+- El **chat** es una ventana propia (`ChatUI.client.luau`): se **mueve**
+  arrastrando la barra de arriba y se **agranda o achica** desde la esquina ◢.
+  Posición, tamaño y minimizado se guardan en los ajustes. Usa TextChatService
+  (mensajes ya filtrados por Roblox, envío por el canal general); el chat de
+  Roblox queda apagado y los globos sobre la cabeza siguen. `/` abre el chat.
+
+## Pruebas automáticas de datos (fuera de Roblox)
+
+```bash
+python3 tests/run.py
+```
+
+Necesita el intérprete [`luau`](https://github.com/luau-lang/luau/releases) en el PATH. Carga los módulos de
+`ReplicatedStorage/Configs` con un entorno mínimo y revisa que los catálogos cierren entre sí: que lo que venden
+los NPC exista y no se pueda revender con ganancia, que las recetas usen ítems reales, que los consumibles tengan
+efecto, que haya 39 arquetipos, etc. (`tests/datos.spec.luau`).
+
+No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz solo se pueden probar ahí.
+
+## Probar los NPC y los consumibles
+
+1. En Studio, caminá al oeste del punto de inicio: hay 14 NPC de prueba.
+2. **Alquimista Experimental** o **Barista de Tés**: comprá un elixir o un té y usalo desde la mochila. Tiene que
+   aparecer el efecto en tu marco de vida. Tomá otro de la misma categoría: tiene que reemplazarlo.
+3. Morí o reconectate con un elixir activo: tiene que seguir, con el tiempo que le quedaba.
+4. **Banquero**: abrí la bóveda, guardá y sacá ítems, alejate y probá operar (tiene que rechazarlo).
+5. **Forja:** morí unas veces y mirá la durabilidad en el detalle del equipo; reparalo con el **Reparador**.
+   Con un equipo Raro o mejor en la mochila probá **Desencantador**, **Reforjador** y **Maestro Encantador**
+   (las gemas las vende el Mercado Negro).
+6. **Guardián de Portales** de cada color con un personaje de cada bando: el contrario te tiene que rechazar.

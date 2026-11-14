@@ -21,6 +21,10 @@ Opcionalmente, el atributo `Spawn` indica un punto de llegada: un `Part` con ese
 
 En Studio, si el mapa no tiene portales, se crean dos de prueba (Bosque, nivel 1, y Reino de Fuego, nivel 20).
 
+Además de los portales, el **Guardián de Portales** (ver [NPCs](npcs.md)) lleva a otras zonas a cambio de oro.
+Cada zona tiene un `Territorio` (`Rojo`, `Azul` o `Neutral`) que decide qué Guardián puede llevar hasta ella.
+`ZoneManager.Cancelado` avisa cuando un viaje ya iniciado no se completó, para devolver lo cobrado.
+
 ## Flujo de un viaje
 
 ```mermaid

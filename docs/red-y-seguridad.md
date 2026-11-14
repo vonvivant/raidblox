@@ -102,7 +102,7 @@ flowchart TD
 - Los atributos `Montado` y `Volando` los pone el servidor. Si el cliente los cambia, el cambio no se replica, así que no los puede falsear.
 - No hay chequeo de atravesar paredes con rayos: da falsos positivos al doblar esquinas. Igual no aporta ventaja,
   porque toda acción valiosa valida la distancia en el servidor.
-- La señal `AntiCheat.Infraccion(player, tipo, detalle)` queda disponible para logs y el futuro panel de administración.
+- La señal `AntiCheat.Infraccion(player, tipo, detalle)` queda disponible para logs.
 
 ## Superficies de ataque cubiertas
 
@@ -118,3 +118,10 @@ flowchart TD
 | Saltear el tiempo de mantener presionado | Inicio y duración verificados en el servidor |
 | Teletransportarse a una zona de mayor nivel | Nivel validado también al llegar |
 | Speedhack / vuelo | AntiCheat (rubberbanding y respawn) |
+| Cobrar una compra dos veces o no entregarla | `ProcessReceipt` idempotente: `PurchaseGranted` solo tras guardar |
+| Duplicar con subastas o el banco de hermandad | Diario en el perfil + reconciliación al entrar |
+| Usar el panel de admin sin serlo | Permiso decidido solo en el servidor y revalidado en cada acción |
+| Saltear una recarga larga muriendo o reconectando | Recargas de 60 s o más guardadas en el perfil |
+| Usar una ulti y cambiarla por otra lista | No se puede mover de barra una habilidad en recarga |
+| Farmear materiales con muñecos de práctica | El Spoil no funciona en muñecos |
+| Leer el webhook o la lista de admins | Viven en `ConfigServidor` (ServerScriptService): no se replican |

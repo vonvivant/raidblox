@@ -8,6 +8,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Systems = ServerScriptService.Systems
 local DataManager = require(Systems.DataManager)
+local BandoManager = require(Systems.BandoManager)
+local AparienciaManager = require(Systems.AparienciaManager)
 local AntiCheat = require(Systems.AntiCheat)
 local ZoneManager = require(Systems.ZoneManager)
 local ArchitectWarManager = require(Systems.Guerra.ArchitectWarManager)
@@ -15,6 +17,31 @@ local CombatManager = require(Systems.Combate.CombatManager)
 local LootManager = require(Systems.Combate.LootManager)
 local EnemyManager = require(Systems.Combate.EnemyManager)
 local RaidBloxManager = require(Systems.Combate.RaidBloxManager)
+local InventarioManager = require(Systems.Economia.InventarioManager)
+local CraftingManager = require(Systems.Economia.CraftingManager)
+local RecoleccionManager = require(Systems.Economia.RecoleccionManager)
+local AuctionManager = require(Systems.Economia.AuctionManager)
+local TradeManager = require(Systems.Economia.TradeManager)
+local MisionManager = require(Systems.MisionManager)
+local GrupoManager = require(Systems.GrupoManager)
+local HermandadManager = require(Systems.HermandadManager)
+local VozManager = require(Systems.VozManager)
+local MazmorraManager = require(Systems.MazmorraManager)
+local PasesManager = require(Systems.Monetizacion.PasesManager)
+local MonturaManager = require(Systems.Monetizacion.MonturaManager)
+local ProductosManager = require(Systems.Monetizacion.ProductosManager)
+local PaseBatallaManager = require(Systems.Monetizacion.PaseBatallaManager)
+local MascotaManager = require(Systems.Monetizacion.MascotaManager)
+local EquipoVisible = require(Systems.EquipoVisible)
+local AdminManager = require(Systems.AdminManager)
+local ChatarreroManager = require(Systems.Combate.ChatarreroManager)
+local BuffManager = require(Systems.Combate.BuffManager)
+local NpcManager = require(Systems.NpcManager)
+local VaultManager = require(Systems.Economia.VaultManager)
+local ForjaManager = require(Systems.Economia.ForjaManager)
+local DebugStudio = require(Systems.DebugStudio)
+local NpcsPrueba = require(Systems.Pruebas.NpcsPrueba)
+local EditorPiedra = require(Systems.Pruebas.EditorPiedra)
 
 -- 1. Red primero: los demás sistemas registran sus remotes sobre ella.
 NetworkBridge.Server.Init()
@@ -28,16 +55,52 @@ AntiCheat.Init()
 -- 4. Mundo: portales y teletransporte.
 ZoneManager.Init()
 
--- 5. Combate: motor, botín, enemigos y jefes de la zona de este place.
+-- 5. Bandos (PvP) y apariencia; después el combate: motor, botín, enemigos y
+-- jefes de la zona de este place.
+BandoManager.Init(ZoneManager.ZonaActual())
+AparienciaManager.Init()
 CombatManager.Init()
 LootManager.Init()
 local zona = ZoneManager.ZonaActual()
+-- El minimapa del cliente muestra el nombre de la zona.
+game:GetService("Workspace"):SetAttribute("Zona", zona or "Desconocida")
 EnemyManager.Init(zona)
 RaidBloxManager.Init(zona)
 
--- 6. Modos de juego según el place.
+-- 6. Economía: inventario, profesiones, subastas y comercio.
+InventarioManager.Init()
+CraftingManager.Init()
+RecoleccionManager.Init()
+AuctionManager.Init()
+TradeManager.Init()
+
+-- 6b. Fase 5: grupos y misiones.
+GrupoManager.Init()
+HermandadManager.Init()
+VozManager.Init()
+MazmorraManager.Init(zona)
+PasesManager.Init()
+MonturaManager.Init()
+ProductosManager.Init()
+PaseBatallaManager.Init()
+MascotaManager.Init()
+EquipoVisible.Init()
+AdminManager.Init()
+ChatarreroManager.Init()
+BuffManager.Init()
+NpcManager.Init()
+VaultManager.Init()
+ForjaManager.Init()
+MisionManager.Init()
+
+-- 7. Modos de juego según el place.
 if ArchitectWarManager.DebeActivarse() then
 	ArchitectWarManager.Init()
 end
 
-print(`[RaidBlox] Servidor iniciado - Fase 3 (zona: {zona or "sin configurar"})`)
+-- 8. Herramientas de prueba: comandos (solo Studio) y NPCs de oro y materiales.
+DebugStudio.Init()
+NpcsPrueba.Init()
+EditorPiedra.Init()
+
+print(`[RaidBlox] Servidor iniciado (zona: {zona or "sin configurar"})`)

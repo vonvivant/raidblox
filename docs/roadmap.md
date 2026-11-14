@@ -6,10 +6,11 @@
 flowchart LR
     F1[Fase 1<br/>Datos, red, anti-cheat]:::hecho --> F2[Fase 2<br/>Zonas, Guerra de Arquitectos]:::hecho
     F2 --> F3[Fase 3<br/>Combate, 8 clases,<br/>RaidBlox, rarezas]:::hecho
-    F3 --> F4[Fase 4<br/>Inventario, crafteo,<br/>subastas, comercio]:::siguiente
-    F4 --> F5[Fase 5<br/>Voz, misiones,<br/>hermandades, dungeons]
-    F5 --> F6[Fase 6<br/>Monetización<br/>y cosméticos]
-    F6 --> F7[Fase 7<br/>HUD, combat text,<br/>minimapa, admin]
+    F3 --> F4[Fase 4<br/>Inventario, crafteo,<br/>subastas, comercio]:::hecho
+    F4 --> F5[Fase 5<br/>Voz, misiones,<br/>hermandades, dungeons]:::hecho
+    F5 --> F6[Fase 6<br/>Monetización<br/>y cosméticos]:::hecho
+    F6 --> F7[Fase 7<br/>HUD, combat text,<br/>minimapa, admin]:::hecho
+    F7 --> L[Lanzamiento<br/>mapas reales,<br/>pruebas, Ids]:::siguiente
 
     classDef hecho fill:#2e7d32,color:#fff,stroke:#1b5e20
     classDef siguiente fill:#f9a825,color:#000,stroke:#f57f17
@@ -20,10 +21,10 @@ flowchart LR
 | 1 | DataManager (ProfileStore), NetworkBridge, AntiCheat | ✅ |
 | 2 | ZoneManager, pantalla de carga, Guerra de Arquitectos | ✅ |
 | 3 | CombatManager (FSM, tab-targeting, parry), 8 clases, EnemyManager, RaidBloxManager, rarezas, botín | ✅ |
-| 4 | Inventario drag & drop, CraftingManager, AuctionManager, comercio 1v1 | ⏳ |
-| 5 | VoiceChannelManager, misiones, hermandades, dungeons instanciadas | — |
-| 6 | Gamepasses, DevProducts, pase de batalla, transmog, mascotas | — |
-| 7 | HUD, target frame, combat text, minimapa, panel de administración | — |
+| 4 | Inventario drag & drop, profesiones (crafteo y recolección), AuctionManager, comercio 1v1 | ✅ |
+| 5 | VozManager, misiones, grupos, hermandades, mazmorras | ✅ |
+| 6 | Pases, productos y cajas, pase de batalla, transmog, mascotas, códigos | ✅ |
+| 7 | HUD, target frame con buffs, combat text, ajustes y zurdos, minimapa, panel de admin | ✅ |
 
 El detalle de cada prompt de diseño está en el documento de catálogo del proyecto.
 
@@ -46,19 +47,54 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 | Stats y efectos del ítem guardados en su `Meta` | Cada copia es única y no cambia si se rebalancea la config |
 | Vida/maná actuales no se guardan | Se aparece con vida y maná completos (simplifica la persistencia) |
 | Parry solo contra golpes cuerpo a cuerpo de NPCs | Las zonas rojas de los jefes se esquivan saliendo |
+| Subastas: DataStore como verdad, MemoryStore como índice | MemoryStore es rápido pero no durable; la compra la arbitra `UpdateAsync` |
+| Entregas de subasta por el buzón | Llegan aunque el destinatario esté offline o en otro servidor |
+| Vencimientos procesados al entrar el vendedor | No hace falta un proceso global que recorra todas las publicaciones |
+| Comercio sin custodia intermedia | Los ítems no salen del inventario hasta el intercambio síncrono final: nada queda "en el aire" |
+| Herramientas en un slot de equipo propio | "Requiere herramienta equipada" sin afectar las stats de combate |
+| `EstadoCliente` como único receptor de datos | Ninguna interfaz pierde el snapshot inicial por cargar tarde |
+| Diario en el perfil para lo que cruza DataStores | Un corte a mitad de una subasta o del banco de hermandad no duplica ni pierde nada |
+| Campos nuevos del perfil como opcionales | No hace falta subir la versión ni republicar para sumar un sistema |
+| Pases y productos con Id 0 simulables en pruebas | Se prueba toda la tienda antes de crear nada en el Creator Hub |
+| Cajas con probabilidades visibles y PolicyService | Lo exige Roblox para ítems aleatorios pagos |
+| Cosméticos sin stats (transmog, mascotas, skins) | Lo que se paga no da ventaja en combate |
+| HUD en píxeles con `UIScale` | Un solo diseño para PC, celular y consola, con tamaño ajustable y modo zurdo |
+| Minimapa como radar 2D, no ViewportFrame | No hay que clonar ni redibujar el mapa; con muchos jugadores cuesta casi lo mismo |
+| Chatarrero dentro del combate existente | Comparte validación, mira, marco de objetivo y reglas de PvP en vez de duplicarlas |
+| Recargas largas guardadas en el perfil | Morir o reconectar no saltea una ulti de 20 minutos |
 
 ## Pendientes conocidos
 
-- **Fase 4:** interfaz de inventario y equipo (la lógica `EquiparItem`/`DesequiparItem` ya existe en el servidor).
-  Registrar los remotes nuevos en `NetworkBridge` (`DEFINICIONES`). Monturas con `AntiCheat.SetVelocidadPermitida`
-  y el atributo `Montado`.
-- **Fase 4:** el buzón de ítems reintenta recién al volver a entrar si el inventario estaba lleno.
-- **Fase 5:** el grupo (party) todavía no existe: el botín y las curas en área usan "todos los jugadores cercanos".
-- **Fase 7:** `CombateUI`, `RaidBloxUI` y los números flotantes son versiones de prueba; el HUD definitivo los reemplaza.
-- **Fase 6:** en `ProcessReceipt`, devolver `PurchaseGranted` solo si `DataManager.SaveNowAsync` confirma el guardado
-  después de `MarcarRecibo`. Si no, `NotProcessedYet`. El re-roll pagado tiene que mostrar las probabilidades (política
-  de Roblox sobre ítems aleatorios pagos).
-- **Fase 7:** `GuerraUI` y `Avisos` son interfaces mínimas de prueba; se reemplazan con el HUD definitivo.
-- **Fase 7.4:** los webhooks de Discord necesitan un proxy intermedio (Discord bloquea las peticiones de Roblox).
+- El buzón de ítems reintenta recién al volver a entrar si el inventario estaba lleno.
+- La búsqueda de subastas lee las 200 publicaciones más baratas del índice; con mucho volumen conviene un índice por
+  tipo de ítem.
+- Webhook de Discord: necesita un proxy y la URL en `ConfigServidor.WebhookAdmin` (ver [interfaz](interfaz.md)).
 - Configurar los PlaceId reales en `ZoneConfig` cuando se creen los places.
-- El texto de diseño del Prompt 7.4 (panel de administración) llegó incompleto.
+- El texto de diseño del Prompt 7.4 llegó cortado en el punto 4 (logs de Discord); se implementó lo que se lee.
+- Antes de lanzar: crear pases y productos en el Creator Hub, PlaceId reales, apagar `ModoPruebas`, cargar `ConfigServidor.Admins`.
+
+## Después del catálogo
+
+Hecho (ver [chatarrero](chatarrero.md), [combate](combate.md) e [interfaz](interfaz.md)): esquiva y fallo, clase
+Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas sobre todo el código, los
+[NPCs por arquetipo](npcs.md) (facciones, Guardián de Portales y los 38 arquetipos como datos), la
+[bóveda global](vault.md), la elección de bando y el ajuste "Ignorar Guerra" en el panel Personaje, y las tarjetas
+de misión que se expanden y se minimizan ([misiones](misiones.md)).
+
+**En curso: los 39 NPC.** Avance y orden de trabajo en la [matriz](npcs-matriz.md). Hecho hasta ahora: la
+infraestructura, el Grupo A casi completo ([consumibles](consumibles.md)) y el Grupo B ([forja](forja.md), con
+durabilidad del equipo).
+
+Pedidos en cola, en este orden:
+
+1. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
+2. **Raza Artesano y firma de autoría** en los ítems.
+3. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
+4. **NPC vendedor** con probador en vivo.
+5. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
+6. **Mapas de prueba** de la Ciudad y el Bosque.
+
+Falta decidir: si la Casa de Subastas se separa por bando (ver [NPCs](npcs.md)).
+
+Sistemas que todavía no existen y varios de esos pedidos necesitan: razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
+

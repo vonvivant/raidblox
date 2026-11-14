@@ -30,6 +30,7 @@ type Definicion = {
 	Tipo: TipoRemote,
 	Critico: boolean, -- críticos: 10 req/s; normales: límite más bajo
 	SoloServidorACliente: boolean?, -- el cliente nunca debería dispararlo
+	Timeout: number?, -- RemoteFunctions lentas (DataStore): segundos; por defecto GameConfig.Red.TimeoutInvoke
 }
 
 -- Registro central de remotes. Agregar acá cada remote nuevo de las próximas fases.
@@ -43,10 +44,121 @@ local DEFINICIONES: { [string]: Definicion } = {
 	GuerraCarga = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (recursos que lleva el jugador)
 	-- Cliente -> servidor
 	SolicitarDatos = { Tipo = "Function", Critico = false },
-	MoverItem = { Tipo = "Event", Critico = true }, -- Fase 4
-	UsarItem = { Tipo = "Event", Critico = true }, -- Fase 4
+	-- Fase 4: inventario
+	MoverItem = { Tipo = "Event", Critico = true }, -- (desde, hacia)
+	UsarItem = { Tipo = "Event", Critico = true }, -- (ranura)
+	DividirPila = { Tipo = "Event", Critico = true }, -- (desde, cantidad)
+	DestruirItem = { Tipo = "Function", Critico = false }, -- (ranura)
+	-- Fase 4: crafteo y recolección
+	CraftearIniciar = { Tipo = "Function", Critico = false }, -- (recetaId)
+	CrafteoAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estacion)
+	CrafteoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
+	MinijuegoRecoleccion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (datos)
+	RecoleccionGolpe = { Tipo = "Event", Critico = true }, -- (token, horaServidorVistaPorElCliente)
+	-- Fase 5: grupos
+	GrupoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	GrupoInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (deUserId, nombre)
+	GrupoInvitar = { Tipo = "Function", Critico = false }, -- (userId)
+	GrupoResponder = { Tipo = "Function", Critico = false }, -- (deUserId, acepta)
+	GrupoSalir = { Tipo = "Function", Critico = false },
+	GrupoExpulsar = { Tipo = "Function", Critico = false }, -- (userId)
+	GrupoLider = { Tipo = "Function", Critico = false }, -- (userId)
+	-- Pruebas: editor de la piedra del castillo
+	EditorPiedraAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Actual, Original})
+	EditorPiedraGuardar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (valores)
+	-- Fase 6: tienda, pases y monturas
+	TiendaInfo = { Tipo = "Function", Critico = false, Timeout = 15 },
+	TiendaComprarPase = { Tipo = "Function", Critico = false }, -- (clave)
+	TiendaGuardarTitulo = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (texto)
+	MonturaAlternar = { Tipo = "Function", Critico = false }, -- (id)
+	TiendaProductos = { Tipo = "Function", Critico = false, Timeout = 15 },
+	TiendaComprarProducto = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (clave)
+	TiendaUsarReroll = { Tipo = "Function", Critico = false }, -- (ranura)
+	TiendaUsarBando = { Tipo = "Function", Critico = false }, -- (bando)
+	TiendaCajaAbierta = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (nombre, items)
+	PaseInfo = { Tipo = "Function", Critico = false },
+	PaseReclamar = { Tipo = "Function", Critico = false }, -- (nivel, via)
+	CanjearCodigo = { Tipo = "Function", Critico = false }, -- (texto)
+	EquiparSkinCastillo = { Tipo = "Function", Critico = false }, -- (skin)
+	EquiparTransmog = { Tipo = "Function", Critico = false }, -- (slot, apariencia|"")
+	EquiparMascota = { Tipo = "Function", Critico = false }, -- (mascota|"")
+	-- Chatarrero
+	BarraAlternar = { Tipo = "Function", Critico = false }, -- (idHabilidad): equipa o quita de su barra
+	ChatarreroDesmantelar = { Tipo = "Function", Critico = false }, -- (ranura), cerca de tu Yunque Portátil
+	ChatarreroOlfato = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (segundos, radio)
+	-- Fase 7.4: panel de administración (el servidor valida que seas admin)
+	AdminAccion = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (accion, a, b, c)
+	AdminInfo = { Tipo = "Function", Critico = false },
+	-- Fase 5: mazmorras
+	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
+	-- Fase 5: voz
+	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})
+	VozCanal = { Tipo = "Function", Critico = false }, -- (canal)
+	-- Fase 5: hermandades (DataStore: timeouts largos)
+	HermandadCambio = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Id, Nombre}|nil, queCambio)
+	HermandadInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (id, nombre, deNombre)
+	HermandadCrear = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (nombre)
+	HermandadInfo = { Tipo = "Function", Critico = false, Timeout = 20 },
+	HermandadInvitar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (userId)
+	HermandadResponder = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (id, acepta)
+	HermandadSalir = { Tipo = "Function", Critico = false, Timeout = 30 },
+	HermandadDisolver = { Tipo = "Function", Critico = false, Timeout = 40 },
+	HermandadExpulsar = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId)
+	HermandadRango = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId, rango)
+	HermandadTransferir = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (userId)
+	HermandadPermiso = { Tipo = "Function", Critico = false, Timeout = 30 }, -- (rango, permiso, valor)
+	HermandadBanco = { Tipo = "Function", Critico = false, Timeout = 20 },
+	HermandadDepositarItem = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (ranura, cantidad, pestana)
+	HermandadRetirarItem = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (pestana, ranura, uid)
+	HermandadDepositarOro = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (cantidad)
+	HermandadRetirarOro = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (cantidad)
+	-- Fase 5: misiones
+	MisionDialogo = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId)
+	MisionAceptar = { Tipo = "Function", Critico = false }, -- (misionId)
+	MisionEntregar = { Tipo = "Function", Critico = false }, -- (misionId)
+	MisionAbandonar = { Tipo = "Function", Critico = false }, -- (misionId)
+	-- Bandos y ajustes del jugador
+	BandoElegir = { Tipo = "Function", Critico = false }, -- (bando): "Violeta" | "Rojo" | "Azul"
+	GuardarAjuste = { Tipo = "Function", Critico = false }, -- (clave, valor)
+	-- Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas())
+	TiendaPruebaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
+	TiendaPruebaComprar = { Tipo = "Function", Critico = false }, -- (itemId, cantidad)
+	-- NPCs por arquetipo (NpcManager)
+	NpcAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (npcId, arquetipo, faccion, datos)
+	NpcComprar = { Tipo = "Function", Critico = false }, -- (npcId, indiceOferta, cantidad)
+	NpcVender = { Tipo = "Function", Critico = false }, -- (npcId, ranura, cantidad)
+	NpcServicio = { Tipo = "Function", Critico = false }, -- (npcId, servicioId)
+	NpcFabricar = { Tipo = "Function", Critico = false }, -- (npcId): abre las recetas de su estación
+	NpcSobreItem = { Tipo = "Function", Critico = false }, -- (npcId, operacion, ranura, extra?): desencantar, reforjar, engarzar
+	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
+
+	-- Bóveda global (VaultManager)
+	VaultAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (pestañas disponibles)
+	VaultDepositar = { Tipo = "Function", Critico = false }, -- (ranuraMochila, pestana, cantidad)
+	VaultRetirar = { Tipo = "Function", Critico = false }, -- (pestana, ranura, cantidad)
+	VaultMover = { Tipo = "Function", Critico = false }, -- (pestanaA, ranuraA, pestanaB, ranuraB | 0 = primera libre)
+	VaultExpandir = { Tipo = "Function", Critico = false }, -- compra la próxima pestaña
+	VaultPersonalizar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (pestana, nombre, icono)
+
+	-- Fase 4: Casa de Subastas
+	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
+	SubastaBuscar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (texto, rareza)
+	SubastaPublicar = { Tipo = "Function", Critico = false, Timeout = 40 }, -- (uid, precio)
+	SubastaComprar = { Tipo = "Function", Critico = false, Timeout = 50 }, -- (id)
+	SubastaCancelar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (id)
+	SubastaMias = { Tipo = "Function", Critico = false, Timeout = 30 },
+	-- Fase 4: comercio 1v1
+	ComercioSolicitar = { Tipo = "Event", Critico = false }, -- (jugador)
+	ComercioResponder = { Tipo = "Event", Critico = false }, -- (jugador, acepta)
+	ComercioOfertar = { Tipo = "Event", Critico = false }, -- (uids, oro)
+	ComercioBloquear = { Tipo = "Event", Critico = false },
+	ComercioConfirmar = { Tipo = "Event", Critico = false },
+	ComercioCancelar = { Tipo = "Event", Critico = false },
+	ComercioInvitacion = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (jugador)
+	ComercioEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
 	-- Fase 3: combate y botín
-	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice 1..4, modeloObjetivo?)
+	UsarHabilidad = { Tipo = "Event", Critico = true }, -- (indice en las habilidades de la clase, modeloObjetivo?, punto?)
 	Parry = { Tipo = "Event", Critico = true },
 	RecogerBotin = { Tipo = "Event", Critico = true }, -- (idBotin)
 	ElegirClase = { Tipo = "Function", Critico = false }, -- (clase)
@@ -337,7 +449,7 @@ function Server.OnInvoke(nombre: string, handler: (Player, ...unknown) -> Respue
 			return NetworkBridge.Fail("RATE_LIMITED")
 		end
 		local args = table.pack(...)
-		local ok, resultado = ejecutarConTimeout(GameConfig.Red.TimeoutInvoke, function(): Respuesta
+		local ok, resultado = ejecutarConTimeout(def.Timeout or GameConfig.Red.TimeoutInvoke, function(): Respuesta
 			return handler(player, table.unpack(args, 1, args.n))
 		end)
 		if ok then
@@ -403,7 +515,8 @@ function Client.Invoke(nombre: string, ...: any): Respuesta
 	assert(remote:IsA("RemoteFunction"), `[NetworkBridge] {nombre} no es una RemoteFunction`)
 	local args = table.pack(...)
 	-- Margen extra sobre el timeout del servidor para el viaje de ida y vuelta.
-	local ok, resultado = ejecutarConTimeout(GameConfig.Red.TimeoutInvoke + 2, function(): any
+	local def = definicionDe(nombre)
+	local ok, resultado = ejecutarConTimeout((def.Timeout or GameConfig.Red.TimeoutInvoke) + 2, function(): any
 		return remote:InvokeServer(table.unpack(args, 1, args.n))
 	end)
 	if not ok then

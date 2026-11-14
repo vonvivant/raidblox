@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
+local Hud = require(ReplicatedStorage.Modules.Hud)
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
@@ -28,6 +29,7 @@ local COLOR_MAGICO = Color3.fromRGB(150, 130, 255)
 local COLOR_CRITICO = Color3.fromRGB(255, 205, 40)
 local COLOR_CURA = Color3.fromRGB(80, 255, 110)
 local COLOR_ESTADO = Color3.fromRGB(255, 170, 70)
+local COLOR_FALLO = Color3.fromRGB(190, 190, 200)
 
 local function flotante(modelo: Model, texto: string, color: Color3, grande: boolean)
 	local ancla = modelo:FindFirstChild("Head") or modelo.PrimaryPart
@@ -81,6 +83,9 @@ NetworkBridge.Client.OnEvent("CombateEvento", function(tipo: any, modelo: any, v
 	if typeof(modelo) ~= "Instance" or not modelo:IsA("Model") then
 		return
 	end
+	if not Hud.TextosCombate then
+		return -- el jugador los apagó (panel Personaje)
+	end
 	if tipo == "Danio" and typeof(valor) == "number" then
 		local critico = typeof(extra) == "table" and extra.Critico == true
 		local magico = typeof(extra) == "table" and extra.Escuela == "Magico"
@@ -89,7 +94,13 @@ NetworkBridge.Client.OnEvent("CombateEvento", function(tipo: any, modelo: any, v
 	elseif tipo == "Cura" and typeof(valor) == "number" then
 		flotante(modelo, `+{valor}`, COLOR_CURA, extra == true)
 	elseif tipo == "Estado" and typeof(valor) == "string" then
-		flotante(modelo, valor, COLOR_ESTADO, false)
+		local fallo = valor == "Fallo" or valor == "Esquivado"
+		flotante(
+			modelo,
+			if valor == "Fallo" then "¡FALLO!" elseif valor == "Esquivado" then "¡ESQUIVADO!" else valor,
+			if fallo then COLOR_FALLO else COLOR_ESTADO,
+			false
+		)
 	end
 end)
 
@@ -105,7 +116,12 @@ guiJefes.Parent = playerGui
 
 local contenedorJefes = Instance.new("Frame")
 contenedorJefes.AnchorPoint = Vector2.new(0.5, 0)
-contenedorJefes.Position = UDim2.fromScale(0.5, 0.18)
+-- Debajo del marco del objetivo (que mide 84 px antes de escalar).
+local function ubicarJefes()
+	contenedorJefes.Position = UDim2.new(0.5, 0, 0, math.floor((8 + 84 + 10) * Hud.Escala()))
+end
+Hud.Cambio:Connect(ubicarJefes)
+ubicarJefes()
 contenedorJefes.Size = UDim2.fromScale(0.5, 0.2)
 contenedorJefes.BackgroundTransparency = 1
 contenedorJefes.Parent = guiJefes
