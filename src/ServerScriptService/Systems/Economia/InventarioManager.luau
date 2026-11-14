@@ -20,6 +20,7 @@ local ProfesionesConfig = require(ReplicatedStorage.Configs.ProfesionesConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
 local CombatManager = require(script.Parent.Parent.Combate.CombatManager)
+local BuffManager = require(script.Parent.Parent.Combate.BuffManager)
 
 local InventarioManager = {}
 
@@ -43,13 +44,32 @@ local function usar(player: Player, clave: string)
 		return
 	end
 	local consumo = def.Consumo
-	if def.Tipo ~= "Consumible" or not consumo then
+	local conEfecto, instantaneo = BuffManager.Maneja(item.ItemId)
+	if def.Tipo ~= "Consumible" or (not consumo and not conEfecto) then
 		avisar(player, "Ese objeto no se puede usar.")
 		return
 	end
 	local t = Workspace:GetServerTimeNow()
-	if t < (proximaPocion[player] or 0) then
+	-- Pociones y consumibles instantáneos comparten recarga; los temporales
+	-- (elixires, tónicos, infusiones) no la usan.
+	if (consumo or instantaneo) and t < (proximaPocion[player] or 0) then
 		avisar(player, `Esperá {math.ceil((proximaPocion[player] or 0) - t)} s para otra poción.`)
+		return
+	end
+	if conEfecto then
+		local ok, motivo = BuffManager.Usar(player, item.ItemId)
+		if not ok then
+			avisar(player, motivo or "No podés usarlo ahora.")
+			return
+		end
+		-- Se consume recién cuando el efecto se aplicó.
+		DataManager.QuitarDeRanura(player, clave, 1)
+		if instantaneo then
+			proximaPocion[player] = t + GameConfig.Consumibles.CooldownPociones
+		end
+		return
+	end
+	if not consumo then
 		return
 	end
 	if not CombatManager.RecuperarJugador(player, consumo.Recurso, consumo.Porcentaje) then

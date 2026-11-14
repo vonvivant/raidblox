@@ -30,7 +30,8 @@ src/
 │   │   ├── HabilidadTipos.luau       Tipos de habilidad y efecto (los comparten todas las clases)
 │   │   ├── ClassConfig.luau          Clases, stats por nivel y habilidades
 │   │   ├── ChatarreroConfig.luau     Las 30 habilidades del Chatarrero, Spoil y construcciones
-│   │   ├── NpcArquetiposConfig.luau  Los 38 arquetipos de NPC y sus facciones
+│   │   ├── NpcArquetiposConfig.luau  Los 39 arquetipos de NPC y sus facciones
+│   │   ├── ConsumiblesConfig.luau    Consumibles con efecto y mejoras temporales
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
@@ -88,7 +89,8 @@ src/
 │       │   ├── EnemyManager.luau      IA por amenaza y recompensas
 │       │   ├── RaidBloxManager.luau   Jefes de mundo
 │       │   ├── LootManager.luau       Rarezas y botín personal
-│       │   └── ChatarreroManager.luau Spoil, construcciones y barras del Chatarrero
+│       │   ├── ChatarreroManager.luau Spoil, construcciones y barras del Chatarrero
+│       │   └── BuffManager.luau       Elixires, tónicos, infusiones y mejoras temporales de NPC
 │       ├── Economia/
 │       │   ├── InventarioManager.luau   Acciones de inventario y pociones
 │       │   ├── CraftingManager.luau     Estaciones y recetas
@@ -228,7 +230,7 @@ avisarle a uno de arriba, usa una señal (`Signal`) o un gancho (`CraftingManage
 6. **Economía:** inventario, crafteo, recolección, subastas y comercio.
 7. **Social, mazmorras, monetización y clases:** `GrupoManager`, `HermandadManager`, `VozManager`,
    `MazmorraManager`, `PasesManager`, `MonturaManager`, `ProductosManager`, `PaseBatallaManager`, `MascotaManager`,
-   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `NpcManager`, `VaultManager` y `MisionManager`.
+   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager` y `MisionManager`.
 8. **Modo de juego del place:** `ArchitectWarManager.Init()` si corresponde.
 9. **Herramientas de prueba:** `DebugStudio` (solo Studio), `NpcsPrueba` y `EditorPiedra`.
 

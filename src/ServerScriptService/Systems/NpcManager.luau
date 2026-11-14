@@ -34,7 +34,7 @@ local BandoManager = require(script.Parent.BandoManager)
 local DataManager = require(script.Parent.DataManager)
 local NpcFactory = require(script.Parent.NpcFactory)
 local ZoneManager = require(script.Parent.ZoneManager)
-local CombatManager = require(script.Parent.Combate.CombatManager)
+local BuffManager = require(script.Parent.Combate.BuffManager)
 
 type Faccion = NpcArquetiposConfig.Faccion
 type Arquetipo = NpcArquetiposConfig.Arquetipo
@@ -310,25 +310,10 @@ local function servicio(player: Player, npc: Npc, servicioId: string): Types.Res
 end
 
 local function registrarAccionesBase()
-	-- Afilador de Armas: mejora temporal de ataque.
-	NpcManager.RegistrarAccion("Afilar", function(player: Player, npc: Npc): boolean
-		local combatiente = CombatManager.DeJugador(player)
-		if not combatiente or not CombatManager.EstaVivo(combatiente) then
-			return false
-		end
-		local buff = npc.Arquetipo.Parametros.Buff
-		local porcentaje = if typeof(buff) == "table" and typeof(buff.Porcentaje) == "number"
-			then buff.Porcentaje
-			else 10
-		local duracion = if typeof(buff) == "table" and typeof(buff.Duracion) == "number" then buff.Duracion else 600
-		CombatManager.AplicarEfecto(
-			combatiente,
-			combatiente,
-			{ Tipo = "Aura", Stat = "Ataque", Porcentaje = porcentaje, Duracion = duracion },
-			"NpcAfilar"
-		)
-		avisar(player, `Arma afilada: +{porcentaje}% de ataque por {duracion // 60} minutos.`, "Info")
-		return true
+	-- Afilador de Armas: mejora temporal de ataque (categoría "Filo" de
+	-- ConsumiblesConfig; no se pierde al morir).
+	NpcManager.RegistrarAccion("Afilar", function(player: Player): boolean
+		return BuffManager.Dar(player, "ServicioAfilar")
 	end)
 
 	-- Subastador: abre la Casa de Subastas.

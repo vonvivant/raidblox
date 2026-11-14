@@ -113,6 +113,8 @@ CombatManager.Murio = Signal.new() :: Signal.Signal<Combatiente, Combatiente?>
 CombatManager.Provocado = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
 CombatManager.InvisibilidadIniciada = Signal.new() :: Signal.Signal<Combatiente>
 -- (npc, quien lo confundió, segundos): el NPC deja de perseguirlo.
+-- El combatiente de un jugador quedó creado (al entrar y en cada reaparición).
+CombatManager.JugadorListo = Signal.new() :: Signal.Signal<Player, Combatiente>
 CombatManager.AgroPerdido = Signal.new() :: Signal.Signal<Combatiente, Combatiente, number>
 
 local especiales: { [string]: Especial } = {}
@@ -483,6 +485,15 @@ local NOMBRES_STAT: { [string]: string } = {
 	Critico = "Crítico",
 }
 
+-- Ganchos de BuffManager (consumibles): CombatManager no lo requiere para no
+-- crear una dependencia circular.
+local prisaDe: (Player) -> number = function(_player: Player): number
+	return 0
+end
+local efectosExtra: (Player) -> { { Nombre: string, Hasta: number } } = function(_player: Player)
+	return {}
+end
+
 local function publicarEfectos(c: Combatiente)
 	local t = ahora()
 	local partes: { string } = {}
@@ -509,6 +520,12 @@ local function publicarEfectos(c: Combatiente)
 			agregar("Regeneración", p.Hasta, true)
 		else
 			agregar(if p.Escuela == "Magico" then "Quemadura" else "Sangrado", p.Hasta, false)
+		end
+	end
+	local duenio = c.Player
+	if duenio then
+		for _, extra in efectosExtra(duenio) do
+			agregar(extra.Nombre, extra.Hasta, true)
 		end
 	end
 	local texto = table.concat(partes, ";")
@@ -650,6 +667,55 @@ function CombatManager.AplicarEfecto(fuente: Combatiente, objetivo: Combatiente,
 	if vivo(objetivo) then
 		aplicarEfecto(fuente, objetivo, efecto, id)
 	end
+end
+
+-- Fracción (0..1) que se descuenta de las recargas del jugador.
+function CombatManager.SetPrisa(fn: (Player) -> number)
+	prisaDe = fn
+end
+
+-- Efectos que no son del combate pero se muestran junto a los buffs
+-- (`Hasta` en hora del servidor, como CombatManager.Ahora()).
+function CombatManager.SetEfectosExtra(fn: (Player) -> { { Nombre: string, Hasta: number } })
+	efectosExtra = fn
+end
+
+function CombatManager.PublicarEfectos(c: Combatiente)
+	publicarEfectos(c)
+end
+
+-- Quita los buffs de porcentaje que puso `fuente` (id de habilidad o de consumible).
+function CombatManager.QuitarAuras(c: Combatiente, fuente: string)
+	for i = #c.Buffs, 1, -1 do
+		if c.Buffs[i].Fuente == fuente then
+			table.remove(c.Buffs, i)
+		end
+	end
+	publicarEfectos(c)
+end
+
+-- Quita debilitamientos y daño en el tiempo. No toca los que vienen de un
+-- consumible propio (fuentes que empiezan con `conservar`). Devuelve cuántos quitó.
+function CombatManager.Purificar(c: Combatiente, conservar: string): number
+	local quitados = 0
+	for i = #c.Buffs, 1, -1 do
+		local buff = c.Buffs[i]
+		if buff.Porcentaje < 0 and string.sub(buff.Fuente, 1, #conservar) ~= conservar then
+			table.remove(c.Buffs, i)
+			quitados += 1
+		end
+	end
+	for i = #c.Periodicos, 1, -1 do
+		if c.Periodicos[i].Tipo == "Danio" then
+			table.remove(c.Periodicos, i)
+			quitados += 1
+		end
+	end
+	if quitados > 0 then
+		emitir(c.Raiz.Position, "Estado", c.Modelo, "Purificado")
+		publicarEfectos(c)
+	end
+	return quitados
 end
 
 function CombatManager.DarEscudo(c: Combatiente, cantidad: number, duracion: number)
@@ -971,13 +1037,15 @@ local function ejecutar(
 	end
 	c.Mana -= hab.CostoMana
 	sincronizarMana(c)
-	c.Cooldowns[hab.Id] = t + hab.Cooldown
 	local duenio = c.Player
+	-- Tónicos, elixires e infusiones pueden acortar las recargas.
+	local recarga = hab.Cooldown * (if duenio then 1 - math.clamp(prisaDe(duenio), 0, 0.9) else 1)
+	c.Cooldowns[hab.Id] = t + recarga
 	if duenio and hab.Cooldown >= ClassConfig.CooldownLargo then
 		local largos = cooldownsLargos[duenio] or {}
 		cooldownsLargos[duenio] = largos
-		largos[hab.Id] = t + hab.Cooldown
-		DataManager.SetCooldownLargo(duenio, hab.Id, t + hab.Cooldown)
+		largos[hab.Id] = t + recarga
+		DataManager.SetCooldownLargo(duenio, hab.Id, t + recarga)
 	end
 	c.Estado = "Attacking"
 	c.BloqueoHasta = t + ClassConfig.GCD
@@ -1439,6 +1507,7 @@ local function alAparecer(player: Player, personaje: Model)
 	player:SetAttribute("Clase", datos.Clase)
 	sincronizarMana(c)
 	restaurarCooldowns(player, c, true)
+	CombatManager.JugadorListo:Fire(player, c)
 end
 
 -- API para otros sistemas.

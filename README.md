@@ -77,7 +77,9 @@ flowchart LR
 - [Economía](docs/economia.md): inventario, profesiones, crafteo, recolección, Casa de Subastas y comercio 1v1.
 - [Bóveda global](docs/vault.md): banco personal con 8 pestañas, buscador y filtros.
 - [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
-- [NPCs](docs/npcs.md): 38 arquetipos, facciones Rojo / Azul / Neutral, vendedores, artesanos y Guardián de Portales.
+- [NPCs](docs/npcs.md): 39 arquetipos, facciones Rojo / Azul / Neutral, vendedores, artesanos y Guardián de Portales.
+- [Matriz de los 39 NPC](docs/npcs-matriz.md): qué funciona hoy, qué falta y el estado de cada uno.
+- [Consumibles y mejoras temporales](docs/consumibles.md): elixires, tónicos, infusiones y reglas de acumulación.
 - [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.
 - [Grupos](docs/grupos.md): party de hasta 5.
 - [Hermandades](docs/hermandades.md): rangos, permisos, banco de 4 pestañas y registro.

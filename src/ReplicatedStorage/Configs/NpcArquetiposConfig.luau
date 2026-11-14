@@ -1,5 +1,5 @@
 --!strict
--- NpcArquetiposConfig: base de datos de los 38 arquetipos de NPC, en 8
+-- NpcArquetiposConfig: base de datos de los 39 arquetipos de NPC, en 8
 -- categorías. La usa NpcManager (servidor) para decidir qué ofrece cada NPC y
 -- NpcUI (cliente) para mostrarlo.
 --
@@ -85,61 +85,66 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Numero = 1,
 		Nombre = "Boticario",
 		Categoria = "Alquimia",
-		Descripcion = "Herborista dedicado: pociones de salud y antídotos.",
+		Descripcion = "Herborista dedicado: pociones de salud, regeneración, vitalidad y antídotos.",
 		Interfaces = { "IVendor", "ICrafter" },
 		Facciones = TODAS,
 		Estado = "Listo",
 		Color = VERDE,
-		Vende = { { ItemId = "PocionVida", Precio = 15 }, { ItemId = "HierbaSanadora", Precio = 6 } },
+		Vende = {
+			{ ItemId = "PocionVida", Precio = 15 },
+			{ ItemId = "PocionRegeneracion", Precio = 26 },
+			{ ItemId = "Antidoto", Precio = 26 },
+			{ ItemId = "PocionVitalidad", Precio = 34 },
+			{ ItemId = "HierbaSanadora", Precio = 6 },
+		},
 		Estacion = "MesaAlquimia",
 		Parametros = {
 			Recurso = "Vida",
-			Futuro = { "Poción de vitalidad", "Regeneración lenta", "Curación instantánea", "Antídoto" },
-			RecetasAltas = "Exigen plantas y flores silvestres (Herboristería)",
+			Recetas = "Alquimia, niveles 1 a 4 (ProfesionesConfig)",
+			Efectos = "ConsumiblesConfig: instantáneos, comparten la recarga de las pociones",
 		},
 	},
 	BoticarioEspiritual = {
 		Numero = 2,
 		Nombre = "Boticario Espiritual",
 		Categoria = "Alquimia",
-		Descripcion = "Místico: maná, stamina, enfoque y reducción de recargas.",
+		Descripcion = "Místico: maná, energía, enfoque y reducción de recargas.",
 		Interfaces = { "IVendor", "ICrafter" },
 		Facciones = TODAS,
 		Estado = "Listo",
 		Color = CELESTE,
-		Vende = { { ItemId = "PocionMana", Precio = 15 }, { ItemId = "FlorLunar", Precio = 9 } },
+		Vende = {
+			{ ItemId = "PocionMana", Precio = 15 },
+			{ ItemId = "TonicoEnergia", Precio = 30 },
+			{ ItemId = "TonicoEnfoque", Precio = 40 },
+			{ ItemId = "FlorLunar", Precio = 9 },
+		},
 		Estacion = "MesaAlquimia",
 		Parametros = {
-			Recursos = { "Mana", "Stamina", "Energia", "Conciencia", "Concentracion", "Enfoque" },
-			Futuro = { "Poción de stamina", "Poción de reducción de recarga (-10% por 60 s)" },
+			Recursos = "Maná o Stamina, según la clase",
+			Acumulacion = "Un tónico activo a la vez; se suma a elixires e infusiones",
 		},
 	},
 	AlquimistaExperimental = {
 		Numero = 3,
 		Nombre = "Alquimista Experimental",
 		Categoria = "Alquimia",
-		Descripcion = "Elixires temporales de atributos y de riesgo/recompensa.",
+		Descripcion = "Elixires temporales de atributos y pociones de riesgo y recompensa.",
 		Interfaces = { "IVendor", "ICrafter" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = Color3.fromRGB(120, 60, 150),
+		Vende = {
+			{ ItemId = "ElixirFuerza", Precio = 60 },
+			{ ItemId = "ElixirAgilidad", Precio = 60 },
+			{ ItemId = "ElixirResistencia", Precio = 60 },
+			{ ItemId = "PocionExperimental", Precio = 50 },
+			{ ItemId = "MezclaInestable", Precio = 75 },
+		},
 		Estacion = "MesaAlquimia",
 		Parametros = {
-			Elixires = {
-				{ Nombre = "Elixir de Fuerza", Efecto = "+15% Ataque", Duracion = 600 },
-				{ Nombre = "Elixir de Agilidad", Efecto = "+5% Crítico y Esquiva", Duracion = 600 },
-				{ Nombre = "Elixir de Resistencia Elemental", Efecto = "-15% daño mágico", Duracion = 600 },
-			},
-			Riesgo = {
-				{ Nombre = "Mezcla Inestable", Efecto = "+30% Ataque", Secundario = "-20% Defensa", Duracion = 300 },
-				{
-					Nombre = "Suero de Berserker",
-					Efecto = "+20% velocidad de ataque",
-					Secundario = "pierde 1% de vida por segundo",
-					Duracion = 120,
-				},
-			},
-			Requiere = "Efecto de buff por consumible (hoy los consumibles solo recuperan vida o maná)",
+			Acumulacion = "Un elixir activo a la vez; tomar otro lo reemplaza",
+			Riesgo = "Poción Experimental: 65% bueno, 35% malo (se sortea en el servidor; figura en el ítem)",
 		},
 	},
 	BorradorRecuerdos = {
@@ -186,7 +191,28 @@ local Arquetipos: { [string]: Arquetipo } = {
 				},
 			},
 			Materiales = { "TelaLino", "FlorLunar" },
-			Requiere = "Consumibles con efecto propio",
+			Requiere = "Pergaminos: usar el viaje del Guardián desde un ítem, buff a todo el grupo e ítems sin identificar",
+		},
+	},
+	BaristaTes = {
+		Numero = 6,
+		Nombre = "Barista de Tés",
+		Categoria = "Alquimia",
+		Descripcion = "Maestro infusor: tés de larga duración para maná, defensa y recargas.",
+		Interfaces = { "IVendor", "ICrafter" },
+		Facciones = TODAS,
+		Estado = "Listo",
+		Color = Color3.fromRGB(150, 110, 70),
+		Vende = {
+			{ ItemId = "TeManantial", Precio = 22 },
+			{ ItemId = "TeRaices", Precio = 22 },
+			{ ItemId = "TeJazminLunar", Precio = 30 },
+			{ ItemId = "AguaManantial", Precio = 4 },
+		},
+		Estacion = "MesaAlquimia",
+		Parametros = {
+			Acumulacion = "Una infusión activa a la vez; dura 15 minutos y se suma a elixires y tónicos",
+			Futuro = { "Recetas raras por bioma", "Resistencia a estados negativos (hoy: +defensa)" },
 		},
 	},
 
@@ -194,7 +220,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 2. Herrería, equipo y forja
 	--------------------------------------------------------------------
 	HerreroGeneral = {
-		Numero = 6,
+		Numero = 7,
 		Nombre = "Herrero General",
 		Categoria = "Herreria",
 		Descripcion = "Equipo básico de hierro y piezas iniciales con lingotes.",
@@ -211,7 +237,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { NivelMaximoEquipo = 10, Futuro = { "Línea de acero" } },
 	},
 	AfiladorArmas = {
-		Numero = 7,
+		Numero = 8,
 		Nombre = "Afilador de Armas",
 		Categoria = "Herreria",
 		Descripcion = "Maestro de filo: mejora temporal del arma.",
@@ -229,12 +255,12 @@ local Arquetipos: { [string]: Arquetipo } = {
 			},
 		},
 		Parametros = {
-			Buff = { Stat = "Ataque", Porcentaje = 10, Duracion = 600 },
+			Buff = "ConsumiblesConfig.Definiciones.ServicioAfilar (categoría Filo)",
 			Futuro = { "Precisión", "Penetración de armadura", "Pago con piedras de afilar" },
 		},
 	},
 	ReparadorArmaduras = {
-		Numero = 8,
+		Numero = 9,
 		Nombre = "Reparador de Armaduras",
 		Categoria = "Herreria",
 		Descripcion = "Remendador: restaura la durabilidad del equipo.",
@@ -253,7 +279,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	MaestroEncantador = {
-		Numero = 9,
+		Numero = 10,
 		Nombre = "Maestro Encantador",
 		Categoria = "Herreria",
 		Descripcion = "Aumentos, gemas, encantamientos y runas con brillo.",
@@ -283,7 +309,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	Desencantador = {
-		Numero = 10,
+		Numero = 11,
 		Nombre = "Desencantador",
 		Categoria = "Herreria",
 		Descripcion = "Desmantelador: destruye ítems mágicos para sacar esencias.",
@@ -311,7 +337,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	ReforjadorAtributos = {
-		Numero = 11,
+		Numero = 12,
 		Nombre = "Reforjador de Atributos",
 		Categoria = "Herreria",
 		Descripcion = "Cambia las estadísticas secundarias de un arma o armadura.",
@@ -326,7 +352,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { CostoPorRareza = { Raro = 500, Epico = 1500, Mistico = 4000, Unico = 10000 } },
 	},
 	Fundidor = {
-		Numero = 12,
+		Numero = 13,
 		Nombre = "Fundidor",
 		Categoria = "Herreria",
 		Descripcion = "Metalúrgico: minerales en lingotes y transmutación.",
@@ -346,7 +372,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 3. Economía, comercio y almacenamiento
 	--------------------------------------------------------------------
 	Banquero = {
-		Numero = 13,
+		Numero = 14,
 		Nombre = "Banquero",
 		Categoria = "Economia",
 		Descripcion = "Guardián de la bóveda: almacén personal y compartido de la cuenta.",
@@ -367,7 +393,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Pestanas = 8, RanurasPorPestana = 30, Config = "VaultConfig" },
 	},
 	BanqueroClan = {
-		Numero = 14,
+		Numero = 15,
 		Nombre = "Banquero de Clan",
 		Categoria = "Economia",
 		Descripcion = "Tesorero: inventario y fondos de la hermandad.",
@@ -387,7 +413,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Pestanas = 4, RanurasPorPestana = 28 },
 	},
 	Subastador = {
-		Numero = 15,
+		Numero = 16,
 		Nombre = "Subastador",
 		Categoria = "Economia",
 		Descripcion = "Corredor de bolsa: Casa de Subastas.",
@@ -412,7 +438,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	ComercianteExcedentes = {
-		Numero = 16,
+		Numero = 17,
 		Nombre = "Comerciante de Excedentes",
 		Categoria = "Economia",
 		Descripcion = "Chatarreo: compra lo que te sobra y vende herramientas básicas.",
@@ -425,7 +451,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Futuro = { "Hacha", "Caña de pescar" } },
 	},
 	Prestamista = {
-		Numero = 17,
+		Numero = 18,
 		Nombre = "Prestamista",
 		Categoria = "Economia",
 		Descripcion = "Cambista: convierte monedas y divisas de eventos.",
@@ -443,7 +469,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	MercadoNegro = {
-		Numero = 18,
+		Numero = 19,
 		Nombre = "Vendedor del Mercado Negro",
 		Categoria = "Economia",
 		Descripcion = "Rarezas, recetas especiales y contenedores por oro, para cualquiera.",
@@ -472,7 +498,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 4. Viajes, cartografía y logística
 	--------------------------------------------------------------------
 	GuardianPortales = {
-		Numero = 19,
+		Numero = 20,
 		Nombre = "Guardián de Portales",
 		Categoria = "Viajes",
 		Descripcion = "Teletransporta entre mapas respetando los territorios.",
@@ -486,7 +512,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	MaestroEstablo = {
-		Numero = 20,
+		Numero = 21,
 		Nombre = "Maestro de Establo",
 		Categoria = "Viajes",
 		Descripcion = "Criador: monturas básicas, alquiler y entrenamiento.",
@@ -507,7 +533,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Requiere = "Monturas compradas con oro y entrenamiento" },
 	},
 	Navegante = {
-		Numero = 21,
+		Numero = 22,
 		Nombre = "Navegante",
 		Categoria = "Viajes",
 		Descripcion = "Transportista: barcos, dirigibles o carros entre puertos.",
@@ -521,7 +547,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	Cartografo = {
-		Numero = 22,
+		Numero = 23,
 		Nombre = "Cartógrafo",
 		Categoria = "Viajes",
 		Descripcion = "Explorador: mapas de zonas ocultas y puntos de interés.",
@@ -543,7 +569,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	GuardianPiedraTeleport = {
-		Numero = 23,
+		Numero = 24,
 		Nombre = "Guardián de Piedra Teleport",
 		Categoria = "Viajes",
 		Descripcion = "Portalero: activa puntos de viaje rápido.",
@@ -566,7 +592,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 5. Misiones, facciones y progresión
 	--------------------------------------------------------------------
 	Tabernero = {
-		Numero = 24,
+		Numero = 25,
 		Nombre = "Tabernero",
 		Categoria = "Misiones",
 		Descripcion = "Informante: misiones secundarias, rumores y descanso.",
@@ -581,7 +607,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { RestedXP = { Bonus = 1.5, MaximoHoras = 8 }, Requiere = "Experiencia de descanso" },
 	},
 	TablonAnuncios = {
-		Numero = 25,
+		Numero = 26,
 		Nombre = "Tablón de Anuncios",
 		Categoria = "Misiones",
 		Descripcion = "Cazador de recompensas: misiones diarias y contratos de caza.",
@@ -596,7 +622,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	EmisarioFaccion = {
-		Numero = 26,
+		Numero = 27,
 		Nombre = "Emisario de Facción",
 		Categoria = "Misiones",
 		Descripcion = "Intendente: recompensas exclusivas por reputación.",
@@ -611,7 +637,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	EntrenadorClase = {
-		Numero = 27,
+		Numero = 28,
 		Nombre = "Entrenador de Clase",
 		Categoria = "Misiones",
 		Descripcion = "Maestro de habilidades: enseña técnicas y vende libros.",
@@ -627,7 +653,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 6. Cosméticos, personalización y estilo
 	--------------------------------------------------------------------
 	Barbero = {
-		Numero = 28,
+		Numero = 29,
 		Nombre = "Barbero",
 		Categoria = "Cosmeticos",
 		Descripcion = "Estilista: peinado, marcas, color de piel y tatuajes.",
@@ -640,7 +666,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Requiere = "Catálogo de peinados y tatuajes (Stencils)" },
 	},
 	Transfigurador = {
-		Numero = 29,
+		Numero = 30,
 		Nombre = "Transfigurador",
 		Categoria = "Cosmeticos",
 		Descripcion = "Maestro del disfraz: cambia el aspecto del equipo sin tocar sus stats.",
@@ -655,7 +681,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = {},
 	},
 	Tintorero = {
-		Numero = 30,
+		Numero = 31,
 		Nombre = "Tintorero",
 		Categoria = "Cosmeticos",
 		Descripcion = "Maestro de colores: tintes para armaduras y telas.",
@@ -671,7 +697,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	VendedorMascotas = {
-		Numero = 31,
+		Numero = 32,
 		Nombre = "Vendedor de Mascotas",
 		Categoria = "Cosmeticos",
 		Descripcion = "Mascotas que acompañan y juntan botín.",
@@ -687,7 +713,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 7. Vida social, casas y minijuegos
 	--------------------------------------------------------------------
 	Arquitecto = {
-		Numero = 32,
+		Numero = 33,
 		Nombre = "Arquitecto",
 		Categoria = "Social",
 		Descripcion = "Planos de casas, terrenos y decoración.",
@@ -698,7 +724,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Vende = { "Planos", "Muebles", "Trofeos de jefes" }, Requiere = "Parcelas" },
 	},
 	Chef = {
-		Numero = 33,
+		Numero = 34,
 		Nombre = "Chef",
 		Categoria = "Social",
 		Descripcion = "Maestro culinario: ingredientes, recetas y comida con buffs largos.",
@@ -712,7 +738,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	MaestroPesca = {
-		Numero = 34,
+		Numero = 35,
 		Nombre = "Maestro de Pesca",
 		Categoria = "Social",
 		Descripcion = "Biólogo marino: cañas, cebos por bioma y peces raros.",
@@ -723,7 +749,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Cebos = { "Río", "Lago", "Mar" }, CompraPecesRaros = true, Requiere = "Pesca" },
 	},
 	Crupier = {
-		Numero = 35,
+		Numero = 36,
 		Nombre = "Crupier",
 		Categoria = "Social",
 		Descripcion = "Maestro de juegos: dados, cartas y carreras en tabernas.",
@@ -744,7 +770,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 	-- 8. PvP y guerra
 	--------------------------------------------------------------------
 	IntendenteGuerra = {
-		Numero = 36,
+		Numero = 37,
 		Nombre = "Intendente de Guerra",
 		Categoria = "PvP",
 		Descripcion = "Equipo y consumibles PvP por puntos de honor.",
@@ -763,7 +789,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		},
 	},
 	ReclutadorArenas = {
-		Numero = 37,
+		Numero = 38,
 		Nombre = "Reclutador de Arenas",
 		Categoria = "PvP",
 		Descripcion = "Inscribe jugadores o grupos en partidas clasificatorias.",
@@ -775,7 +801,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Parametros = { Modos = { "1v1", "2v2", "3v3" }, Requiere = "Arenas con emparejamiento" },
 	},
 	EstrategaAsedio = {
-		Numero = 38,
+		Numero = 39,
 		Nombre = "Estratega de Asedio",
 		Categoria = "PvP",
 		Descripcion = "Maquinaria pesada para guerras de clanes y castillos.",
@@ -844,5 +870,7 @@ return {
 		{ Arquetipo = "Subastador", Faccion = "Rojo", Posicion = Vector3.new(-25, 0, 32) },
 		{ Arquetipo = "IntendenteGuerra", Faccion = "Azul", Posicion = Vector3.new(-35, 0, 32) },
 		{ Arquetipo = "Banquero", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 32) },
+		{ Arquetipo = "AlquimistaExperimental", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 42) },
+		{ Arquetipo = "BaristaTes", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 42) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

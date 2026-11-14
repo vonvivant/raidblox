@@ -81,6 +81,9 @@ Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas
 [bóveda global](vault.md), la elección de bando y el ajuste "Ignorar Guerra" en el panel Personaje, y las tarjetas
 de misión que se expanden y se minimizan ([misiones](misiones.md)).
 
+**En curso: los 39 NPC.** Avance y orden de trabajo en la [matriz](npcs-matriz.md). Hecho hasta ahora: la
+infraestructura y el Grupo A casi completo ([consumibles](consumibles.md)).
+
 Pedidos en cola, en este orden:
 
 1. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.

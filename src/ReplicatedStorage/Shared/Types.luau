@@ -163,6 +163,9 @@ export type DatosJugador = {
 	CooldownsLargos: { [string]: number }?,
 	CodigosCanjeados: { [string]: number }?, -- código -> os.time()
 	Vault: Vault?, -- bóveda global (se crea al usarla por primera vez)
+	-- Mejoras temporales de consumibles y NPCs: categoría -> definición de
+	-- ConsumiblesConfig, vencimiento (os.time()) y si salió el efecto malo.
+	Buffs: { [string]: { Id: string, Hasta: number, Malo: boolean? } }?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía

@@ -221,3 +221,25 @@ activá la voz en **Configuración del juego → Comunicación**. Detalle en
   Posición, tamaño y minimizado se guardan en los ajustes. Usa TextChatService
   (mensajes ya filtrados por Roblox, envío por el canal general); el chat de
   Roblox queda apagado y los globos sobre la cabeza siguen. `/` abre el chat.
+
+## Pruebas automáticas de datos (fuera de Roblox)
+
+```bash
+python3 tests/run.py
+```
+
+Necesita el intérprete [`luau`](https://github.com/luau-lang/luau/releases) en el PATH. Carga los módulos de
+`ReplicatedStorage/Configs` con un entorno mínimo y revisa que los catálogos cierren entre sí: que lo que venden
+los NPC exista y no se pueda revender con ganancia, que las recetas usen ítems reales, que los consumibles tengan
+efecto, que haya 39 arquetipos, etc. (`tests/datos.spec.luau`).
+
+No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz solo se pueden probar ahí.
+
+## Probar los NPC y los consumibles
+
+1. En Studio, caminá al oeste del punto de inicio: hay 14 NPC de prueba.
+2. **Alquimista Experimental** o **Barista de Tés**: comprá un elixir o un té y usalo desde la mochila. Tiene que
+   aparecer el efecto en tu marco de vida. Tomá otro de la misma categoría: tiene que reemplazarlo.
+3. Morí o reconectate con un elixir activo: tiene que seguir, con el tiempo que le quedaba.
+4. **Banquero**: abrí la bóveda, guardá y sacá ítems, alejate y probá operar (tiene que rechazarlo).
+5. **Guardián de Portales** de cada color con un personaje de cada bando: el contrario te tiene que rechazar.

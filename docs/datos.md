@@ -72,6 +72,7 @@ classDiagram
         string[]? Barras
         map? CooldownsLargos
         Vault? Vault
+        map? Buffs
     }
 
     DatosJugador *-- Inventario
