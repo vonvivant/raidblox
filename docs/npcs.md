@@ -32,6 +32,7 @@ Un arquetipo declara qué ofrece y `NpcManager` conecta cada parte:
 | `Estacion` | ICrafter | Abre las recetas de esa estación; el NPC cuenta como estación | `NpcFabricar(npcId)` |
 | `Servicios` | IServiceProvider | Acciones al instante, con costo en oro | `NpcServicio(npcId, servicioId)` |
 | `Viajes` | IServiceProvider | Guardián de Portales | `NpcViajar(npcId, zonaId)` |
+| `SobreItem` | IServiceProvider | Operación sobre un ítem de la mochila: desencantar, reforjar, engarzar ([forja](forja.md)) | `NpcSobreItem(npcId, operacion, ranura, extra?)` |
 
 Los `IQuestGiver` (Tabernero, Tablón) están definidos como datos; las misiones siguen saliendo de `MisionManager`.
 
@@ -43,6 +44,10 @@ NpcManager.RegistrarAccion("Vault", function(player, npc, servicio): boolean
 	return true -- recién ahí se cobra `servicio.Costo`
 end)
 ```
+
+Un servicio con `Cotiza = true` tiene costo variable (por ejemplo, reparar): la acción valida y cobra por su
+cuenta, y `NpcManager.RegistrarCotizacion` informa el costo al abrir la ventana. Las operaciones sobre un ítem se
+registran con `NpcManager.RegistrarAccionItem`.
 
 Las acciones no deben ceder el hilo (sin `task.wait` ni llamadas a DataStore): entre la verificación del oro y el
 cobro no puede cambiar el saldo.
@@ -65,10 +70,12 @@ Se agregaron dos zonas para que la regla tenga sentido: `CapitalRoja` (Bastión 
 
 ## Estados
 
-- **Listo** (15): funciona hablando con el NPC.
-- **Parcial** (9): el sistema ya existe pero se usa desde otro lado; el NPC lo indica.
-- **Pendiente** (15): falta el sistema. El NPC se puede colocar y dice qué falta; `Parametros` deja
-  definidos precios, duraciones y reglas para cuando se programe.
+- **Listo**: funciona hablando con el NPC.
+- **Parcial**: el sistema ya existe pero se usa desde otro lado; el NPC lo indica.
+- **Pendiente**: falta el sistema. El NPC se puede colocar y dice qué falta; `Parametros` deja definidos
+  precios, duraciones y reglas para cuando se programe.
+
+Cuántos hay de cada uno figura en la [matriz](npcs-matriz.md), que se genera desde la configuración.
 
 En `Vende` solo hay ítems que existen hoy en el `ItemCatalog`, con precio de venta por encima de lo que paga un NPC
 al comprarlos (así no se puede ganar oro comprando y revendiendo).
@@ -88,10 +95,8 @@ La lista completa, con qué funciona hoy, qué falta y el estado de cada uno, es
 de la [matriz](npcs-matriz.md)), del color de su facción. También se pueden crear por código:
 `NpcManager.Crear("Boticario", "Rojo", posicion)`.
 
-En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen 14 de prueba (`NpcArquetiposConfig.DePrueba`)
-al oeste del punto de inicio: tres Guardianes de Portales (uno por facción), Herrero, Boticarios, Comerciante,
-Afilador, Mercado Negro, Subastador, Intendente de Guerra, Banquero (abre la [bóveda](vault.md)), Alquimista
-Experimental y Barista de Tés.
+En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen los de prueba (`NpcArquetiposConfig.DePrueba`)
+al oeste del punto de inicio: los que ya funcionan, incluidos tres Guardianes de Portales (uno por facción).
 
 ## Seguridad
 

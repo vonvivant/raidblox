@@ -75,7 +75,8 @@ en cono, `EfectosPropios` y habilidades `Especial` registradas con
 
 ## Lo que quedó con un efecto parecido
 
-El juego todavía no tiene **durabilidad del equipo** ni **banco personal**, así
+Cuando se hizo la clase, el juego no tenía **durabilidad del equipo** ni **banco personal** (hoy existen: ver
+[forja](forja.md) y [bóveda](vault.md); conectar estas habilidades a esos sistemas queda pendiente), así
 que estas tres hacen algo parecido hasta que existan (campo `Pendiente`):
 
 - **Kit de Remiendos**: +20% de defensa por 15 s (después: restaurar durabilidad).

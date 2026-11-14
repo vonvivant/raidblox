@@ -5,6 +5,7 @@
 
 local ItemCatalog = require(script.Parent.Parent.Configs.ItemCatalog)
 local ItemRarityConfig = require(script.Parent.Parent.Configs.ItemRarityConfig)
+local ForjaConfig = require(script.Parent.Parent.Configs.ForjaConfig)
 
 local ItemInfo = {}
 
@@ -84,6 +85,27 @@ function ItemInfo.Detalle(item: any): string
 		if meta.Aura == true then
 			table.insert(lineas, "Aura dorada")
 		end
+	end
+	local ranuras = ForjaConfig.RanurasGema(item)
+	if ranuras > 0 then
+		local gemas = ForjaConfig.GemasDe(item)
+		for _, gemaId in gemas do
+			local gemaDef = ItemCatalog[gemaId]
+			local gema = ForjaConfig.Engarzar.Gemas[gemaId]
+			table.insert(lineas, `◆ {if gemaDef then gemaDef.Nombre else gemaId}: {gema.Texto}`)
+		end
+		if #gemas < ranuras then
+			table.insert(lineas, `◇ {ranuras - #gemas} ranura(s) de gema libre(s)`)
+		end
+	end
+	if ForjaConfig.TieneDurabilidad(item) then
+		local dur = ForjaConfig.DurabilidadDe(item)
+		table.insert(
+			lineas,
+			if dur <= 0
+				then "ROTO: no da estadísticas hasta repararlo"
+				else `Durabilidad: {dur}/{ForjaConfig.Durabilidad.Maxima}`
+		)
 	end
 	if def.Descripcion then
 		table.insert(lineas, def.Descripcion)

@@ -32,6 +32,7 @@ src/
 │   │   ├── ChatarreroConfig.luau     Las 30 habilidades del Chatarrero, Spoil y construcciones
 │   │   ├── NpcArquetiposConfig.luau  Los 39 arquetipos de NPC y sus facciones
 │   │   ├── ConsumiblesConfig.luau    Consumibles con efecto y mejoras temporales
+│   │   ├── ForjaConfig.luau          Durabilidad, reparación, desencantar, reforjar y gemas (reglas puras)
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
@@ -95,6 +96,7 @@ src/
 │       │   ├── InventarioManager.luau   Acciones de inventario y pociones
 │       │   ├── CraftingManager.luau     Estaciones y recetas
 │       │   ├── VaultManager.luau        Bóveda global: depósito, retiro, pestañas y puntos de acceso
+│       │   ├── ForjaManager.luau        Desgaste del equipo y servicios de herrería de los NPC
 │       │   ├── RecoleccionManager.luau  Nodos y minijuego
 │       │   ├── AuctionManager.luau      Casa de Subastas
 │       │   └── TradeManager.luau        Comercio 1v1
@@ -230,7 +232,7 @@ avisarle a uno de arriba, usa una señal (`Signal`) o un gancho (`CraftingManage
 6. **Economía:** inventario, crafteo, recolección, subastas y comercio.
 7. **Social, mazmorras, monetización y clases:** `GrupoManager`, `HermandadManager`, `VozManager`,
    `MazmorraManager`, `PasesManager`, `MonturaManager`, `ProductosManager`, `PaseBatallaManager`, `MascotaManager`,
-   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager` y `MisionManager`.
+   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager`, `ForjaManager` y `MisionManager`.
 8. **Modo de juego del place:** `ArchitectWarManager.Init()` si corresponde.
 9. **Herramientas de prueba:** `DebugStudio` (solo Studio), `NpcsPrueba` y `EditorPiedra`.
 
@@ -271,7 +273,7 @@ devuelven siempre `{ Success, ErrorCode, Data }`.
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaAbrir` | Event | S → C |
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaComprar` | Function | C → S |
 | NPCs por arquetipo | `NpcAbrir` | Event | S → C |
-| NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcFabricar`, `NpcViajar` | Function | C → S |
+| NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcSobreItem`, `NpcFabricar`, `NpcViajar` | Function | C → S |
 | Bóveda global | `VaultAbrir` | Event | S → C |
 | Bóveda global | `VaultDepositar`, `VaultRetirar`, `VaultMover`, `VaultExpandir`, `VaultPersonalizar` | Function | C → S |
 | Fase 4: Casa de Subastas | `SubastaAbrir` | Event | S → C |

@@ -12,6 +12,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local ClassConfig = require(ReplicatedStorage.Configs.ClassConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
+local ForjaConfig = require(ReplicatedStorage.Configs.ForjaConfig)
 
 export type Stats = {
 	VidaMax: number,
@@ -34,10 +35,28 @@ local function porNivel(base: number, incremento: number, nivel: number): number
 	return base + incremento * (nivel - 1)
 end
 
--- Suma lo que aporta un ítem equipado.
+-- Suma un efecto secundario (de los metadatos del ítem o de una gema).
+local function sumarEfecto(stats: Stats, efecto: string, v: number)
+	if efecto == "Critico" then
+		stats.Critico += v / 100
+	elseif efecto == "RoboVida" then
+		stats.RoboVida += v / 100
+	elseif efecto == "RegenMana" then
+		stats.RegenMana += v
+	elseif efecto == "Defensa" then
+		stats.Defensa += v
+	elseif efecto == "Ataque" then
+		stats.Ataque += v
+	elseif efecto == "Poder" then
+		stats.Poder += v
+	end
+end
+
+-- Suma lo que aporta un ítem equipado. Un equipo roto (durabilidad 0) no
+-- aporta nada hasta que se repara.
 local function aplicarItem(stats: Stats, item: Types.ItemInstancia)
 	local def = ItemCatalog[item.ItemId]
-	if not def then
+	if not def or ForjaConfig.Roto(item) then
 		return
 	end
 	local rareza = ItemRarityConfig.Rarezas[item.Rareza]
@@ -60,26 +79,17 @@ local function aplicarItem(stats: Stats, item: Types.ItemInstancia)
 			if typeof(valor) ~= "number" or string.sub(clave, 1, 7) ~= "Efecto_" then
 				continue
 			end
-			local efecto = string.sub(clave, 8)
-			local v = valor :: number
-			if efecto == "Critico" then
-				stats.Critico += v / 100
-			elseif efecto == "RoboVida" then
-				stats.RoboVida += v / 100
-			elseif efecto == "RegenMana" then
-				stats.RegenMana += v
-			elseif efecto == "Defensa" then
-				stats.Defensa += v
-			elseif efecto == "Ataque" then
-				stats.Ataque += v
-			elseif efecto == "Poder" then
-				stats.Poder += v
-			end
+			sumarEfecto(stats, string.sub(clave, 8), valor :: number)
 		end
 		local pasiva = meta.Pasiva
 		if typeof(pasiva) == "string" and ItemRarityConfig.Pasivas[pasiva] then
 			stats.Pasivas[pasiva] = true
 		end
+	end
+
+	for _, gemaId in ForjaConfig.GemasDe(item) do
+		local gema = ForjaConfig.Engarzar.Gemas[gemaId]
+		sumarEfecto(stats, gema.Efecto, gema.Valor)
 	end
 end
 

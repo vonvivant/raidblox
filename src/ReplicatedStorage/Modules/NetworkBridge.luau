@@ -130,6 +130,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	NpcVender = { Tipo = "Function", Critico = false }, -- (npcId, ranura, cantidad)
 	NpcServicio = { Tipo = "Function", Critico = false }, -- (npcId, servicioId)
 	NpcFabricar = { Tipo = "Function", Critico = false }, -- (npcId): abre las recetas de su estación
+	NpcSobreItem = { Tipo = "Function", Critico = false }, -- (npcId, operacion, ranura, extra?): desencantar, reforjar, engarzar
 	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
 
 	-- Bóveda global (VaultManager)

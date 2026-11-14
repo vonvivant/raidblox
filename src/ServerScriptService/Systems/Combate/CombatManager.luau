@@ -1556,6 +1556,12 @@ end
 -- API de consulta (para IA, jefes y UI)
 ------------------------------------------------------------------------
 
+-- ¿El jugador peleó hace poco? (misma espera que para cambiar de bando)
+function CombatManager.EnCombate(player: Player): boolean
+	local c = porJugador[player]
+	return c ~= nil and ahora() - c.UltimoCombate < GameConfig.Bandos.EsperaFueraDeCombate
+end
+
 function CombatManager.Obtener(modelo: Model): Combatiente?
 	return combatientes[modelo]
 end

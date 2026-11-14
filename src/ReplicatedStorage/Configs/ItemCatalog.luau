@@ -151,6 +151,11 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		Descripcion = "Infusión: -6% a las recargas de habilidades durante 15 min.",
 	},
 	AguaManantial = { Nombre = "Agua de Manantial", Tipo = "Material", Apilable = true, PrecioVenta = 1 },
+	-- Esencias (Desencantador): se usan para reforjar y engarzar
+	PolvoEncantamiento = { Nombre = "Polvo de Encantamiento", Tipo = "Material", Apilable = true, PrecioVenta = 8 },
+	EsenciaMagica = { Nombre = "Esencia Mágica", Tipo = "Material", Apilable = true, PrecioVenta = 25 },
+	EsenciaMayor = { Nombre = "Esencia Mayor", Tipo = "Material", Apilable = true, PrecioVenta = 80 },
+	FragmentoReliquia = { Nombre = "Fragmento de Reliquia", Tipo = "Material", Apilable = true, PrecioVenta = 250 },
 	-- Recolección
 	MineralHierro = { Nombre = "Mineral de Hierro", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
 	MineralPlata = { Nombre = "Mineral de Plata", Tipo = "Material", Apilable = true, PrecioVenta = 6 },

@@ -90,7 +90,8 @@ def luau():
     sys.exit("No encontré el intérprete `luau` (https://github.com/luau-lang/luau/releases).")
 
 
-def main():
+def base():
+    """Preludio + módulos de configuración + la función cargar()."""
     partes = [PRELUDIO]
     for carpeta in CARPETAS:
         base = os.path.join(SRC, carpeta)
@@ -102,6 +103,20 @@ def main():
                 fuente = f.read()
             partes.append(ENVOLTORIO_INICIO.format(ruta=ruta) + fuente + "\nend\n")
     partes.append("local function cargar(ruta) return requerir(nodo(ruta)) end\n")
+    return partes
+
+
+def ejecutar(partes, capturar=False):
+    with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as tmp:
+        tmp.write("".join(partes))
+    try:
+        return subprocess.run([luau(), tmp.name], capture_output=capturar, text=True)
+    finally:
+        os.unlink(tmp.name)
+
+
+def main():
+    partes = base()
     partes.append(
         "local PRUEBAS, FALLAS = 0, {}\n"
         "local function prueba(nombre, fn)\n"
@@ -123,12 +138,7 @@ def main():
         "print(string.format('%d pruebas, %d fallas', PRUEBAS, #FALLAS))\n"
         "if #FALLAS > 0 then error('hay pruebas que fallan') end\n"
     )
-    with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as tmp:
-        tmp.write("".join(partes))
-    try:
-        resultado = subprocess.run([luau(), tmp.name])
-    finally:
-        os.unlink(tmp.name)
+    resultado = ejecutar(partes)
     sys.exit(resultado.returncode)
 
 

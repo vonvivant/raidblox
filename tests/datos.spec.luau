@@ -106,7 +106,7 @@ end)
 prueba("NPCs: un arquetipo Listo ofrece al menos un servicio que funciona", function()
 	for id, a in Npcs.Arquetipos do
 		if a.Estado == "Listo" then
-			local sirve = a.Viajes or a.Estacion ~= nil or (a.Vende and #a.Vende > 0) or a.Compra ~= nil
+			local sirve = a.Viajes or a.Estacion ~= nil or (a.Vende and #a.Vende > 0) or a.Compra ~= nil or (a.SobreItem and #a.SobreItem > 0)
 			for _, s in a.Servicios or {} do
 				sirve = sirve or s.Accion ~= nil
 			end
@@ -146,4 +146,77 @@ prueba("bóveda: un precio por cada pestaña que se puede comprar, siempre creci
 		exigir(Vault.CostoPestana[i] > Vault.CostoPestana[i - 1], "los precios no crecen")
 	end
 	exigir(Vault.RanurasPorPestana % Vault.Columnas == 0, "las ranuras no llenan la grilla")
+end)
+
+-- Forja: reglas puras de durabilidad, desencantar, reforjar y engarzar.
+local Forja = cargar("ReplicatedStorage/Configs/ForjaConfig")
+local Rarezas = cargar("ReplicatedStorage/Configs/ItemRarityConfig")
+
+local function equipo(rareza, meta)
+	return { Uid = "x", ItemId = "EspadaHierro", Cantidad = 1, Rareza = rareza, Meta = meta }
+end
+
+prueba("forja: durabilidad entera por defecto, rota en 0 y costo proporcional", function()
+	exigir(Forja.DurabilidadDe(equipo("Comun")) == Forja.Durabilidad.Maxima, "sin dato debería estar entera")
+	exigir(Forja.CostoReparar(equipo("Comun")) == 0, "reparar algo entero no cuesta")
+	exigir(Forja.Roto(equipo("Raro", { Dur = 0 })), "durabilidad 0 es roto")
+	exigir(not Forja.Roto(equipo("Raro", { Dur = 1 })), "durabilidad 1 no es roto")
+	exigir(Forja.DurabilidadDe(equipo("Raro", { Dur = -5 })) == 0, "no baja de 0")
+	exigir(Forja.DurabilidadDe(equipo("Raro", { Dur = 999 })) == Forja.Durabilidad.Maxima, "no pasa del máximo")
+	local mitad = Forja.CostoReparar(equipo("Epico", { Dur = 50 }))
+	local todo = Forja.CostoReparar(equipo("Epico", { Dur = 0 }))
+	exigir(mitad == 100 and todo == 200, "costo épico: " .. mitad .. " / " .. todo)
+	exigir(Forja.CostoReparar({ Uid = "x", ItemId = "PocionVida", Cantidad = 1, Rareza = "Comun" }) == 0, "una poción no se repara")
+	exigir(not Forja.TieneDurabilidad({ Uid = "x", ItemId = "PicoHierro", Cantidad = 1, Rareza = "Comun" }), "las herramientas no se desgastan")
+end)
+
+prueba("forja: qué ítems acepta cada operación", function()
+	exigir(not Forja.Aplica("Desencantar", equipo("Comun")), "el equipo Común no se desencanta")
+	exigir(Forja.Aplica("Desencantar", equipo("Raro", { Mult = 1.3 })), "el Raro sí")
+	exigir(not Forja.Aplica("Reforjar", equipo("Comun")), "el Común no se reforja")
+	exigir(not Forja.Aplica("Engarzar", equipo("Comun")), "el Común no tiene ranuras")
+	exigir(Forja.Aplica("Engarzar", equipo("Raro")), "el Raro tiene una ranura")
+	exigir(not Forja.Aplica("Engarzar", equipo("Raro", { Gema1 = "Rubi" })), "ranura ya ocupada")
+	exigir(Forja.Aplica("Engarzar", equipo("Unico", { Gema1 = "Rubi", Gema2 = "Zafiro" })), "el Único tiene tres")
+	exigir(not Forja.Aplica("Engarzar", { Uid = "x", ItemId = "PocionVida", Cantidad = 1, Rareza = "Raro" }), "solo equipo")
+	exigir(not Forja.Aplica("Inventada", equipo("Unico")), "operación desconocida")
+end)
+
+prueba("forja: la reforja se encarece con cada uso y tiene tope", function()
+	local base = Forja.Costo("Reforjar", equipo("Raro"))
+	exigir(base == 500, "costo base " .. base)
+	exigir(Forja.Costo("Reforjar", equipo("Raro", { Reforjas = 2 })) == 750, "con 2 reforjas")
+	local tope = Forja.Costo("Reforjar", equipo("Raro", { Reforjas = 1000 }))
+	exigir(tope == 500 * (1 + Forja.Reforjar.MaximoAumento), "tope " .. tope)
+end)
+
+prueba("forja: catálogos coherentes (gemas, esencias, materiales y rarezas)", function()
+	for gemaId, gema in Forja.Engarzar.Gemas do
+		exigir(ItemCatalog[gemaId] ~= nil, "gema inexistente: " .. gemaId)
+		exigir(Rarezas.Efectos[gema.Efecto] ~= nil, gemaId .. " con efecto desconocido")
+		exigir(gema.Valor > 0, gemaId .. " sin valor")
+	end
+	for rareza, resultado in Forja.Desencantar.Resultado do
+		exigir(Rarezas.Rarezas[rareza] ~= nil, "rareza inexistente: " .. rareza)
+		for itemId, cantidad in resultado do
+			exigir(ItemCatalog[itemId] ~= nil and cantidad >= 1, "esencia inválida: " .. itemId)
+		end
+	end
+	for _, operacion in { "Reforjar", "Engarzar" } do
+		local material, cantidad = Forja.Material(operacion)
+		exigir(material and ItemCatalog[material] ~= nil and cantidad >= 1, operacion .. " sin material válido")
+	end
+	for rareza in Rarezas.Rarezas do
+		exigir(Forja.Durabilidad.CostoPorPunto[rareza] ~= nil, "falta costo de reparación para " .. rareza)
+		exigir(Forja.Engarzar.RanurasPorRareza[rareza] ~= nil, "faltan ranuras para " .. rareza)
+	end
+end)
+
+prueba("NPCs: las operaciones sobre ítems que declaran existen en la forja", function()
+	local validas = { Desencantar = true, Reforjar = true, Engarzar = true }
+	for id, a in Npcs.Arquetipos do
+		for _, operacion in a.SobreItem or {} do
+			exigir(validas[operacion.Id], id .. " declara una operación desconocida: " .. operacion.Id)
+		end
+	end
 end)

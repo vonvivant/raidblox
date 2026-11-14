@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ForjaConfig = require(ReplicatedStorage.Configs.ForjaConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NpcArquetiposConfig = require(ReplicatedStorage.Configs.NpcArquetiposConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
@@ -38,7 +39,19 @@ saldo.TextXAlignment = Enum.TextXAlignment.Right
 saldo.TextColor3 = UIKit.Colores.Oro
 local lista = UIKit.Lista(contenido, UDim2.new(1, 0, 1, -70), UDim2.fromOffset(0, 68))
 
-type Sesion = { NpcId: string, Arquetipo: Arquetipo, Faccion: string, Posicion: Vector3?, Destinos: { any } }
+type Sesion = {
+	NpcId: string,
+	Arquetipo: Arquetipo,
+	Faccion: string,
+	Posicion: Vector3?,
+	Destinos: { any },
+	Costos: { [string]: any }, -- servicioId -> oro (servicios con costo variable)
+}
+
+-- Operaciones sobre un ítem: qué se está por confirmar y para qué ítem se
+-- está eligiendo una gema ("operación:ranura").
+local porConfirmar: string? = nil
+local eligiendoGema: string? = nil
 local sesion: Sesion? = nil
 local ocupado = false -- un pedido a la vez
 
@@ -162,14 +175,17 @@ local function seccionServicios(s: Sesion)
 	local servicios: { NpcArquetiposConfig.Servicio } = s.Arquetipo.Servicios or {}
 	for _, servicio in servicios do
 		local disponible = servicio.Accion ~= nil
-		local costo = if servicio.Costo > 0 then `{servicio.Costo} oro` else "Gratis"
+		local cotizado = s.Costos[servicio.Id]
+		local precio = if servicio.Cotiza and typeof(cotizado) == "number" then cotizado else servicio.Costo
+		local costo = if precio > 0 then `{precio} oro` elseif servicio.Cotiza then "Nada que hacer" else "Gratis"
+		local activo = disponible and oro() >= precio and not (servicio.Cotiza and precio <= 0)
 		local f = fila(servicio.Nombre, servicio.Descripcion)
-		boton(f, if disponible then costo else "Próximamente", 1.5, disponible and oro() >= servicio.Costo, function()
-			if
-				disponible
-				and pedir("NpcServicio", s.NpcId, servicio.Id)
-				and (servicio.Accion == "Subasta" or servicio.Accion == "Vault")
-			then
+		boton(f, if disponible then costo else "Próximamente", 1.5, activo, function()
+			if not activo or not pedir("NpcServicio", s.NpcId, servicio.Id) then
+				return
+			end
+			-- Estos abren otra ventana o dejan viejo el costo mostrado.
+			if servicio.Accion == "Subasta" or servicio.Accion == "Vault" or servicio.Cotiza then
 				ventana.Visible = false
 			end
 		end)
@@ -233,6 +249,95 @@ local function seccionCompra(s: Sesion, compra: { Factor: number, Tipos: { strin
 	end
 end
 
+-- Ítems de la mochila que sirven para una operación, en orden de ranura.
+local function ranurasPara(operacion: string): ({ string }, { [string]: any })
+	local inv = EstadoCliente.Get("Inventario")
+	local slots: { [string]: any } = if typeof(inv) == "table" and typeof(inv.Slots) == "table" then inv.Slots else {}
+	local claves: { string } = {}
+	for clave, item in slots do
+		if ForjaConfig.Aplica(operacion, item) then
+			table.insert(claves, clave)
+		end
+	end
+	table.sort(claves, function(a, b)
+		return (tonumber(a) or 0) < (tonumber(b) or 0)
+	end)
+	return claves, slots
+end
+
+local function cantidadEnMochila(itemId: string): number
+	local inv = EstadoCliente.Get("Inventario")
+	local total = 0
+	if typeof(inv) == "table" and typeof(inv.Slots) == "table" then
+		for _, item in inv.Slots do
+			if item.ItemId == itemId and item.Meta == nil then
+				total += item.Cantidad
+			end
+		end
+	end
+	return total
+end
+
+local function seccionSobreItem(s: Sesion, operacion: NpcArquetiposConfig.OperacionItem)
+	encabezado(operacion.Nombre)
+	nota(operacion.Descripcion)
+	local material, cantidadMaterial = ForjaConfig.Material(operacion.Id)
+	local tieneMaterial = material == nil or cantidadEnMochila(material) >= cantidadMaterial
+	local claves, slots = ranurasPara(operacion.Id)
+	if #claves == 0 then
+		nota("No tenés en la mochila ningún objeto que sirva.")
+	end
+	for _, clave in claves do
+		local item = slots[clave]
+		local costo = ForjaConfig.Costo(operacion.Id, item)
+		local marca = `{operacion.Id}:{clave}`
+		local puede = oro() >= costo and tieneMaterial
+		local f = fila(ItemInfo.Corto(item), `{costo} oro`, ItemInfo.Color(item))
+
+		if operacion.EligeGema and eligiendoGema == marca then
+			-- Segundo paso: qué gema poner.
+			boton(f, "Cancelar", 1.5, false, function()
+				eligiendoGema = nil
+				redibujar()
+			end)
+			local hay = false
+			for gemaId, gema in ForjaConfig.Engarzar.Gemas do
+				local tengo = cantidadEnMochila(gemaId)
+				if tengo > 0 then
+					hay = true
+					local def = ItemCatalog[gemaId]
+					local g = fila(`   ◆ {if def then def.Nombre else gemaId} (tenés {tengo})`, `   {gema.Texto}`)
+					boton(g, "Engarzar", 1.5, puede, function()
+						eligiendoGema = nil
+						pedir("NpcSobreItem", s.NpcId, operacion.Id, tonumber(clave), gemaId)
+					end)
+				end
+			end
+			if not hay then
+				nota("   No tenés gemas en la mochila.")
+			end
+			continue
+		end
+
+		local confirmando = operacion.Confirmar and porConfirmar == marca
+		boton(f, if confirmando then "¿Seguro?" else operacion.Nombre, 1.5, puede, function()
+			if not puede then
+				return
+			end
+			if operacion.EligeGema then
+				eligiendoGema = marca
+				redibujar()
+			elseif operacion.Confirmar and not confirmando then
+				porConfirmar = marca
+				redibujar()
+			else
+				porConfirmar = nil
+				pedir("NpcSobreItem", s.NpcId, operacion.Id, tonumber(clave))
+			end
+		end)
+	end
+end
+
 redibujar = function()
 	local s = sesion
 	if not s then
@@ -266,6 +371,10 @@ redibujar = function()
 	if a.Servicios then
 		seccionServicios(s)
 	end
+	local operaciones: { NpcArquetiposConfig.OperacionItem } = a.SobreItem or {}
+	for _, operacion in operaciones do
+		seccionSobreItem(s, operacion)
+	end
 	if a.Vende then
 		seccionVenta(s)
 	end
@@ -293,7 +402,10 @@ NetworkBridge.Client.OnEvent("NpcAbrir", function(npcId: any, arquetipoId: any, 
 		Faccion = faccion,
 		Posicion = if typeof(extra.Posicion) == "Vector3" then extra.Posicion else nil,
 		Destinos = if typeof(extra.Destinos) == "table" then extra.Destinos else {},
+		Costos = if typeof(extra.Costos) == "table" then extra.Costos else {},
 	}
+	porConfirmar = nil
+	eligiendoGema = nil
 	if tituloVentana then
 		tituloVentana.Text = if faccion == "Neutral" then arquetipo.Nombre else `{arquetipo.Nombre} ({faccion})`
 		tituloVentana.TextColor3 = NpcArquetiposConfig.ColoresFaccion[faccion] or UIKit.Colores.Texto

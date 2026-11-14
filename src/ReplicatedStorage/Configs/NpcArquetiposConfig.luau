@@ -43,6 +43,19 @@ export type Servicio = {
 	Descripcion: string,
 	Costo: number, -- oro
 	Accion: string?, -- acción registrada en NpcManager; sin acción = todavía no disponible
+	-- El costo depende del jugador (por ejemplo, reparar): lo calcula y lo cobra
+	-- la propia acción, y el servidor lo informa al abrir la ventana.
+	Cotiza: boolean?,
+}
+
+-- Operación sobre un ítem de la mochila (desencantar, reforjar, engarzar).
+-- `Id` es la operación de ForjaConfig y la acción registrada en NpcManager.
+export type OperacionItem = {
+	Id: string,
+	Nombre: string,
+	Descripcion: string,
+	Confirmar: boolean?, -- pide un segundo clic (operaciones que no se deshacen)
+	EligeGema: boolean?, -- después de elegir el ítem hay que elegir una gema
 }
 
 export type Arquetipo = {
@@ -60,6 +73,7 @@ export type Arquetipo = {
 	Estacion: ("Yunque" | "MesaAlquimia" | "Telar")?,
 	Servicios: { Servicio }?,
 	Viajes: boolean?, -- Guardián de Portales
+	SobreItem: { OperacionItem }?,
 	Tags: { string }?, -- tags de CollectionService que recibe la raíz del NPC
 	Parametros: { [string]: any },
 }
@@ -266,90 +280,97 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Remendador: restaura la durabilidad del equipo.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = MARRON,
 		Servicios = {
-			{ Id = "Reparar", Nombre = "Reparar todo", Descripcion = "Durabilidad al máximo.", Costo = 100 },
+			{
+				Id = "RepararEquipado",
+				Nombre = "Reparar lo equipado",
+				Descripcion = "Deja enteras las piezas que llevás puestas.",
+				Costo = 0,
+				Accion = "RepararEquipado",
+				Cotiza = true,
+			},
+			{
+				Id = "RepararTodo",
+				Nombre = "Reparar todo",
+				Descripcion = "Lo equipado y lo que tenés en la mochila.",
+				Costo = 0,
+				Accion = "RepararTodo",
+				Cotiza = true,
+			},
 		},
 		Parametros = {
-			TarifaCiudad = 1,
-			TarifaMazmorra = 3, -- de emergencia, dentro de mazmorras
-			CostoPorPunto = 0.5,
-			Requiere = "Durabilidad del equipo",
+			Reglas = "ForjaConfig.Durabilidad: costo por punto según la rareza; no se repara en combate",
+			Futuro = { "Tarifa de emergencia dentro de mazmorras (x3)" },
 		},
 	},
 	MaestroEncantador = {
 		Numero = 10,
 		Nombre = "Maestro Encantador",
 		Categoria = "Herreria",
-		Descripcion = "Aumentos, gemas, encantamientos y runas con brillo.",
-		Interfaces = { "IServiceProvider", "ICrafter" },
+		Descripcion = "Engarza gemas en el equipo: cada gema suma una estadística fija.",
+		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = Color3.fromRGB(150, 80, 200),
-		Servicios = {
+		SobreItem = {
 			{
 				Id = "Engarzar",
 				Nombre = "Engarzar gema",
-				Descripcion = "Agrega la estadística de la gema al ítem.",
-				Costo = 300,
+				Descripcion = "300 de oro, 1 Esencia Mágica y la gema. No se puede sacar después.",
+				EligeGema = true,
 			},
 		},
 		Parametros = {
-			Gemas = {
-				Amatista = "Poder",
-				Esmeralda = "RegenMana",
-				Zafiro = "Defensa",
-				Rubi = "Ataque",
-				Diamante = "Critico",
-			},
-			RanurasPorRareza = { Comun = 0, Raro = 1, Epico = 2, Mistico = 2, Unico = 3 },
-			Brillo = true,
-			Requiere = "Gemas engarzables (las gemas ya existen como material)",
+			Reglas = "ForjaConfig.Engarzar: ranuras por rareza (Raro 1, Épico 2, Místico 2, Único 3)",
+			Futuro = { "Runas con brillo", "Sacar o reemplazar gemas" },
 		},
 	},
 	Desencantador = {
 		Numero = 11,
 		Nombre = "Desencantador",
 		Categoria = "Herreria",
-		Descripcion = "Desmantelador: destruye ítems mágicos para sacar esencias.",
+		Descripcion = "Desmantelador: destruye equipo mágico para sacar esencias.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Parcial",
-		Sistema = "Yunque Portátil del Chatarrero (desmantela equipo Común o Raro)",
+		Estado = "Listo",
 		Color = Color3.fromRGB(100, 70, 130),
-		Servicios = {
+		SobreItem = {
 			{
 				Id = "Desencantar",
-				Nombre = "Desencantar ítem",
-				Descripcion = "Devuelve esencias según la rareza.",
-				Costo = 25,
+				Nombre = "Desencantar",
+				Descripcion = "25 de oro. Destruye el equipo (Raro o mejor) y devuelve esencias según su rareza. No se deshace.",
+				Confirmar = true,
 			},
 		},
 		Parametros = {
-			Resultado = {
-				Raro = "Polvo de encantamiento",
-				Epico = "Esencia mágica",
-				Mistico = "Esencia mayor",
-				Unico = "Fragmento de reliquia",
-			},
-			Requiere = "Ítems de esencia",
+			Reglas = "ForjaConfig.Desencantar.Resultado; solo ítems de la mochila (lo equipado no se toca)",
+			Nota = "El equipo Común lo desmantela el Chatarrero en su Yunque Portátil",
 		},
 	},
 	ReforjadorAtributos = {
 		Numero = 12,
 		Nombre = "Reforjador de Atributos",
 		Categoria = "Herreria",
-		Descripcion = "Cambia las estadísticas secundarias de un arma o armadura.",
+		Descripcion = "Cambia los efectos secundarios de un equipo. Conserva su calidad, pasiva y gemas.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Parcial",
-		Sistema = "Ficha de Re-roll (Tienda → Colección)",
+		Estado = "Listo",
 		Color = NARANJA,
-		Servicios = {
-			{ Id = "Reforjar", Nombre = "Reforjar", Descripcion = "Tira de nuevo los efectos del ítem.", Costo = 500 },
+		SobreItem = {
+			{
+				Id = "Reforjar",
+				Nombre = "Reforjar",
+				Descripcion = "Oro según la rareza (sube 25% con cada reforja) y 2 Polvo de Encantamiento. Salen efectos distintos.",
+				Confirmar = true,
+			},
 		},
-		Parametros = { CostoPorRareza = { Raro = 500, Epico = 1500, Mistico = 4000, Unico = 10000 } },
+		Parametros = {
+			Reglas = "ForjaConfig.Reforjar: 500 / 1.500 / 4.000 / 10.000 de oro",
+			Futuro = { "Elegir qué efecto reemplazar", "Vista previa antes de confirmar" },
+			Relacionado = "La Ficha de Re-roll de la tienda vuelve a tirar los valores; esto cambia cuáles son",
+		},
 	},
 	Fundidor = {
 		Numero = 13,
@@ -363,8 +384,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Vende = { { ItemId = "MineralHierro", Precio = 6 }, { ItemId = "MineralPlata", Precio = 18 } },
 		Estacion = "Yunque",
 		Parametros = {
-			Transmutacion = { De = "Hierro", A = "LingotePlata", Proporcion = 5 },
-			Requiere = "Receta de transmutación",
+			Transmutacion = { De = "Hierro", A = "LingotePlata", Proporcion = 5, Receta = "TransmutarPlata" },
 		},
 	},
 
@@ -872,5 +892,10 @@ return {
 		{ Arquetipo = "Banquero", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 32) },
 		{ Arquetipo = "AlquimistaExperimental", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 42) },
 		{ Arquetipo = "BaristaTes", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 42) },
+		{ Arquetipo = "ReparadorArmaduras", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 42) },
+		{ Arquetipo = "Desencantador", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 42) },
+		{ Arquetipo = "ReforjadorAtributos", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 52) },
+		{ Arquetipo = "MaestroEncantador", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 52) },
+		{ Arquetipo = "Fundidor", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 52) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

@@ -44,6 +44,8 @@ type Npc = { Id: string, ArquetipoId: string, Arquetipo: Arquetipo, Faccion: Fac
 
 -- Una acción devuelve true si se hizo (recién ahí se cobra el servicio).
 export type Accion = (player: Player, npc: Npc, servicio: Servicio) -> boolean
+-- Acción sobre un ítem de la mochila. Valida, cobra y avisa por su cuenta.
+export type AccionItem = (player: Player, npc: Npc, ranura: string, extra: string?) -> boolean
 
 local TAG_NPC = "NpcArquetipo"
 local TAG_ESTACION = "EstacionCrafteo"
@@ -54,6 +56,8 @@ local NpcManager = {}
 
 local npcs: { [string]: Npc } = {}
 local acciones: { [string]: Accion } = {}
+local accionesItem: { [string]: AccionItem } = {}
+local cotizaciones: { [string]: (Player) -> number } = {}
 local viajesPagados: { [Player]: number } = {} -- oro cobrado por un viaje en curso
 local contador = 0
 local iniciado = false
@@ -276,6 +280,32 @@ function NpcManager.RegistrarAccion(nombre: string, accion: Accion)
 	acciones[nombre] = accion
 end
 
+-- Operaciones sobre un ítem (campo `SobreItem` del arquetipo).
+function NpcManager.RegistrarAccionItem(nombre: string, accion: AccionItem)
+	accionesItem[nombre] = accion
+end
+
+-- Para servicios con `Cotiza`: cuánto le cuesta a ese jugador ahora.
+function NpcManager.RegistrarCotizacion(nombre: string, cotizar: (Player) -> number)
+	cotizaciones[nombre] = cotizar
+end
+
+local function sobreItem(player: Player, npc: Npc, operacionId: string, ranura: string, extra: string?): Types.Respuesta
+	local declarada = false
+	local operaciones: { NpcArquetiposConfig.OperacionItem } = npc.Arquetipo.SobreItem or {}
+	for _, operacion in operaciones do
+		declarada = declarada or operacion.Id == operacionId
+	end
+	local accion = accionesItem[operacionId]
+	if not declarada or not accion then
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	if not accion(player, npc, ranura, extra) then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	return NetworkBridge.Ok(nil)
+end
+
 local function servicio(player: Player, npc: Npc, servicioId: string): Types.Respuesta
 	local elegido: Servicio? = nil
 	local servicios: { Servicio } = npc.Arquetipo.Servicios or {}
@@ -292,6 +322,10 @@ local function servicio(player: Player, npc: Npc, servicioId: string): Types.Res
 	if not accion then
 		avisar(player, `{elegido.Nombre} todavía no está disponible.`, "Info")
 		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if elegido.Cotiza then
+		-- Costo variable: la acción valida y cobra.
+		return if accion(player, npc, elegido) then NetworkBridge.Ok(nil) else NetworkBridge.Fail("NOT_ALLOWED")
 	end
 	local datos = DataManager.GetData(player)
 	if not datos or datos.Oro < elegido.Costo then
@@ -340,6 +374,15 @@ local function abrir(player: Player, npc: Npc)
 	if npc.Arquetipo.Viajes then
 		datos.Destinos = destinos(npc.Faccion)
 	end
+	local costos: { [string]: number } = {}
+	local servicios: { Servicio } = npc.Arquetipo.Servicios or {}
+	for _, s in servicios do
+		local cotizar = if s.Cotiza and s.Accion then cotizaciones[s.Accion] else nil
+		if cotizar then
+			costos[s.Id] = cotizar(player)
+		end
+	end
+	datos.Costos = costos
 	NetworkBridge.Server.FireClient("NpcAbrir", player, npc.Id, npc.ArquetipoId, npc.Faccion, datos)
 end
 
@@ -556,6 +599,23 @@ function NpcManager.Init()
 				return fallo(codigo)
 			end
 			return servicio(player, npc, id)
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcSobreItem",
+		function(player: Player, npcId: unknown, operacion: unknown, ranura: unknown, extra: unknown): Types.Respuesta
+			local id = Guard.String(operacion, 32)
+			local clave = Guard.Integer(ranura, 1, 500)
+			local opcion = if extra == nil then nil else Guard.String(extra, 32)
+			if not id or not clave or (extra ~= nil and not opcion) then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return sobreItem(player, npc, id, tostring(clave), opcion)
 		end
 	)
 

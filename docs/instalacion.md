@@ -242,4 +242,7 @@ No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz so
    aparecer el efecto en tu marco de vida. Tomá otro de la misma categoría: tiene que reemplazarlo.
 3. Morí o reconectate con un elixir activo: tiene que seguir, con el tiempo que le quedaba.
 4. **Banquero**: abrí la bóveda, guardá y sacá ítems, alejate y probá operar (tiene que rechazarlo).
-5. **Guardián de Portales** de cada color con un personaje de cada bando: el contrario te tiene que rechazar.
+5. **Forja:** morí unas veces y mirá la durabilidad en el detalle del equipo; reparalo con el **Reparador**.
+   Con un equipo Raro o mejor en la mochila probá **Desencantador**, **Reforjador** y **Maestro Encantador**
+   (las gemas las vende el Mercado Negro).
+6. **Guardián de Portales** de cada color con un personaje de cada bando: el contrario te tiene que rechazar.

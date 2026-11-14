@@ -156,6 +156,16 @@ local ProfesionesConfig = {
 			Tiempo = 8,
 			Xp = 70,
 		},
+		TransmutarPlata = {
+			Nombre = "Transmutar hierro en plata",
+			Profesion = "Herreria",
+			NivelRequerido = 8,
+			Estacion = "Yunque",
+			Materiales = { Hierro = 5 },
+			Resultado = { ItemId = "LingotePlata", Cantidad = 1 },
+			Tiempo = 10,
+			Xp = 60,
+		},
 		PocionVida = {
 			Nombre = "Poción de Vida",
 			Profesion = "Alquimia",

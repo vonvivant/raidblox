@@ -82,7 +82,8 @@ Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas
 de misión que se expanden y se minimizan ([misiones](misiones.md)).
 
 **En curso: los 39 NPC.** Avance y orden de trabajo en la [matriz](npcs-matriz.md). Hecho hasta ahora: la
-infraestructura y el Grupo A casi completo ([consumibles](consumibles.md)).
+infraestructura, el Grupo A casi completo ([consumibles](consumibles.md)) y el Grupo B ([forja](forja.md), con
+durabilidad del equipo).
 
 Pedidos en cola, en este orden:
 
@@ -95,5 +96,5 @@ Pedidos en cola, en este orden:
 
 Falta decidir: si la Casa de Subastas se separa por bando (ver [NPCs](npcs.md)).
 
-Sistemas que todavía no existen y varios de esos pedidos necesitan: durabilidad del equipo, razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
+Sistemas que todavía no existen y varios de esos pedidos necesitan: razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
 

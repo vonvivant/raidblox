@@ -5,25 +5,30 @@ Estado real de cada NPC del pedido "39 NPC". Se actualiza con cada etapa.
 **Cómo leer el estado.** Ningún NPC fue probado todavía dentro de Roblox Studio, así que ninguno figura como
 "Probado" ni "Integrado y validado":
 
-| Estado | Significa | Cantidad |
-|---|---|---|
-| Implementado sin verificar | El código está escrito, pasa el chequeo de tipos estricto, el lint y las pruebas de datos, pero falta probarlo en Studio | 13 |
-| En desarrollo | El sistema de fondo ya existe en el juego y se usa desde otro lado; el NPC lo indica pero todavía no lo opera él | 9 |
-| Pendiente | Falta el sistema. El NPC se puede colocar, dice qué falta y tiene sus reglas definidas como datos | 17 |
+| Estado | Significa |
+|---|---|
+| Implementado sin verificar | El código está escrito, pasa el chequeo de tipos estricto, el lint y las pruebas de datos, pero falta probarlo en Studio |
+| En desarrollo | El sistema de fondo ya existe en el juego y se usa desde otro lado; el NPC lo indica pero todavía no lo opera él |
+| Pendiente | Falta el sistema. El NPC se puede colocar, dice qué falta y tiene sus reglas definidas como datos |
 
 Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 
 | Aspecto | Cómo está resuelto |
 |---|---|
 | Modelo 3D | Maniquí R15 genérico con color por profesión y contorno del color de la facción. **Es un placeholder**: faltan modelos, vestimenta, accesorios y animaciones propias |
-| Spawn | Marcador en el mapa: `Model` con tag `NpcArquetipo` y atributos `Arquetipo` y `Faccion`. En pruebas, 14 puestos de `NpcArquetiposConfig.DePrueba` |
+| Spawn | Marcador en el mapa: `Model` con tag `NpcArquetipo` y atributos `Arquetipo` y `Faccion`. En pruebas, los puestos de `NpcArquetiposConfig.DePrueba` |
 | Interacción | `ProximityPrompt` + validación en el servidor en cada pedido: NPC existente, distancia, facción y datos cargados |
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos (9 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja (14 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
+
+Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
+
+<!-- MATRIZ:INICIO -->
+Hoy: **17** implementados sin verificar, **7** en desarrollo y **15** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -42,11 +47,11 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 |---|---|---|---|---|---|
 | NPC-007 | Herrero General (`HerreroGeneral`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Yunque | Línea de acero | Implementado sin verificar |
 | NPC-008 | Afilador de Armas (`AfiladorArmas`) | Rojo, Azul, Neutral | Afilar el arma | Precisión; Penetración de armadura; Pago con piedras de afilar | Implementado sin verificar |
-| NPC-009 | Reparador de Armaduras (`ReparadorArmaduras`) | Rojo, Azul, Neutral | — | Durabilidad del equipo | Pendiente |
-| NPC-010 | Maestro Encantador (`MaestroEncantador`) | Rojo, Azul, Neutral | — | Gemas engarzables (las gemas ya existen como material) | Pendiente |
-| NPC-011 | Desencantador (`Desencantador`) | Rojo, Azul, Neutral | el sistema existe en: Yunque Portátil del Chatarrero (desmantela equipo Común o Raro) | Ítems de esencia | En desarrollo |
-| NPC-012 | Reforjador de Atributos (`ReforjadorAtributos`) | Rojo, Azul, Neutral | el sistema existe en: Ficha de Re-roll (Tienda → Colección) | — | En desarrollo |
-| NPC-013 | Fundidor (`Fundidor`) | Rojo, Azul, Neutral | vende 2 ítems, fabrica en Yunque | Receta de transmutación | Implementado sin verificar |
+| NPC-009 | Reparador de Armaduras (`ReparadorArmaduras`) | Rojo, Azul, Neutral | Reparar lo equipado, Reparar todo | Tarifa de emergencia dentro de mazmorras (x3) | Implementado sin verificar |
+| NPC-010 | Maestro Encantador (`MaestroEncantador`) | Rojo, Azul, Neutral | Engarzar gema | Runas con brillo; Sacar o reemplazar gemas | Implementado sin verificar |
+| NPC-011 | Desencantador (`Desencantador`) | Rojo, Azul, Neutral | Desencantar | — | Implementado sin verificar |
+| NPC-012 | Reforjador de Atributos (`ReforjadorAtributos`) | Rojo, Azul, Neutral | Reforjar | Elegir qué efecto reemplazar; Vista previa antes de confirmar | Implementado sin verificar |
+| NPC-013 | Fundidor (`Fundidor`) | Rojo, Azul, Neutral | vende 2 ítems, fabrica en Yunque | — | Implementado sin verificar |
 
 ### Grupo C — Economía, comercio y almacenamiento
 
@@ -103,6 +108,7 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | NPC-037 | Intendente de Guerra (`IntendenteGuerra`) | Rojo, Azul | vende 3 ítems | Set de armadura PvP por bando | Implementado sin verificar |
 | NPC-038 | Reclutador de Arenas (`ReclutadorArenas`) | Rojo, Azul, Neutral | — | Arenas con emparejamiento | Pendiente |
 | NPC-039 | Estratega de Asedio (`EstrategaAsedio`) | Rojo, Azul | — | Asedios de castillos entre hermandades | Pendiente |
+<!-- MATRIZ:FIN -->
 
 ## Pruebas del pedido (sección 13) y su estado
 
@@ -110,6 +116,7 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 |---|---|---|
 | 4 | Validar precios (lo vendido existe y no se puede revender con ganancia) | Automatizada, pasa (`tests/datos.spec.luau`) |
 | 8 | Recetas: materiales y resultados existen | Automatizada, pasa |
+| 11 | Reparar y mejorar equipo: reglas de durabilidad, costos, qué acepta cada operación | Automatizada, pasa (reglas puras de `ForjaConfig`); el flujo en juego, pendiente |
 | 19 | Restricciones de facción: cada zona tiene territorio y hay destinos de los tres | Automatizada, pasa (datos); el flujo en juego, pendiente |
 | 1–3, 5–7, 9–18, 20–30 | Todo lo que necesita un servidor de Roblox (abrir NPC, comprar, lejos, remotes inválidos, buffs, banco, subastas, reconexión, viajes, multi-servidor, fallas de DataStore, memoria) | **Pendiente**: hay que correrlas en Studio o en un servidor publicado |
 
@@ -117,7 +124,7 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 
 1. ~~Infraestructura: registro, facciones, vendedor, artesano, servicios, viajes~~ (hecho).
 2. ~~Efectos de consumibles y Grupo A: NPC 001, 002, 003 y 006~~ (hecho). Faltan 004 (necesita talentos) y 005 (pergaminos).
-3. Grupo B: durabilidad y reparación (009), gemas y engarces (010), desencantar (011), reforja con vista previa (012), transmutación (013).
+3. ~~Grupo B: durabilidad y reparación (009), gemas (010), desencantar (011), reforja (012), transmutación (013)~~ (hecho). Quedan mejoras menores anotadas en cada fila.
 4. Grupo C: banco de clan desde el NPC (015), filtros y pujas en subastas (016), cambista (018), stock rotativo del mercado negro (019).
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
 6. Grupo E: descanso y rumores (025), diarias y contratos (026), reputación (027), entrenador (028).
