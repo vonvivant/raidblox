@@ -22,21 +22,25 @@ stateDiagram-v2
     Violeta --> Rojo: ataca a un Azul
     Violeta --> Rojo: aporta al Reino Rojo (Guerra)
     Violeta --> Azul: aporta al Reino Azul (Guerra)
-    Rojo --> Violeta: paga CostoVolverNeutral, fuera de combate
-    Azul --> Violeta: paga CostoVolverNeutral, fuera de combate
+    Violeta --> Rojo: lo elige en el panel Personaje
+    Violeta --> Azul: lo elige en el panel Personaje
+    Rojo --> Violeta: lo elige en el panel Personaje
+    Azul --> Violeta: lo elige en el panel Personaje
+    Rojo --> Azul: lo elige en el panel Personaje
+    Azul --> Rojo: lo elige en el panel Personaje
 ```
 
-- Volver a Violeta cuesta `GameConfig.Bandos.CostoVolverNeutral` de oro (5000), no se puede en combate (10 s desde el
-  último golpe) ni durante una partida de la Guerra.
+- El jugador **elige su bando** (Violeta, Rojo o Azul) en el panel Personaje. Es gratis, pero no se puede en combate
+  (10 s desde el último golpe), ni durante una partida de la Guerra, ni más de una vez cada
+  `GameConfig.Bandos.EsperaEntreCambios` segundos (60).
 - En la Guerra, Rojos y Azules juegan para su reino; los Violeta se reparten para emparejar los equipos y, al aportar,
   quedan en ese bando.
 - Las curas de área y en un aliado no alcanzan a jugadores del bando rival. Un Violeta tampoco puede curar ni
   potenciar a un jugador que está en contexto PvP (sería intocable y decisivo a la vez).
 - El daño en el tiempo entre jugadores se corta si dejan de poder pelear (por ejemplo, si la víctima sale de la zona).
 - En la Guerra no se puede atacar ni convertir a un compañero de equipo.
-- Volver a Violeta pide confirmación (dos clics).
 
-Módulos: `Systems/BandoManager` (reglas, arena de prueba, remote `BandoVolverNeutral`) y `CombatManager`
+Módulos: `Systems/BandoManager` (reglas, arena de prueba, remote `BandoElegir`) y `CombatManager`
 (`puedeAtacar`, `enemigosEnRadio`, `aliadosEnRadio`; convierte al Violeta al concretar el ataque).
 
 ## Panel Personaje

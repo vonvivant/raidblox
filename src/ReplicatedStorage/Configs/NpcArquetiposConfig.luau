@@ -60,6 +60,7 @@ export type Arquetipo = {
 	Estacion: ("Yunque" | "MesaAlquimia" | "Telar")?,
 	Servicios: { Servicio }?,
 	Viajes: boolean?, -- Guardián de Portales
+	Tags: { string }?, -- tags de CollectionService que recibe la raíz del NPC
 	Parametros: { [string]: any },
 }
 
@@ -351,10 +352,19 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Guardián de la bóveda: almacén personal y compartido de la cuenta.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = ORO,
-		Servicios = { { Id = "Vault", Nombre = "Abrir la bóveda", Descripcion = "Tu almacén global.", Costo = 0 } },
-		Parametros = { Pestanas = 8, RanurasPorPestana = 30, Requiere = "Vault global" },
+		Servicios = {
+			{
+				Id = "Vault",
+				Nombre = "Abrir la bóveda",
+				Descripcion = "Tu almacén global: lo que guardes está en todos los bancos.",
+				Costo = 0,
+				Accion = "Vault",
+			},
+		},
+		Tags = { "BancoVault" },
+		Parametros = { Pestanas = 8, RanurasPorPestana = 30, Config = "VaultConfig" },
 	},
 	BanqueroClan = {
 		Numero = 14,

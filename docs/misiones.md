@@ -29,7 +29,23 @@ sequenceDiagram
 ```
 
 **Marcadores** (solo los ve cada jugador): `!` amarillo = misión disponible, `?` gris = en curso, `?` amarillo = lista
-para entregar. El **seguimiento** a la derecha muestra hasta 5 misiones activas con su progreso.
+para entregar. El **seguimiento** a la derecha muestra hasta 5 misiones activas, cada una como una tarjeta con tres estados:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Tarjeta
+    Tarjeta --> Expandida: clic en la tarjeta
+    Expandida --> Tarjeta: clic en la tarjeta
+    Tarjeta --> Icono: botón –
+    Expandida --> Icono: botón –
+    Icono --> Tarjeta: clic en el ícono
+```
+
+- **Tarjeta:** nombre y progreso de cada objetivo.
+- **Expandida:** suma la descripción, la recompensa, a quién se entrega y si se puede repetir.
+- **Ícono:** un cuadrado chico (📜, o ✔ amarillo si está lista para entregar).
+
+El estado es por misión y dura la sesión; no se guarda en el perfil.
 
 **NPCs de prueba** (con `ModoPruebas` o en Studio): el **Capitán Aldric** cerca del spawn, **Brom** el herrero junto a
 las estaciones y **Mira** la herbolaria junto a los nodos de recolección. En los mapas reales, cualquier modelo con la

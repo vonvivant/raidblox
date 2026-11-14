@@ -7,13 +7,15 @@
 --     con PvP = true en ZoneConfig, o jugando una partida de la Guerra).
 --   * Un Violeta que ataca a un Rojo pasa a ser Azul; si ataca a un Azul, pasa a
 --     ser Rojo. En la Guerra, un Violeta que aporta a un reino pasa a ese bando.
---   * Volver a Violeta cuesta oro (GameConfig.Bandos.CostoVolverNeutral) y no
---     se puede estando en combate.
+--   * El jugador también elige su bando (Violeta, Rojo o Azul) desde el panel
+--     Personaje: gratis, pero no en combate ni durante la Guerra, y con una
+--     espera entre cambios (GameConfig.Bandos.EsperaEntreCambios).
 --
 -- Este módulo no depende de CombatManager (evita dependencias circulares): el
 -- combate le pasa su función "en combate" con SetEnCombate.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,6 +37,7 @@ local enCombate: (Player) -> boolean = function(_player: Player): boolean
 	return false
 end
 local iniciado = false
+local ultimoCambio: { [Player]: number } = {} -- os.clock() del último cambio elegido
 
 function BandoManager.SetEnCombate(fn: (Player) -> boolean)
 	enCombate = fn
@@ -149,35 +152,33 @@ function BandoManager.Unirse(player: Player, bando: Bando): boolean
 	return false
 end
 
-local function volverNeutral(player: Player): Types.Respuesta
-	local actual = BandoManager.De(player)
-	if actual == "Violeta" then
+-- El jugador elige su bando desde el panel Personaje. Es gratis, pero no se
+-- puede en combate, durante una partida de la Guerra, ni más seguido que
+-- GameConfig.Bandos.EsperaEntreCambios.
+local function elegir(player: Player, bando: Bando): Types.Respuesta
+	local function rechazar(texto: string): Types.Respuesta
+		NetworkBridge.Server.FireClient("Notificacion", player, texto, "Error")
 		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if BandoManager.De(player) == bando then
+		return NetworkBridge.Ok(nil)
 	end
 	if enCombate(player) then
-		NetworkBridge.Server.FireClient("Notificacion", player, "No podés cambiar de bando en combate.", "Error")
-		return NetworkBridge.Fail("NOT_ALLOWED")
+		return rechazar("No podés cambiar de bando en combate.")
 	end
 	if player:GetAttribute("EnGuerra") == true then
-		NetworkBridge.Server.FireClient(
-			"Notificacion",
-			player,
-			"No podés volver a neutral durante la Guerra.",
-			"Error"
-		)
-		return NetworkBridge.Fail("NOT_ALLOWED")
+		return rechazar("No podés cambiar de bando durante la Guerra.")
 	end
-	if not DataManager.SpendGold(player, CFG.CostoVolverNeutral) then
-		NetworkBridge.Server.FireClient(
-			"Notificacion",
-			player,
-			`Volver a neutral cuesta {CFG.CostoVolverNeutral} de oro.`,
-			"Error"
-		)
-		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	local ahora = os.clock()
+	local espera = (ultimoCambio[player] or -math.huge) + CFG.EsperaEntreCambios - ahora
+	if espera > 0 then
+		return rechazar(`Podés volver a cambiar de bando en {math.ceil(espera)} s.`)
 	end
-	DataManager.SetFaccion(player, "Violeta")
-	NetworkBridge.Server.FireClient("Notificacion", player, "Volviste a ser neutral (Violeta).", "Info")
+	if not DataManager.SetFaccion(player, bando) then
+		return NetworkBridge.Fail("DATA_NOT_LOADED")
+	end
+	ultimoCambio[player] = ahora
+	NetworkBridge.Server.FireClient("Notificacion", player, `Ahora sos del bando {string.upper(bando)}.`, "Info")
 	return NetworkBridge.Ok(nil)
 end
 
@@ -228,8 +229,15 @@ function BandoManager.Init(zona: string?)
 	if Pruebas.Activas() and #CollectionService:GetTagged(CFG.TagZonaPvP) == 0 then
 		crearArenaPrueba()
 	end
-	NetworkBridge.Server.OnInvoke("BandoVolverNeutral", function(player: Player): Types.Respuesta
-		return volverNeutral(player)
+	NetworkBridge.Server.OnInvoke("BandoElegir", function(player: Player, bando: unknown): Types.Respuesta
+		local elegido = NetworkBridge.Guard.OneOf(bando, CFG.Colores)
+		if not elegido then
+			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		return elegir(player, elegido :: Bando)
+	end)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		ultimoCambio[player] = nil
 	end)
 end
 

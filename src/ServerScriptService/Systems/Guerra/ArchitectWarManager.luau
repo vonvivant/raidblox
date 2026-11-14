@@ -218,7 +218,25 @@ local function equipoDeBando(player: Player): EstadoEquipo?
 	return if bando ~= "Violeta" then equipos[bando] else nil
 end
 
+-- Ajuste "Ignorar Guerra de Arquitectos": el jugador no entra a ningún equipo.
+local function ignora(player: Player): boolean
+	local datos = DataManager.GetData(player)
+	return datos ~= nil and datos.Ajustes.IgnorarGuerra == true
+end
+
+local function sacarDeEquipo(player: Player)
+	player.Team = nil
+	player.Neutral = true
+	(player :: any).RespawnLocation = nil
+	equipoPorUsuario[player.UserId] = nil
+	cargas[player] = nil
+end
+
 local function asignarEquipo(player: Player)
+	if ignora(player) then
+		sacarDeEquipo(player)
+		return
+	end
 	local porBando = equipoDeBando(player)
 	if porBando then
 		ponerEnEquipo(player, porBando)
@@ -248,7 +266,9 @@ local function rebalancear()
 	local violetas: { Player } = {}
 	for _, player in Players:GetPlayers() do
 		local porBando = equipoDeBando(player)
-		if porBando then
+		if ignora(player) then
+			sacarDeEquipo(player)
+		elseif porBando then
 			ponerEnEquipo(player, porBando)
 		else
 			table.insert(violetas, player)
@@ -718,16 +738,32 @@ function ArchitectWarManager.Init()
 	Players.PlayerAdded:Connect(alEntrar)
 	-- Si alguien cambia de bando (atacando o aportando), pasa al equipo de su reino.
 	DataManager.DatosCambiados:Connect(function(player: Player, seccion: Types.SeccionDatos)
+		if seccion == "Ajustes" then
+			-- Cambió "Ignorar Guerra": sale de su equipo o vuelve a entrar.
+			if ignora(player) then
+				if equipoDe(player) then
+					sacarDeEquipo(player)
+					enviarCarga(player)
+				end
+			elseif not equipoDe(player) then
+				asignarEquipo(player)
+			end
+			return
+		end
 		if seccion ~= "Faccion" then
 			return
 		end
 		local porBando = equipoDeBando(player)
-		if porBando and player.Team ~= porBando.Team then
+		if porBando and player.Team ~= porBando.Team and not ignora(player) then
 			ponerEnEquipo(player, porBando)
 		end
 	end)
 	-- El bando se conoce recién cuando carga el perfil: se reasigna entonces.
 	DataManager.PerfilCargado:Connect(function(player: Player)
+		if ignora(player) then
+			sacarDeEquipo(player)
+			return
+		end
 		local porBando = equipoDeBando(player)
 		if porBando and player.Team ~= porBando.Team then
 			ponerEnEquipo(player, porBando)

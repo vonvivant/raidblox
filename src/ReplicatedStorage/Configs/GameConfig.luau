@@ -56,9 +56,9 @@ local GameConfig = {
 
 	-- Bandos: Violeta (neutral, no se lo puede atacar), Rojo y Azul.
 	Bandos = {
-		-- Volver a Violeta cuesta oro (más adelante puede pasar a Robux).
-		CostoVolverNeutral = 5000,
-		-- Espera desde el último combate para poder volver a Violeta.
+		-- Segundos entre dos cambios de bando elegidos desde el panel Personaje.
+		EsperaEntreCambios = 60,
+		-- Espera desde el último combate para poder cambiar de bando.
 		EsperaFueraDeCombate = 10,
 		Colores = {
 			Violeta = Color3.fromRGB(170, 110, 255),

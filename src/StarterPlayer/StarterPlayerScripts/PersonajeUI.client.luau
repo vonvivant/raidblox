@@ -98,38 +98,18 @@ botonClase.Activated:Connect(function()
 	EventosCliente.AbrirSelectorClase:Fire()
 end)
 
--- Bando
-local filaBando = seccion("Bando")
-local textoBando = UIKit.Texto(filaBando, "", UDim2.new(0.5, -6, 1, 0), UDim2.fromOffset(3, 0))
-textoBando.TextXAlignment = Enum.TextXAlignment.Left
-local botonNeutral = UIKit.Boton(
-	filaBando,
-	`Volver a Violeta ({CFG.CostoVolverNeutral} oro)`,
-	UDim2.new(0.5, -6, 1, 0),
-	UDim2.new(0.5, 3, 0, 0),
-	UIKit.Colores.BotonPeligro
-)
--- Cuesta oro: primer clic pide confirmación, el segundo (en 4 s) paga.
-local confirmarHasta = 0
-botonNeutral.Activated:Connect(function()
-	if os.clock() > confirmarHasta then
-		confirmarHasta = os.clock() + 4
-		botonNeutral.Text = `¿Seguro? Cuesta {CFG.CostoVolverNeutral} oro`
-		task.delay(4, function()
-			if os.clock() >= confirmarHasta then
-				botonNeutral.Text = `Volver a Violeta ({CFG.CostoVolverNeutral} oro)`
-			end
-		end)
-		return
-	end
-	confirmarHasta = 0
-	botonNeutral.Text = `Volver a Violeta ({CFG.CostoVolverNeutral} oro)`
-	NetworkBridge.Client.Invoke("BandoVolverNeutral")
+-- Bando: se elige acá. El servidor decide si se puede (combate, Guerra, espera).
+local marcarBando = opciones(seccion("Bando"), {
+	{ Texto = "Violeta", Valor = "Violeta" },
+	{ Texto = "Rojo", Valor = "Rojo" },
+	{ Texto = "Azul", Valor = "Azul" },
+}, function(valor)
+	NetworkBridge.Client.Invoke("BandoElegir", valor)
 end)
 orden += 1
 local ayudaBando = UIKit.Texto(
 	contenido,
-	"Violeta: neutral, nadie te puede atacar. Si atacás a un rojo pasás a azul (y al revés). En la Guerra, aportar a un reino te une a él. Rojo y Azul pelean solo en zonas PvP y en la Guerra.",
+	"Violeta: neutral, nadie te puede atacar (si atacás a un rojo pasás a azul, y al revés). Rojo y Azul pelean solo en zonas PvP y en la Guerra. No se cambia en combate ni durante la Guerra.",
 	UDim2.new(1, 0, 0, 44)
 )
 ayudaBando.Font = Enum.Font.Gotham
@@ -140,9 +120,8 @@ ayudaBando.LayoutOrder = orden
 local function actualizarBando()
 	local bando = jugador:GetAttribute("Bando")
 	local nombre = if typeof(bando) == "string" then bando else "Violeta"
-	textoBando.Text = `Actual: {nombre}`
-	textoBando.TextColor3 = (CFG.Colores :: any)[nombre] or Color3.new(1, 1, 1)
-	botonNeutral.Visible = nombre ~= "Violeta"
+	marcarBando(nombre)
+	ayudaBando.TextColor3 = (CFG.Colores :: any)[nombre] or UIKit.Colores.TextoSuave
 end
 jugador:GetAttributeChangedSignal("Bando"):Connect(actualizarBando)
 actualizarBando()
@@ -185,6 +164,12 @@ local marcarTextos = opciones(seccion("Números de daño y cura"), {
 }, function(valor)
 	guardar("TextosCombate", valor)
 end)
+local marcarGuerra = opciones(seccion("Guerra de Arquitectos"), {
+	{ Texto = "Participar", Valor = false },
+	{ Texto = "Ignorar", Valor = true },
+}, function(valor)
+	guardar("IgnorarGuerra", valor)
+end)
 local marcarMinimapa = opciones(seccion("Minimapa"), {
 	{ Texto = "Mostrar", Valor = true },
 	{ Texto = "Ocultar", Valor = false },
@@ -203,6 +188,7 @@ local function actualizarAjustes()
 	marcarEscala(if typeof(ajustes.EscalaUI) == "number" then ajustes.EscalaUI else 1)
 	marcarTextos(ajustes.TextosCombate ~= false)
 	marcarMinimapa(ajustes.Minimapa ~= false)
+	marcarGuerra(ajustes.IgnorarGuerra == true)
 end
 
 EstadoCliente.Cambio:Connect(function(campo: string)

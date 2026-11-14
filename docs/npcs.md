@@ -65,9 +65,9 @@ Se agregaron dos zonas para que la regla tenga sentido: `CapitalRoja` (Bastión 
 
 ## Estados
 
-- **Listo** (10): funciona hablando con el NPC.
+- **Listo** (11): funciona hablando con el NPC.
 - **Parcial** (9): el sistema ya existe pero se usa desde otro lado; el NPC lo indica.
-- **Pendiente** (19): falta el sistema. El NPC se puede colocar y dice qué falta; `Parametros` deja
+- **Pendiente** (18): falta el sistema. El NPC se puede colocar y dice qué falta; `Parametros` deja
   definidos precios, duraciones y reglas para cuando se programe.
 
 En `Vende` solo hay ítems que existen hoy en el `ItemCatalog`, con precio de venta por encima de lo que paga un NPC
@@ -101,7 +101,7 @@ al comprarlos (así no se puede ganar oro comprando y revendiendo).
 
 | # | Arquetipo (clave) | Interfaces | Versiones | Estado |
 |---|---|---|---|---|
-| 13 | **Banquero** (`Banquero`): Guardián de la bóveda: almacén personal y compartido de la cuenta. | IServiceProvider | Rojo, Azul y Neutral | ⏳ Pendiente |
+| 13 | **Banquero** (`Banquero`): Guardián de la bóveda: almacén personal y compartido de la cuenta. | IServiceProvider | Rojo, Azul y Neutral | ✅ Listo |
 | 14 | **Banquero de Clan** (`BanqueroClan`): Tesorero: inventario y fondos de la hermandad. | IServiceProvider | Rojo, Azul y Neutral | 🟡 Parcial — hoy: Banco de hermandad (botón Hermandad del menú) |
 | 15 | **Subastador** (`Subastador`): Corredor de bolsa: Casa de Subastas. | IServiceProvider | Rojo y Azul | ✅ Listo |
 | 16 | **Comerciante de Excedentes** (`ComercianteExcedentes`): Chatarreo: compra lo que te sobra y vende herramientas básicas. | IVendor | Rojo, Azul y Neutral | ✅ Listo |
@@ -164,7 +164,7 @@ al comprarlos (así no se puede ganar oro comprando y revendiendo).
 
 En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen 12 de prueba (`NpcArquetiposConfig.DePrueba`)
 al oeste del punto de inicio: tres Guardianes de Portales (uno por facción), Herrero, Boticarios, Comerciante,
-Afilador, Mercado Negro, Subastador, Intendente de Guerra y Banquero.
+Afilador, Mercado Negro, Subastador, Intendente de Guerra y Banquero (abre la [bóveda](vault.md)).
 
 ## Seguridad
 

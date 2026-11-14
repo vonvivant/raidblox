@@ -5,8 +5,10 @@
 --   "!" amarillo   hay una misión disponible
 --   "?" gris       tenés una misión de este NPC en curso
 --   "?" amarillo   tenés una misión lista para entregarle
--- El seguimiento (derecha) muestra las misiones activas y su progreso. Todo
--- lo decide el servidor: acá solo se muestra y se piden acciones.
+-- El seguimiento (derecha) muestra cada misión activa como una tarjeta: un clic
+-- la expande con más información, otro la vuelve a la tarjeta normal, y el
+-- botón "–" la reduce a un ícono (un clic en el ícono la vuelve a abrir).
+-- Todo lo decide el servidor: acá solo se muestra y se piden acciones.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -224,51 +226,205 @@ seguimiento.Size = UDim2.fromScale(0.2, 0.3)
 seguimiento.BackgroundTransparency = 1
 seguimiento.Parent = gui
 local layoutSeg = Instance.new("UIListLayout")
-layoutSeg.Padding = UDim.new(0, 4)
+layoutSeg.Padding = UDim.new(0, 6)
 layoutSeg.HorizontalAlignment = Enum.HorizontalAlignment.Right
+layoutSeg.SortOrder = Enum.SortOrder.LayoutOrder
 layoutSeg.Parent = seguimiento
 
-local function etiquetaSeg(texto: string, color: Color3, grande: boolean, orden: number)
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.new(1, 0, 0, if grande then 20 else 16)
-	t.BackgroundTransparency = 1
-	t.Font = if grande then Enum.Font.GothamBold else Enum.Font.Gotham
-	t.TextSize = if grande then 16 else 14
-	t.TextXAlignment = Enum.TextXAlignment.Right
-	t.TextColor3 = color
-	t.TextStrokeTransparency = 0.4
-	t.Text = texto
-	t.LayoutOrder = orden
-	t.Parent = seguimiento
+-- Cada misión activa es una tarjeta con tres estados que se recorren así:
+--   Tarjeta   --clic-->  Expandida  --clic-->  Tarjeta
+--   Tarjeta o Expandida  --botón "–"-->  Icono  --clic-->  Tarjeta
+-- El estado es por misión y dura mientras dure la sesión.
+type EstadoTarjeta = "Tarjeta" | "Expandida" | "Icono"
+local estadoTarjeta: { [string]: EstadoTarjeta } = {}
+local FONDO_TARJETA = Color3.fromRGB(14, 14, 22)
+local VERDE = Color3.fromRGB(130, 230, 130)
+
+local redibujarSeguimiento: () -> ()
+
+local function cambiarEstado(id: string, estado: EstadoTarjeta)
+	estadoTarjeta[id] = estado
+	redibujarSeguimiento()
 end
 
-local function redibujarSeguimiento()
-	UIKit.Limpiar(seguimiento)
-	local orden = 0
-	local mostradas = 0
-	for id, progreso in activas() do
-		local mision = MisionesConfig.Misiones[id]
-		if not mision or mostradas >= 5 then
-			continue
-		end
-		mostradas += 1
-		local lista_ = lista_para_entregar(id, mision)
-		orden += 1
-		etiquetaSeg(
-			if lista_ then `✔ {mision.Nombre}` else mision.Nombre,
-			if lista_ then AMARILLO else Color3.new(1, 1, 1),
-			true,
-			orden
+local function lineaTarjeta(padre: Instance, texto: string, color: Color3, grande: boolean, orden: number): TextLabel
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.new(1, 0, 0, 0)
+	t.AutomaticSize = Enum.AutomaticSize.Y
+	t.BackgroundTransparency = 1
+	t.Font = if grande then Enum.Font.GothamBold else Enum.Font.Gotham
+	t.TextSize = if grande then 15 else 13
+	t.TextWrapped = true
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.TextColor3 = color
+	t.Text = texto
+	t.LayoutOrder = orden
+	t.Parent = padre
+	return t
+end
+
+local function iconoMision(id: string, lista_: boolean, orden: number)
+	local b = Instance.new("TextButton")
+	b.Name = `Icono_{id}`
+	b.Size = UDim2.fromOffset(36, 36)
+	b.BackgroundColor3 = FONDO_TARJETA
+	b.BackgroundTransparency = 0.25
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 20
+	b.Text = if lista_ then "✔" else "📜"
+	b.TextColor3 = if lista_ then AMARILLO else Color3.new(1, 1, 1)
+	b.LayoutOrder = orden
+	b.Selectable = true
+	UIKit.Esquinas(b, 8)
+	local borde = Instance.new("UIStroke")
+	borde.Color = if lista_ then AMARILLO else GRIS
+	borde.Transparency = 0.4
+	borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	borde.Parent = b
+	b.Activated:Connect(function()
+		cambiarEstado(id, "Tarjeta")
+	end)
+	b.Parent = seguimiento
+end
+
+local function tarjetaMision(
+	id: string,
+	mision: Mision,
+	progreso: any,
+	lista_: boolean,
+	expandida: boolean,
+	orden: number
+)
+	local tarjeta = Instance.new("TextButton")
+	tarjeta.Name = `Tarjeta_{id}`
+	tarjeta.Size = UDim2.new(1, 0, 0, 0)
+	tarjeta.AutomaticSize = Enum.AutomaticSize.Y
+	tarjeta.BackgroundColor3 = FONDO_TARJETA
+	tarjeta.BackgroundTransparency = if expandida then 0.1 else 0.3
+	tarjeta.AutoButtonColor = false
+	tarjeta.Text = ""
+	tarjeta.LayoutOrder = orden
+	tarjeta.Selectable = true
+	UIKit.Esquinas(tarjeta, 8)
+	if expandida then
+		local borde = Instance.new("UIStroke")
+		borde.Color = AMARILLO
+		borde.Transparency = 0.3
+		borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		borde.Parent = tarjeta
+	end
+	local margen = Instance.new("UIPadding")
+	margen.PaddingLeft = UDim.new(0, 8)
+	margen.PaddingRight = UDim.new(0, 8)
+	margen.PaddingTop = UDim.new(0, 6)
+	margen.PaddingBottom = UDim.new(0, 6)
+	margen.Parent = tarjeta
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 2)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = tarjeta
+
+	local titulo = lineaTarjeta(
+		tarjeta,
+		if lista_ then `✔ {mision.Nombre}` else mision.Nombre,
+		if lista_ then AMARILLO else Color3.new(1, 1, 1),
+		true,
+		1
+	)
+	-- Botón de minimizar, en la esquina del título.
+	local minimizar = Instance.new("TextButton")
+	minimizar.Name = "Minimizar"
+	minimizar.AnchorPoint = Vector2.new(1, 0)
+	minimizar.Size = UDim2.fromOffset(22, 20)
+	minimizar.BackgroundColor3 = UIKit.Colores.Boton
+	minimizar.Font = Enum.Font.GothamBold
+	minimizar.TextSize = 16
+	minimizar.Text = "–"
+	minimizar.TextColor3 = Color3.new(1, 1, 1)
+	minimizar.Selectable = true
+	UIKit.Esquinas(minimizar, 5)
+	minimizar.Parent = titulo
+	local margenTitulo = Instance.new("UIPadding")
+	margenTitulo.PaddingRight = UDim.new(0, 26)
+	margenTitulo.Parent = titulo
+	minimizar.Position = UDim2.new(1, 26, 0, -2) -- sobre el margen derecho del título
+	minimizar.Activated:Connect(function()
+		cambiarEstado(id, "Icono")
+	end)
+
+	local n = 1
+	if expandida then
+		n += 1
+		lineaTarjeta(tarjeta, mision.Descripcion, Color3.new(1, 1, 1), false, n)
+	end
+	for _, obj in mision.Objetivos do
+		n += 1
+		local v = progresoObjetivo(progreso, obj)
+		lineaTarjeta(
+			tarjeta,
+			`{if v >= obj.Cantidad then "✔" else "•"} {obj.Texto}: {v}/{obj.Cantidad}`,
+			if v >= obj.Cantidad then VERDE else UIKit.Colores.TextoSuave,
+			false,
+			n
 		)
-		for _, obj in mision.Objetivos do
-			orden += 1
-			local v = progresoObjetivo(progreso, obj)
-			etiquetaSeg(
-				`{obj.Texto}: {v}/{obj.Cantidad}`,
-				if v >= obj.Cantidad then Color3.fromRGB(130, 230, 130) else UIKit.Colores.TextoSuave,
+	end
+	if expandida then
+		local npc = MisionesConfig.Npcs[mision.NpcEntrega or mision.Npc]
+		n += 1
+		lineaTarjeta(tarjeta, `Recompensa: {textoRecompensa(mision)}`, AMARILLO, false, n)
+		if npc then
+			n += 1
+			lineaTarjeta(
+				tarjeta,
+				if lista_
+					then `Entregar a {npc.Nombre} ({npc.Titulo})`
+					else `La entregás a {npc.Nombre} ({npc.Titulo})`,
+				if lista_ then AMARILLO else UIKit.Colores.TextoSuave,
 				false,
-				orden
+				n
 			)
+		end
+		if mision.Repetible then
+			n += 1
+			lineaTarjeta(tarjeta, "Se puede repetir", UIKit.Colores.TextoSuave, false, n)
+		end
+	end
+
+	tarjeta.Activated:Connect(function()
+		cambiarEstado(id, if expandida then "Tarjeta" else "Expandida")
+	end)
+	tarjeta.Parent = seguimiento
+end
+
+redibujarSeguimiento = function()
+	UIKit.Limpiar(seguimiento)
+	local actuales = activas()
+	-- Orden estable (por nombre), así las tarjetas no saltan de lugar.
+	local ids: { string } = {}
+	for id in actuales do
+		if MisionesConfig.Misiones[id] then
+			table.insert(ids, id)
+		end
+	end
+	table.sort(ids, function(a, b)
+		return MisionesConfig.Misiones[a].Nombre < MisionesConfig.Misiones[b].Nombre
+	end)
+	for id in estadoTarjeta do
+		if not actuales[id] then
+			estadoTarjeta[id] = nil -- misión entregada o abandonada
+		end
+	end
+	for orden, id in ids do
+		if orden > 5 then
+			break
+		end
+		local mision = MisionesConfig.Misiones[id]
+		local lista_ = lista_para_entregar(id, mision)
+		local estado = estadoTarjeta[id] or "Tarjeta"
+		if estado == "Icono" then
+			iconoMision(id, lista_, orden)
+		else
+			tarjetaMision(id, mision, actuales[id], lista_, estado == "Expandida", orden)
 		end
 	end
 end

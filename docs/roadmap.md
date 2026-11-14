@@ -76,21 +76,21 @@ El detalle de cada prompt de diseño está en el documento de catálogo del proy
 ## Después del catálogo
 
 Hecho (ver [chatarrero](chatarrero.md), [combate](combate.md) e [interfaz](interfaz.md)): esquiva y fallo, clase
-Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas sobre todo el código, y los
-[NPCs por arquetipo](npcs.md) (facciones, Guardián de Portales y los 38 arquetipos como datos).
+Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas sobre todo el código, los
+[NPCs por arquetipo](npcs.md) (facciones, Guardián de Portales y los 38 arquetipos como datos), la
+[bóveda global](vault.md), la elección de bando y el ajuste "Ignorar Guerra" en el panel Personaje, y las tarjetas
+de misión que se expanden y se minimizan ([misiones](misiones.md)).
 
 Pedidos en cola, en este orden:
 
-1. **Vault global:** banco con pestañas, filtros y buscador.
-2. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
-3. **Raza Artesano y firma de autoría** en los ítems.
-4. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
-5. **NPC vendedor** con probador en vivo.
-6. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
-7. **Mapas de prueba** de la Ciudad y el Bosque.
+1. **Stencils:** tres libros, desbloqueo con libros consumibles y renderizado.
+2. **Raza Artesano y firma de autoría** en los ítems.
+3. **Forja y personalización por partes** (materiales, colores, stencils) con NPCs Maestro de Armas y de Armaduras.
+4. **NPC vendedor** con probador en vivo.
+5. **Parcelas subastables** con fusión de contiguas, construcción, huerta y patio de mascotas.
+6. **Mapas de prueba** de la Ciudad y el Bosque.
 
 Falta decidir: si la Casa de Subastas se separa por bando (ver [NPCs](npcs.md)).
 
-Sistemas que todavía no existen y varios de esos pedidos necesitan: durabilidad del equipo, banco personal (lo trae
-el Vault), razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
+Sistemas que todavía no existen y varios de esos pedidos necesitan: durabilidad del equipo, razas y modelos 3D con partes (hoy el equipo se dibuja con piezas simples hechas por código).
 

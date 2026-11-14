@@ -59,6 +59,10 @@ export type Inventario = {
 	Slots: { [string]: ItemInstancia },
 }
 
+-- Bóveda global: pestañas "1".."8", cada una con ranuras "1".."30".
+export type PestanaVault = { Nombre: string, Icono: string, Slots: { [string]: ItemInstancia } }
+export type Vault = { Compradas: number, Pestanas: { [string]: PestanaVault } }
+
 export type Equipamiento = {
 	Casco: ItemInstancia?,
 	Pechera: ItemInstancia?,
@@ -96,6 +100,7 @@ export type Ajustes = {
 	EscalaUI: number?, -- 0.75 a 1.3 (sin valor = 1)
 	TextosCombate: boolean?, -- números flotantes (sin valor = sí)
 	Minimapa: boolean?, -- sin valor = sí
+	IgnorarGuerra: boolean?, -- no participa ni ve la Guerra de Arquitectos
 }
 
 -- v5: diario de operaciones de subasta en curso. Se escribe en el mismo
@@ -157,6 +162,7 @@ export type DatosJugador = {
 	Barras: { string }?,
 	CooldownsLargos: { [string]: number }?,
 	CodigosCanjeados: { [string]: number }?, -- código -> os.time()
+	Vault: Vault?, -- bóveda global (se crea al usarla por primera vez)
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
 	-- v3: profesiones y economía
@@ -186,6 +192,7 @@ export type SeccionDatos =
 	| "Profesiones"
 	| "Faccion"
 	| "Ajustes"
+	| "Vault"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =

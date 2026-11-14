@@ -245,6 +245,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.Ajustes
 	elseif seccion == "Honor" then
 		return datos.PuntosHonor
+	elseif seccion == "Vault" then
+		return datos.Vault or false
 	elseif seccion == "Cosmeticos" then
 		return {
 			Titulos = datos.Titulos,
@@ -447,6 +449,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		Barras = DataManager.Barras(d),
 		Profesiones = d.Profesiones,
 		Ajustes = d.Ajustes,
+		Vault = d.Vault or false,
 	}
 end
 
@@ -1154,6 +1157,7 @@ local VALORES_AJUSTES: { [string]: { [any]: boolean } } = {
 	ChatVisible = { [true] = true, [false] = true },
 	CanalVoz = { Proximidad = true, Grupo = true, Hermandad = true, Zona = true },
 	Zurdo = { [true] = true, [false] = true },
+	IgnorarGuerra = { [true] = true, [false] = true },
 	TextosCombate = { [true] = true, [false] = true },
 	Minimapa = { [true] = true, [false] = true },
 }

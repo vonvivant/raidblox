@@ -51,6 +51,7 @@ classDiagram
         number? EscalaUI
         boolean? TextosCombate
         boolean? Minimapa
+        boolean? IgnorarGuerra
     }
     class Pendientes {
         map Subastas
@@ -70,6 +71,7 @@ classDiagram
         map? CodigosCanjeados
         string[]? Barras
         map? CooldownsLargos
+        Vault? Vault
     }
 
     DatosJugador *-- Inventario

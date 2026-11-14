@@ -34,6 +34,11 @@ flowchart TB
 | Tamaño | Chico 0,85 · Normal · Grande 1,15 · Enorme 1,3 | `Ajustes.EscalaUI` (0,75–1,3) |
 | Números de daño y cura | Mostrar / Ocultar | `Ajustes.TextosCombate` |
 | Minimapa | Mostrar / Ocultar | `Ajustes.Minimapa` |
+| Guerra de Arquitectos | Participar / **Ignorar** | `Ajustes.IgnorarGuerra` |
+
+Con **Ignorar**, el jugador no entra a ningún equipo de la Guerra, no ve el panel de la partida ni recibe sus
+avisos. Al volver a "Participar" se lo asigna a un equipo de nuevo. En el mismo panel se elige el **bando**
+(Violeta, Rojo o Azul; ver [bandos](bandos.md)).
 
 **Zurdo** espeja el HUD: el menú lateral pasa al borde derecho, el minimapa a
 la izquierda y el marco del jugador a la derecha. En pantallas táctiles la

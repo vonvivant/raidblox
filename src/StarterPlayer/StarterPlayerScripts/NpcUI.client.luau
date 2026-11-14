@@ -165,7 +165,11 @@ local function seccionServicios(s: Sesion)
 		local costo = if servicio.Costo > 0 then `{servicio.Costo} oro` else "Gratis"
 		local f = fila(servicio.Nombre, servicio.Descripcion)
 		boton(f, if disponible then costo else "Próximamente", 1.5, disponible and oro() >= servicio.Costo, function()
-			if disponible and pedir("NpcServicio", s.NpcId, servicio.Id) and servicio.Accion == "Subasta" then
+			if
+				disponible
+				and pedir("NpcServicio", s.NpcId, servicio.Id)
+				and (servicio.Accion == "Subasta" or servicio.Accion == "Vault")
+			then
 				ventana.Visible = false
 			end
 		end)

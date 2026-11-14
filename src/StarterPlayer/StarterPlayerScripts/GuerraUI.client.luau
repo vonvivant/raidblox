@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Hud = require(ReplicatedStorage.Modules.Hud)
+local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
@@ -29,6 +30,23 @@ local panel: Frame? = nil
 local pastillaFase: TextLabel? = nil
 local pastillaCarga: Frame? = nil
 local textoCarga: TextLabel? = nil
+
+-- Ajuste "Ignorar Guerra de Arquitectos": el panel no se muestra.
+local function ignorada(): boolean
+	local ajustes = EstadoCliente.Get("Ajustes")
+	return typeof(ajustes) == "table" and ajustes.IgnorarGuerra == true
+end
+
+local function aplicarIgnorar()
+	if gui then
+		gui.Enabled = not ignorada()
+	end
+end
+EstadoCliente.Cambio:Connect(function(campo: string)
+	if campo == "Ajustes" or campo == "*" then
+		aplicarIgnorar()
+	end
+end)
 
 local function texto(padre: Instance, tam: UDim2, pos: UDim2, fuente: Enum.Font?): TextLabel
 	local t = Instance.new("TextLabel")
@@ -271,6 +289,7 @@ NetworkBridge.Client.OnEvent("GuerraEstado", function(estado: any)
 		return
 	end
 	construir()
+	aplicarIgnorar()
 	local fase = estado.Fase
 	local restante = estado.TiempoRestante
 	local etiqueta = pastillaFase

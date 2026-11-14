@@ -119,7 +119,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	MisionEntregar = { Tipo = "Function", Critico = false }, -- (misionId)
 	MisionAbandonar = { Tipo = "Function", Critico = false }, -- (misionId)
 	-- Bandos y ajustes del jugador
-	BandoVolverNeutral = { Tipo = "Function", Critico = false },
+	BandoElegir = { Tipo = "Function", Critico = false }, -- (bando): "Violeta" | "Rojo" | "Azul"
 	GuardarAjuste = { Tipo = "Function", Critico = false }, -- (clave, valor)
 	-- Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas())
 	TiendaPruebaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },
@@ -131,6 +131,14 @@ local DEFINICIONES: { [string]: Definicion } = {
 	NpcServicio = { Tipo = "Function", Critico = false }, -- (npcId, servicioId)
 	NpcFabricar = { Tipo = "Function", Critico = false }, -- (npcId): abre las recetas de su estación
 	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
+
+	-- Bóveda global (VaultManager)
+	VaultAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (pestañas disponibles)
+	VaultDepositar = { Tipo = "Function", Critico = false }, -- (ranuraMochila, pestana, cantidad)
+	VaultRetirar = { Tipo = "Function", Critico = false }, -- (pestana, ranura, cantidad)
+	VaultMover = { Tipo = "Function", Critico = false }, -- (pestanaA, ranuraA, pestanaB, ranuraB | 0 = primera libre)
+	VaultExpandir = { Tipo = "Function", Critico = false }, -- compra la próxima pestaña
+	VaultPersonalizar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (pestana, nombre, icono)
 
 	-- Fase 4: Casa de Subastas
 	SubastaAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true },

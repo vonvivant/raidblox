@@ -385,6 +385,15 @@ local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt,
 		CollectionService:AddTag(estacion, TAG_ESTACION)
 	end
 
+	-- Tags del arquetipo (por ejemplo, el Banquero es un punto de bóveda).
+	-- SinPrompt: el sistema dueño del tag no le pone cartel propio.
+	if arquetipo.Tags and arquetipo.Estado ~= "Pendiente" then
+		raiz:SetAttribute("SinPrompt", true)
+		for _, tag in arquetipo.Tags do
+			CollectionService:AddTag(raiz, tag)
+		end
+	end
+
 	prompt.Triggered:Connect(function(player: Player)
 		abrir(player, npc)
 	end)

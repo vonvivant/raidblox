@@ -75,6 +75,7 @@ flowchart LR
 - [Combate](docs/combate.md): máquina de estados, clases, mira, esquiva, enemigos, RaidBlox, rarezas y botín.
 - [Chatarrero](docs/chatarrero.md): novena clase, 30 habilidades en 4 barras, Spoil y construcciones.
 - [Economía](docs/economia.md): inventario, profesiones, crafteo, recolección, Casa de Subastas y comercio 1v1.
+- [Bóveda global](docs/vault.md): banco personal con 8 pestañas, buscador y filtros.
 - [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
 - [NPCs](docs/npcs.md): 38 arquetipos, facciones Rojo / Azul / Neutral, vendedores, artesanos y Guardián de Portales.
 - [Misiones](docs/misiones.md): NPCs, objetivos y marcadores.
