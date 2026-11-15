@@ -107,7 +107,9 @@ Ya está integrado:
 
 Para poner un vendedor en un mapa: un `Model` con `HumanoidRootPart` (o `PrimaryPart`) y el tag
 **`NpcPersonalizador`**. Atributo opcional `Categoria` = `Armas` o `Armaduras` para que venda solo eso. En Studio
-o con `ModoPruebas` aparece uno de prueba ("Maestro Personalizador") al oeste del punto de inicio.
+o con `ModoPruebas` aparece uno de prueba ("Maestro Personalizador") en la plaza de NPC, en (-35, 0, 62);
+aparece en el minimapa como punto celeste y se llega con
+`game.ServerStorage.RaidBloxDebug:Invoke("Ir", "Personalizador")` ([NPCs](npcs.md)).
 
 Números ajustables en `PersonalizadorConfig`: distancia (15 studs), costo por pieza modificada (25 de oro),
 máximo de piezas, paleta y cámara.

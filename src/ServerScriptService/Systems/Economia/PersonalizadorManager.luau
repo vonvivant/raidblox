@@ -52,6 +52,7 @@ export type Auditoria = {
 }
 
 local MAX_AUDITORIA = 200
+local TAG_RADAR = "NpcServicio" -- lo dibuja el minimapa y el mapa del mundo
 local POSICION_PRUEBA = Vector3.new(-35, 0, 62)
 
 local PersonalizadorManager = {}
@@ -405,6 +406,11 @@ local function prepararNpc(instancia: Instance)
 		warn(`[Personalizador] El NPC {instancia:GetFullName()} necesita HumanoidRootPart o PrimaryPart`)
 		return
 	end
+	CollectionService:AddTag(raiz, TAG_RADAR)
+	local humanoide = instancia:FindFirstChildOfClass("Humanoid")
+	if humanoide then
+		humanoide.NameDisplayDistance = 250
+	end
 	local categoria = instancia:GetAttribute("Categoria")
 	local prompt = raiz:FindFirstChildOfClass("ProximityPrompt") or Instance.new("ProximityPrompt")
 	prompt.ActionText = "Probar y comprar"
@@ -443,6 +449,10 @@ function PersonalizadorManager.Init()
 		)
 		-- NpcFactory ya le puso un cartel; prepararNpc lo reutiliza.
 		CollectionService:AddTag(modelo, Config.TagNpc)
+		print(
+			`[Personalizador] Vendedor de prueba en {POSICION_PRUEBA}.`
+				.. ` Para ir: game.ServerStorage.RaidBloxDebug:Invoke("Ir", "Personalizador")`
+		)
 	end
 
 	NetworkBridge.Server.OnEvent("PersonalizadorCerrar", function(player: Player)

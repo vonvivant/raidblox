@@ -49,6 +49,7 @@ export type Accion = (player: Player, npc: Npc, servicio: Servicio) -> boolean
 export type AccionItem = (player: Player, npc: Npc, ranura: string, extra: string?) -> boolean
 
 local TAG_NPC = "NpcArquetipo"
+local TAG_RADAR = "NpcServicio" -- lo dibuja el minimapa y el mapa del mundo
 local TAG_ESTACION = "EstacionCrafteo"
 local MAX_POR_COMPRA = 99
 local MAX_NO_APILABLE = 10
@@ -513,7 +514,7 @@ local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, 
 	cartel.Adornee = if cabeza and cabeza:IsA("BasePart") then cabeza else raiz
 	cartel.Size = UDim2.fromOffset(64, 30)
 	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0) -- por encima del nombre
-	cartel.MaxDistance = 70
+	cartel.MaxDistance = 250
 	cartel.LightInfluence = 0
 	cartel.ResetOnSpawn = false
 	local texto = Instance.new("TextLabel")
@@ -545,6 +546,8 @@ local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt,
 	modelo:SetAttribute("Arquetipo", arquetipoId)
 	modelo:SetAttribute("Faccion", faccion)
 	modelo:SetAttribute("Numero", arquetipo.Numero)
+	raiz:SetAttribute("Numero", arquetipo.Numero) -- el radar lee el número de la parte
+	CollectionService:AddTag(raiz, TAG_RADAR)
 	ponerNumero(modelo, raiz, arquetipo, faccion)
 
 	-- Los artesanos cuentan como estación de su oficio (sin cartel propio).
@@ -639,6 +642,51 @@ local function adoptar(instancia: Instance)
 	registrar(instancia, raiz, prompt, arquetipoId, faccion)
 end
 
+-- Piso y cartel de la zona de NPC de prueba, para encontrarla desde lejos.
+local function plazaDePrueba(minimo: Vector3, maximo: Vector3)
+	local centro = (minimo + maximo) / 2
+	local margen = 6
+	local piso = Instance.new("Part")
+	piso.Name = "PlazaNpcPrueba"
+	piso.Anchored = true
+	piso.Material = Enum.Material.Slate
+	piso.Color = Color3.fromRGB(85, 85, 95)
+	piso.Size = Vector3.new(maximo.X - minimo.X + margen * 2, 1, maximo.Z - minimo.Z + margen * 2)
+	piso.CFrame = CFrame.new(centro.X, -0.4, centro.Z) -- apenas por encima del piso del mapa
+	piso.TopSurface = Enum.SurfaceType.Smooth
+	piso.Parent = workspace
+
+	local poste = Instance.new("Part")
+	poste.Name = "CartelNpcPrueba"
+	poste.Anchored = true
+	poste.CanCollide = false
+	poste.Material = Enum.Material.Wood
+	poste.Color = Color3.fromRGB(90, 60, 40)
+	poste.Size = Vector3.new(0.6, 10, 0.6)
+	poste.CFrame = CFrame.new(maximo.X + margen - 1, 5, minimo.Z - margen + 1)
+	poste.Parent = workspace
+
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Cartel"
+	cartel.Size = UDim2.fromOffset(220, 46)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+	cartel.AlwaysOnTop = true
+	cartel.LightInfluence = 0
+	cartel.Parent = poste
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+	texto.BackgroundTransparency = 0.2
+	texto.Font = Enum.Font.GothamBlack
+	texto.TextScaled = true
+	texto.Text = "PLAZA DE NPC (pruebas)"
+	texto.TextColor3 = Color3.fromRGB(255, 215, 90)
+	texto.Parent = cartel
+	local esquinas = Instance.new("UICorner")
+	esquinas.CornerRadius = UDim.new(0, 8)
+	esquinas.Parent = texto
+end
+
 ------------------------------------------------------------------------
 -- Init
 ------------------------------------------------------------------------
@@ -654,9 +702,22 @@ function NpcManager.Init()
 	end
 	CollectionService:GetInstanceAddedSignal(TAG_NPC):Connect(adoptar)
 	if Pruebas.Activas() and next(npcs) == nil then
+		local minimo, maximo = Vector3.zero, Vector3.zero
+		for i, puesto in NpcArquetiposConfig.DePrueba do
+			minimo = if i == 1 then puesto.Posicion else minimo:Min(puesto.Posicion)
+			maximo = if i == 1 then puesto.Posicion else maximo:Max(puesto.Posicion)
+		end
+		plazaDePrueba(minimo, maximo)
 		for _, puesto in NpcArquetiposConfig.DePrueba do
 			NpcManager.Crear(puesto.Arquetipo, puesto.Faccion, puesto.Posicion)
 		end
+		local centro = (minimo + maximo) / 2
+		print(
+			`[Npc] {#NpcArquetiposConfig.DePrueba} NPC de prueba entre {minimo} y {maximo}.`
+				.. ` Para ir: game.ServerStorage.RaidBloxDebug:Invoke("Ir", {math.round(centro.X)}, 0, {math.round(
+					centro.Z
+				)})`
+		)
 	end
 
 	ZoneManager.Cancelado:Connect(function(player: Player)

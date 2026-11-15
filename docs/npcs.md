@@ -116,8 +116,26 @@ La lista completa, con qué funciona hoy, qué falta y el estado de cada uno, es
 de la [matriz](npcs-matriz.md)), del color de su facción. También se pueden crear por código:
 `NpcManager.Crear("Boticario", "Rojo", posicion)`.
 
-En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen los de prueba (`NpcArquetiposConfig.DePrueba`)
-al oeste del punto de inicio: los que ya funcionan, incluidos tres Guardianes de Portales (uno por facción).
+### Encontrar los NPC de prueba
+
+En Studio o con `ModoPruebas`, si el mapa no tiene ninguno, aparecen los de prueba
+(`NpcArquetiposConfig.DePrueba`) sobre una **plataforma de piedra con un cartel "PLAZA DE NPC"**, al oeste y un
+poco al sur del punto de inicio: desde el spawn hay que mirar hacia X negativo (unos 15 a 45 studs) y Z positivo
+(12 a 62). Están en filas de cuatro, cada uno con su número sobre la cabeza.
+
+Tres formas de llegar:
+
+1. **Minimapa y mapa del mundo (M):** cada NPC de servicio es un punto celeste con su número (tag `NpcServicio`).
+2. **Caminando:** el cartel de la plaza se ve siempre, y los nombres de los NPC desde 250 studs.
+3. **Barra de comandos de Studio** (vista de Servidor):
+
+```lua
+game.ServerStorage.RaidBloxDebug:Invoke("Npcs")           -- lista los NPC y su posición
+game.ServerStorage.RaidBloxDebug:Invoke("Ir", "Banquero") -- te lleva a ese NPC
+game.ServerStorage.RaidBloxDebug:Invoke("Ir", -30, 0, 32) -- te lleva a esa posición
+```
+
+Al arrancar, la consola del servidor también imprime el rango de posiciones y el comando para ir.
 
 ## Seguridad
 

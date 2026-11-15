@@ -237,7 +237,9 @@ No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz so
 
 ## Probar los NPC y los consumibles
 
-1. En Studio, caminá al oeste del punto de inicio: hay 14 NPC de prueba.
+1. En Studio, los NPC de prueba están en la **PLAZA DE NPC** (al oeste y un poco al sur del spawn), cada uno con
+   su número sobre la cabeza y como punto celeste en el minimapa. `Invoke("Npcs")` los lista y `Invoke("Ir", "<nombre>")`
+   te lleva.
 2. **Alquimista Experimental** o **Barista de Tés**: comprá un elixir o un té y usalo desde la mochila. Tiene que
    aparecer el efecto en tu marco de vida. Tomá otro de la misma categoría: tiene que reemplazarlo.
 3. Morí o reconectate con un elixir activo: tiene que seguir, con el tiempo que le quedaba.
@@ -249,7 +251,9 @@ No reemplaza las pruebas dentro de Studio: red, DataStore, física e interfaz so
 
 ## Probar el vendedor personalizador
 
-1. En Studio, caminá al oeste del punto de inicio hasta el **Maestro Personalizador** y tocá "Probar y comprar".
+1. En Studio, abrí la barra de comandos (vista de **Servidor**) y corré
+   `game.ServerStorage.RaidBloxDebug:Invoke("Ir", "Personalizador")`, o caminá hasta la **PLAZA DE NPC** (al
+   oeste y un poco al sur del spawn). Tocá "Probar y comprar" en el **Maestro Personalizador**.
 2. Elegí la Espada de Hierro: tiene que aparecer en tu mano, con el cartel VISTA PREVIA.
 3. Arrastrá para girar la cámara. Tocá la hoja: tiene que resaltarse y quedar elegida en la lista de piezas.
 4. Cambiale el material (por ejemplo, Neon) y el color. Abajo tiene que actualizarse el precio.

@@ -39,6 +39,7 @@ local ESTILOS: { [Radar.Tipo]: Estilo? } = {
 	Mision = { Color = Color3.fromRGB(190, 130, 0), Texto = "!", Tam = 24 },
 	Portal = { Color = Color3.fromRGB(130, 60, 200), Texto = "◈", Tam = 22 },
 	Estacion = { Color = Color3.fromRGB(90, 80, 70), Texto = "■", Tam = 12 },
+	Npc = { Color = Color3.fromRGB(40, 110, 170), Texto = "●", Tam = 14 },
 	Restos = { Color = Color3.fromRGB(170, 140, 0), Texto = "✦", Tam = 20 },
 }
 
@@ -269,7 +270,8 @@ RunService.RenderStepped:Connect(function()
 		m.Visible = true
 		m.Position = UDim2.fromScale(eu, ev)
 		m.Size = UDim2.fromOffset(estilo.Tam, estilo.Tam)
-		m.Text = if esMision and e.Texto then e.Texto else estilo.Texto
+		-- Los NPC de servicio muestran su número (#1 a #39).
+		m.Text = if (esMision or e.Tipo == "Npc") and e.Texto then e.Texto else estilo.Texto
 		m.TextColor3 = estilo.Color
 	end
 	for i = usados + 1, #pool do

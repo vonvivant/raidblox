@@ -44,6 +44,7 @@ local ESTILOS: { [Radar.Tipo]: Estilo } = {
 	Restos = { Color = Color3.fromRGB(255, 225, 60), Tam = 17, Texto = "✦", Z = 5 },
 	Portal = { Color = Color3.fromRGB(190, 110, 255), Tam = 15, Texto = "◈", Z = 3 },
 	Estacion = { Color = Color3.fromRGB(200, 200, 210), Tam = 4, Z = 1 },
+	Npc = { Color = Color3.fromRGB(120, 210, 255), Tam = 11, Texto = "●", Z = 4 },
 }
 
 local gui = Instance.new("ScreenGui")

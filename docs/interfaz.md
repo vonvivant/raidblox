@@ -76,6 +76,7 @@ interfaz y con muchos jugadores cuesta casi lo mismo.
 | ✦ amarillo | Restos del Spoil del Chatarrero | Tag `RestosSpoil` |
 | ◈ violeta | Portales | Tag `Portal` |
 | · gris | Estaciones y Casa de Subastas | Tags `EstacionCrafteo`, `CasaSubastas` |
+| NPC de servicio | Punto celeste con su número (tag `NpcServicio`) |
 
 Para que algo aparezca en los mapas alcanza con respetar esa carpeta, esos
 tags (CollectionService) y esos atributos. Toda la interfaz se crea por código

@@ -13,12 +13,14 @@
 --   Restos    tag "RestosSpoil" (restos del Spoil del Chatarrero).
 --   Portal    tag "Portal".
 --   Estacion  tags "EstacionCrafteo" y "CasaSubastas".
+--   Npc       tag "NpcServicio" (vendedores, artesanos, banqueros, guardianes);
+--             el texto es el número del NPC, si lo tiene.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
-export type Tipo = "Grupo" | "Enemigo" | "Elite" | "Mision" | "Recurso" | "Restos" | "Portal" | "Estacion"
+export type Tipo = "Grupo" | "Enemigo" | "Elite" | "Mision" | "Recurso" | "Restos" | "Portal" | "Estacion" | "Npc"
 export type Entidad = { Parte: BasePart, Tipo: Tipo, Texto: string? }
 
 local Radar = {}
@@ -70,6 +72,10 @@ local function rehacer()
 	end
 	for _, r in CollectionService:GetTagged("RestosSpoil") do
 		agregar(r, "Restos")
+	end
+	for _, npc in CollectionService:GetTagged("NpcServicio") do
+		local numero = npc:GetAttribute("Numero")
+		agregar(npc, "Npc", if typeof(numero) == "number" then tostring(numero) else nil)
 	end
 	for _, npc in CollectionService:GetTagged("NpcMision") do
 		local signo = npc:GetAttribute("MarcaMinimapa")

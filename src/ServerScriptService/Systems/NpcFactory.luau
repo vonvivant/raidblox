@@ -50,7 +50,7 @@ function NpcFactory.Crear(
 	if humanoid then
 		humanoid.DisplayName = titulo
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
-		humanoid.NameDisplayDistance = 60
+		humanoid.NameDisplayDistance = 250 -- se ve de lejos: así se encuentran los NPC
 		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	end
 	local alto = if humanoid then humanoid.HipHeight + raiz.Size.Y / 2 else 2.5
