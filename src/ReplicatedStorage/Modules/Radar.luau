@@ -11,7 +11,7 @@
 --   Mision    tag "NpcMision" + atributo local "MarcaMinimapa" ("!" o "?").
 --   Recurso   tag "NodoRecoleccion" (vetas y plantas).
 --   Restos    tag "RestosSpoil" (restos del Spoil del Chatarrero).
---   Portal    tag "Portal".
+--   Portal    tags "Portal" y "PiedraTeleport" (piedras de viaje rápido).
 --   Estacion  tags "EstacionCrafteo" y "CasaSubastas".
 --   Npc       tag "NpcServicio" (vendedores, artesanos, banqueros, guardianes);
 --             el texto es el número del NPC, si lo tiene.
@@ -59,8 +59,10 @@ local function rehacer()
 			table.insert(nueva, { Parte = parte, Tipo = tipo, Texto = texto })
 		end
 	end
-	for _, p in CollectionService:GetTagged("Portal") do
-		agregar(p, "Portal")
+	for _, tag in { "Portal", "PiedraTeleport" } do
+		for _, p in CollectionService:GetTagged(tag) do
+			agregar(p, "Portal")
+		end
 	end
 	for _, tag in { "EstacionCrafteo", "CasaSubastas" } do
 		for _, e in CollectionService:GetTagged(tag) do

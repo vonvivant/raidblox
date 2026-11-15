@@ -1,11 +1,16 @@
 --!strict
--- MonturaManager: monturas (caballo gratis, Dragón de Fuego con pase).
+-- MonturaManager: monturas (caballo gratis, Corcel y Lobo por oro en el
+-- Maestro de Establo, Dragón de Fuego con pase).
 --
 -- * Montar: G o el botón "Montura". Solo fuera de combate (5 s sin pelear),
 --   vivo y sin estar en la Guerra.
 -- * Montado: el modelo va soldado al personaje, sube la altura de cadera y la
 --   velocidad pasa a la de la montura (el anti-cheat la conoce).
 -- * Se desmonta al recibir o hacer daño, al morir, o volviendo a tocar G.
+-- * Maestro de Establo (NPC-021): compra de monturas, alquiler por una hora y
+--   entrenamiento de velocidad (sube el % a todas tus monturas).
+-- El atributo `MonturaMejor` del jugador dice cuál es la mejor que puede usar;
+-- el cliente lo lee para el botón, pero el servidor revalida al montar.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +22,7 @@ local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
 local AntiCheat = require(script.Parent.Parent.AntiCheat)
 local CombatManager = require(script.Parent.Parent.Combate.CombatManager)
+local NpcManager = require(script.Parent.Parent.NpcManager)
 local PasesManager = require(script.Parent.PasesManager)
 
 type Respuesta = Types.Respuesta
@@ -147,6 +153,23 @@ local function desmontar(player: Player, motivo: string?)
 	end
 end
 
+-- ¿El alquiler sigue vigente para esa montura?
+local function alquilada(datos: Types.DatosJugador, id: string): boolean
+	local alquiler = datos.MonturaAlquiler
+	return alquiler ~= nil and alquiler.Id == id and alquiler.Hasta > os.time()
+end
+
+local function comprada(datos: Types.DatosJugador, id: string): boolean
+	local compradas: { string } = datos.MonturasCompradas or {}
+	return table.find(compradas, id) ~= nil
+end
+
+-- Velocidad final: la de la montura más el entrenamiento del establo.
+local function velocidadDe(datos: Types.DatosJugador, def: MonetizacionConfig.Montura): number
+	local extra = math.clamp(datos.MonturaVelocidad or 0, 0, CFG.Establo.Entrenamiento.Maximo)
+	return def.Velocidad * (1 + extra / 100)
+end
+
 local function puedeUsar(player: Player, id: string): (boolean, string?)
 	local def = CFG.Monturas[id]
 	if not def then
@@ -156,10 +179,32 @@ local function puedeUsar(player: Player, id: string): (boolean, string?)
 		return false, `{def.Nombre} se consigue con el pase de la tienda.`
 	end
 	local datos = DataManager.GetData(player)
-	if not datos or datos.Nivel < def.NivelMinimo then
+	if not datos then
+		return false, nil
+	end
+	if def.Precio and not comprada(datos, id) and not alquilada(datos, id) then
+		return false, `{def.Nombre} se compra en el Maestro de Establo.`
+	end
+	if datos.Nivel < def.NivelMinimo then
 		return false, `Necesitás nivel {def.NivelMinimo}.`
 	end
 	return true, nil
+end
+
+-- La mejor montura que el jugador puede usar ahora (la más rápida).
+local function mejorDisponible(player: Player): string
+	local mejor, mejorVelocidad = "Caballo", 0
+	for id, def in CFG.Monturas do
+		if def.Velocidad > mejorVelocidad and puedeUsar(player, id) then
+			mejor, mejorVelocidad = id, def.Velocidad
+		end
+	end
+	return mejor
+end
+
+-- El cliente usa este atributo para el botón de montar.
+local function publicarMejor(player: Player)
+	player:SetAttribute("MonturaMejor", mejorDisponible(player))
 end
 
 local function montar(player: Player, id: string): Respuesta
@@ -190,24 +235,150 @@ local function montar(player: Player, id: string): Respuesta
 		return NetworkBridge.Fail("NOT_ALLOWED")
 	end
 	local def = CFG.Monturas[id]
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return NetworkBridge.Fail("DATA_NOT_LOADED")
+	end
+	local velocidad = velocidadDe(datos, def)
 	local cadera = h.HipHeight
 	AntiCheat.Gracia(player, 1)
-	AntiCheat.SetVelocidadPermitida(player, def.Velocidad + 2)
+	AntiCheat.SetVelocidadPermitida(player, velocidad + 2)
 	h.HipHeight = cadera + ALTURA
-	h.WalkSpeed = def.Velocidad
+	h.WalkSpeed = velocidad
 	local modelo = construir(id, raiz)
-	montados[player] = { Id = id, Modelo = modelo, Humanoid = h, Velocidad = def.Velocidad, Cadera = cadera }
+	montados[player] = { Id = id, Modelo = modelo, Humanoid = h, Velocidad = velocidad, Cadera = cadera }
 	player:SetAttribute("Montura", id)
 	return NetworkBridge.Ok(nil)
+end
+
+------------------------------------------------------------------------
+-- Maestro de Establo (NPC-021)
+------------------------------------------------------------------------
+
+-- Costo de la próxima sesión de entrenamiento (sube con cada sesión hecha).
+local function costoEntrenamiento(datos: Types.DatosJugador): number
+	local e = CFG.Establo.Entrenamiento
+	local hechas = math.floor(math.clamp(datos.MonturaVelocidad or 0, 0, e.Maximo) / e.Paso)
+	return math.floor(e.Costo * (1 + hechas * e.AumentoPorNivel))
+end
+
+local function comprar(player: Player, id: string): boolean
+	local def = CFG.Monturas[id]
+	local datos = DataManager.GetData(player)
+	if not def or not def.Precio or not datos then
+		return false
+	end
+	if comprada(datos, id) then
+		avisar(player, `Ya tenés {def.Nombre}.`, "Info")
+		return false
+	end
+	if datos.Nivel < def.NivelMinimo then
+		avisar(player, `{def.Nombre} pide nivel {def.NivelMinimo}.`, "Error")
+		return false
+	end
+	if not DataManager.SpendGold(player, def.Precio) then
+		avisar(player, `{def.Nombre} cuesta {def.Precio} de oro.`, "Error")
+		return false
+	end
+	local compradas: { string } = datos.MonturasCompradas or {}
+	table.insert(compradas, id)
+	DataManager.Mutar(player, "Cosmeticos", function(d)
+		d.MonturasCompradas = compradas
+	end)
+	publicarMejor(player)
+	avisar(player, `Compraste {def.Nombre}. Montá con G.`, "Oro")
+	return true
+end
+
+local function alquilar(player: Player): boolean
+	local a = CFG.Establo.Alquiler
+	local def = CFG.Monturas[a.Id]
+	local datos = DataManager.GetData(player)
+	if not def or not datos then
+		return false
+	end
+	if comprada(datos, a.Id) then
+		avisar(player, `{def.Nombre} ya es tuya.`, "Info")
+		return false
+	end
+	if alquilada(datos, a.Id) then
+		local minutos = math.ceil(((datos.MonturaAlquiler :: any).Hasta - os.time()) / 60)
+		avisar(player, `Ya la tenés alquilada por {minutos} minutos más.`, "Info")
+		return false
+	end
+	if not DataManager.SpendGold(player, a.Costo) then
+		avisar(player, `El alquiler cuesta {a.Costo} de oro.`, "Error")
+		return false
+	end
+	DataManager.Mutar(player, "Cosmeticos", function(d)
+		d.MonturaAlquiler = { Id = a.Id, Hasta = os.time() + a.Duracion }
+	end)
+	publicarMejor(player)
+	avisar(player, `Alquilaste {def.Nombre} por {a.Duracion // 60} minutos.`, "Oro")
+	return true
+end
+
+local function entrenar(player: Player): boolean
+	local e = CFG.Establo.Entrenamiento
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return false
+	end
+	local actual = math.clamp(datos.MonturaVelocidad or 0, 0, e.Maximo)
+	if actual >= e.Maximo then
+		avisar(player, `Tus monturas ya corren un {e.Maximo}% más rápido.`, "Info")
+		return false
+	end
+	local costo = costoEntrenamiento(datos)
+	if not DataManager.SpendGold(player, costo) then
+		avisar(player, `El entrenamiento cuesta {costo} de oro.`, "Error")
+		return false
+	end
+	local nuevo = math.min(e.Maximo, actual + e.Paso)
+	DataManager.Mutar(player, "Cosmeticos", function(d)
+		d.MonturaVelocidad = nuevo
+	end)
+	avisar(player, `Tus monturas corren un {nuevo}% más rápido.`, "Oro")
+	return true
 end
 
 function MonturaManager.Montado(player: Player): boolean
 	return montados[player] ~= nil
 end
 
+-- Servicios del establo. `Accion` del arquetipo -> qué hace.
+local function registrarEstablo()
+	for id, def in CFG.Monturas do
+		if def.Precio then
+			NpcManager.RegistrarAccion(`ComprarMontura{id}`, function(player: Player): boolean
+				return comprar(player, id)
+			end)
+		end
+	end
+	NpcManager.RegistrarAccion("AlquilarMontura", function(player: Player): boolean
+		return alquilar(player)
+	end)
+	NpcManager.RegistrarAccion("EntrenarMontura", function(player: Player): boolean
+		return entrenar(player)
+	end)
+	NpcManager.RegistrarCotizacion("EntrenarMontura", function(player: Player): number
+		local datos = DataManager.GetData(player)
+		if not datos then
+			return CFG.Establo.Entrenamiento.Costo
+		end
+		local e = CFG.Establo.Entrenamiento
+		if math.clamp(datos.MonturaVelocidad or 0, 0, e.Maximo) >= e.Maximo then
+			return 0 -- ya está al máximo: el botón queda apagado
+		end
+		return costoEntrenamiento(datos)
+	end)
+end
+
 function MonturaManager.Init()
 	assert(not iniciado, "MonturaManager.Init() se llamó dos veces")
 	iniciado = true
+
+	registrarEstablo()
 
 	NetworkBridge.Server.OnInvoke("MonturaAlternar", function(player: Player, id: unknown): Respuesta
 		local m = NetworkBridge.Guard.OneOf(id, CFG.Monturas)
@@ -227,6 +398,7 @@ function MonturaManager.Init()
 		end
 	end)
 	PasesManager.Cambio:Connect(function(player: Player, clave: string, activo: boolean)
+		publicarMejor(player)
 		local m = montados[player]
 		if not activo and m then
 			local pase = CFG.Monturas[m.Id].Pase
@@ -239,6 +411,16 @@ function MonturaManager.Init()
 		player.CharacterRemoving:Connect(function()
 			desmontar(player, nil)
 		end)
+		-- El perfil puede tardar en cargar; el atributo se publica cuando está.
+		task.spawn(function()
+			for _ = 1, 60 do
+				if DataManager.GetData(player) then
+					publicarMejor(player)
+					return
+				end
+				task.wait(1)
+			end
+		end)
 	end
 	for _, player in Players:GetPlayers() do
 		alEntrar(player)
@@ -246,6 +428,26 @@ function MonturaManager.Init()
 	Players.PlayerAdded:Connect(alEntrar)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		montados[player] = nil
+	end)
+	-- Un alquiler que vence deja de estar disponible.
+	task.spawn(function()
+		while true do
+			task.wait(30)
+			for _, player in Players:GetPlayers() do
+				local datos = DataManager.GetData(player)
+				local alquiler = datos and datos.MonturaAlquiler
+				if alquiler and alquiler.Hasta <= os.time() then
+					DataManager.Mutar(player, "Cosmeticos", function(d)
+						d.MonturaAlquiler = nil
+					end)
+					publicarMejor(player)
+					local m = montados[player]
+					if m and m.Id == alquiler.Id then
+						desmontar(player, "Se terminó el alquiler de la montura.")
+					end
+				end
+			end
+		end
 	end)
 end
 

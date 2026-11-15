@@ -170,6 +170,14 @@ export type DatosJugador = {
 	-- Últimas compras al NPC personalizador, por id de pedido: un reintento del
 	-- mismo pedido devuelve el mismo resultado sin cobrar ni entregar de nuevo.
 	ComprasPersonalizador: { [string]: { Uid: string, ItemId: string, Precio: number, Firma: string, T: number } }?,
+	-- Exploración: piedras de teletransporte activadas y puntos de interés
+	-- descubiertos (claves de ExploracionConfig).
+	-- Establo: monturas compradas, alquiler en curso y entrenamiento (% extra).
+	MonturasCompradas: { string }?,
+	MonturaAlquiler: { Id: string, Hasta: number }?,
+	MonturaVelocidad: number?,
+	Waypoints: { string }?,
+	Interes: { string }?,
 	ComprasRotativas: { [string]: { Ciclo: number, Items: { [string]: number } } }?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
 	SkinEstructuraEquipada: SkinEstructura,
@@ -200,6 +208,7 @@ export type SeccionDatos =
 	| "Profesiones"
 	| "Faccion"
 	| "Ajustes"
+	| "Exploracion"
 	| "Vault"
 
 -- Respuesta estándar de todas las RemoteFunctions.

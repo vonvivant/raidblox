@@ -29,6 +29,11 @@ UIKit.Esquinas(boton, 6)
 MenuLateral.Agregar(boton, 7)
 
 local function preferida(): string
+	-- El servidor publica la mejor montura disponible (pase, compradas, alquiler).
+	local mejor = jugador:GetAttribute("MonturaMejor")
+	if typeof(mejor) == "string" and MonetizacionConfig.Monturas[mejor] then
+		return mejor
+	end
 	return if jugador:GetAttribute("Pase_MonturaDragon") == true then "Dragon" else "Caballo"
 end
 
@@ -43,12 +48,13 @@ local function refrescar()
 		boton.BackgroundColor3 = UIKit.Colores.BotonPrimario
 	else
 		local def = MonetizacionConfig.Monturas[preferida()]
-		boton.Text = `{if preferida() == "Dragon" then "🐉" else "🐴"} {def.Nombre} (G)`
+		boton.Text = `{def.Icono or (if preferida() == "Dragon" then "🐉" else "🐴")} {def.Nombre} (G)`
 		boton.BackgroundColor3 = UIKit.Colores.Boton
 	end
 end
 jugador:GetAttributeChangedSignal("Montura"):Connect(refrescar)
 jugador:GetAttributeChangedSignal("Pase_MonturaDragon"):Connect(refrescar)
+jugador:GetAttributeChangedSignal("MonturaMejor"):Connect(refrescar)
 refrescar()
 
 boton.Activated:Connect(alternar)

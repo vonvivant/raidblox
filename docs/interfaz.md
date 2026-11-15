@@ -77,6 +77,7 @@ interfaz y con muchos jugadores cuesta casi lo mismo.
 | ◈ violeta | Portales | Tag `Portal` |
 | · gris | Estaciones y Casa de Subastas | Tags `EstacionCrafteo`, `CasaSubastas` |
 | NPC de servicio | Punto celeste con su número (tag `NpcServicio`) |
+| Piedra de viaje rápido | Rombo violeta (tag `PiedraTeleport`); en el mapa del mundo, azul si está activada y gris si no |
 
 Para que algo aparezca en los mapas alcanza con respetar esa carpeta, esos
 tags (CollectionService) y esos atributos. Toda la interfaz se crea por código

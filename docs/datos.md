@@ -75,6 +75,11 @@ classDiagram
         map? Buffs
         map? ComprasRotativas
         map? ComprasPersonalizador
+        list? Waypoints
+        list? Interes
+        list? MonturasCompradas
+        map? MonturaAlquiler
+        number? MonturaVelocidad
     }
 
     DatosJugador *-- Inventario

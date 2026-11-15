@@ -22,6 +22,8 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
+local ExploracionConfig = require(ReplicatedStorage.Configs.ExploracionConfig)
+local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local Radar = require(ReplicatedStorage.Modules.Radar)
 local EventosCliente = require(ReplicatedStorage.Modules.EventosCliente)
@@ -210,6 +212,79 @@ local function cargarZona()
 end
 Workspace:GetAttributeChangedSignal("Zona"):Connect(cargarZona)
 cargarZona()
+
+------------------------------------------------------------------------
+-- Piedras de viaje rápido y puntos de interés (vienen del perfil, no se mueven)
+------------------------------------------------------------------------
+
+local fijos = Instance.new("Frame")
+fijos.Name = "Fijos"
+fijos.Size = UDim2.fromScale(1, 1)
+fijos.BackgroundTransparency = 1
+fijos.Parent = lienzo
+
+local function listaDe(campo: string): { [string]: boolean }
+	local exploracion = EstadoCliente.Get("Exploracion")
+	local conocidos: { [string]: boolean } = {}
+	if typeof(exploracion) == "table" and typeof(exploracion[campo]) == "table" then
+		for _, id in exploracion[campo] do
+			if typeof(id) == "string" then
+				conocidos[id] = true
+			end
+		end
+	end
+	return conocidos
+end
+
+-- Dibuja lo que el jugador conoce de la zona: piedras (las activadas en azul,
+-- las que todavía no, en gris) y puntos de interés descubiertos.
+local function dibujarFijos()
+	fijos:ClearAllChildren()
+	local zona = Workspace:GetAttribute("Zona")
+	local id = if typeof(zona) == "string" then zona else "Pruebas"
+	local activas = listaDe("Waypoints")
+	local vistos = listaDe("Interes")
+
+	for _, piedraId in ExploracionConfig.PiedrasDe(id) do
+		local piedra = ExploracionConfig.Piedras[piedraId]
+		local u, v, dentro = aMapa(piedra.Posicion)
+		if not dentro then
+			continue
+		end
+		local activa = activas[piedraId]
+		local m = rotulo(fijos, "◈", UDim2.fromOffset(22, 22), UDim2.fromScale(u, v), Enum.Font.GothamBlack)
+		m.AnchorPoint = Vector2.new(0.5, 0.5)
+		m.TextColor3 = if activa then Color3.fromRGB(40, 90, 180) else Color3.fromRGB(130, 120, 100)
+		local nombre =
+			rotulo(fijos, piedra.Nombre, UDim2.fromOffset(150, 16), UDim2.fromScale(u, v) + UDim2.fromOffset(0, 16))
+		nombre.AnchorPoint = Vector2.new(0.5, 0.5)
+		nombre.TextColor3 = if activa then Color3.fromRGB(40, 90, 180) else Color3.fromRGB(130, 120, 100)
+	end
+
+	for _, puntoId in ExploracionConfig.InteresDe(id) do
+		if not vistos[puntoId] then
+			continue
+		end
+		local punto = ExploracionConfig.Interes[puntoId]
+		local u, v, dentro = aMapa(punto.Posicion)
+		if not dentro then
+			continue
+		end
+		local m = rotulo(fijos, punto.Icono, UDim2.fromOffset(20, 20), UDim2.fromScale(u, v))
+		m.AnchorPoint = Vector2.new(0.5, 0.5)
+		local nombre =
+			rotulo(fijos, punto.Nombre, UDim2.fromOffset(150, 16), UDim2.fromScale(u, v) + UDim2.fromOffset(0, 15))
+		nombre.AnchorPoint = Vector2.new(0.5, 0.5)
+	end
+end
+
+EstadoCliente.Cambio:Connect(function(campo: string)
+	if campo == "Exploracion" or campo == "*" then
+		dibujarFijos()
+	end
+end)
+Workspace:GetAttributeChangedSignal("Zona"):Connect(dibujarFijos)
+dibujarFijos()
 
 ------------------------------------------------------------------------
 -- Abrir / cerrar

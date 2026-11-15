@@ -134,6 +134,10 @@ local DEFINICIONES: { [string]: Definicion } = {
 	NpcSobreItem = { Tipo = "Function", Critico = false }, -- (npcId, operacion, ranura, extra?): desencantar, reforjar, engarzar
 	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
 
+	-- Exploración: piedras de teletransporte y puntos de interés
+	PiedraAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (piedraId, nombre, destinos)
+	PiedraViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (destinoId)
+
 	-- NPC vendedor y personalizador (PersonalizadorManager)
 	PersonalizadorAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (posicionNpc, categoria?)
 	PersonalizadorCerrar = { Tipo = "Event", Critico = false }, -- el cliente cerró el probador

@@ -260,3 +260,70 @@ prueba("Cambista: cambiar honor rinde menos que gastarlo en un NPC y revender", 
 		end
 	end
 end)
+
+-- Exploración: piedras de viaje rápido y puntos de interés.
+local Exploracion = cargar("ReplicatedStorage/Configs/ExploracionConfig")
+
+prueba("exploración: piedras y puntos están en zonas que existen", function()
+	for _, tabla in { Exploracion.Piedras, Exploracion.Interes } do
+		for id, dato in tabla do
+			exigir(type(dato.Nombre) == "string" and dato.Nombre ~= "", id .. " sin nombre")
+			exigir(Zonas.Zonas[dato.Zona] ~= nil or dato.Zona == "Pruebas", id .. " en una zona inexistente: " .. dato.Zona)
+			exigir(dato.Posicion ~= nil, id .. " sin posición")
+		end
+	end
+	for id, punto in Exploracion.Interes do
+		exigir(type(punto.Icono) == "string" and punto.Icono ~= "", id .. " sin ícono")
+		exigir(type(punto.Descripcion) == "string" and punto.Descripcion ~= "", id .. " sin descripción")
+	end
+end)
+
+prueba("exploración: hay al menos dos piedras por zona y no se superponen", function()
+	local porZona = {}
+	for _, piedra in Exploracion.Piedras do
+		porZona[piedra.Zona] = (porZona[piedra.Zona] or 0) + 1
+	end
+	for zona, cantidad in porZona do
+		exigir(cantidad >= 2, "la zona " .. zona .. " tiene una sola piedra: no se puede viajar")
+	end
+	local ocupados = {}
+	for id, piedra in Exploracion.Piedras do
+		local clave = piedra.Zona .. ":" .. piedra.Posicion.X .. "," .. piedra.Posicion.Z
+		exigir(not ocupados[clave], "dos piedras en el mismo lugar: " .. id)
+		ocupados[clave] = true
+	end
+	exigir(#Exploracion.PiedrasDe("Pruebas") == 4, "piedras de la zona de pruebas")
+	exigir(#Exploracion.PiedrasDe("ZonaQueNoExiste") == 0, "zona sin piedras")
+end)
+
+prueba("exploración: viajar a otra zona cuesta más que dentro de la misma", function()
+	local a = { Nombre = "A", Zona = "Pruebas", Posicion = Vector3.new(0, 0, 0) }
+	local b = { Nombre = "B", Zona = "Pruebas", Posicion = Vector3.new(50, 0, 0) }
+	local c = { Nombre = "C", Zona = "Bosque", Posicion = Vector3.new(0, 0, 0) }
+	exigir(Exploracion.Costo(a, b) == Exploracion.CostoViaje, "misma zona")
+	exigir(Exploracion.Costo(a, c) > Exploracion.Costo(a, b), "otra zona sale más")
+end)
+
+prueba("establo: monturas comprables coherentes y entrenamiento acotado", function()
+	local Monet = cargar("ReplicatedStorage/Configs/MonetizacionConfig")
+	local gratis = 0
+	for id, def in Monet.Monturas do
+		exigir(def.Velocidad > 16, id .. " no es más rápida que ir a pie")
+		exigir(def.NivelMinimo >= 1, id .. " con nivel inválido")
+		if def.Precio then
+			exigir(def.Precio > 0, id .. " con precio inválido")
+			exigir(def.Pase == nil, id .. " se compra con oro y con pase a la vez")
+		elseif not def.Pase then
+			gratis += 1
+		end
+	end
+	exigir(gratis >= 1, "ninguna montura es gratis")
+	local e = Monet.Establo.Entrenamiento
+	exigir(e.Maximo % e.Paso == 0, "el máximo de entrenamiento no es múltiplo del paso")
+	exigir(e.Costo > 0 and e.AumentoPorNivel >= 0, "costos de entrenamiento")
+	local alquiler = Monet.Establo.Alquiler
+	local montura = Monet.Monturas[alquiler.Id]
+	exigir(montura ~= nil and montura.Precio ~= nil, "se alquila una montura que no se vende")
+	exigir(alquiler.Costo < montura.Precio, "alquilar no puede costar más que comprar")
+	exigir(alquiler.Duracion >= 60, "duración del alquiler")
+end)

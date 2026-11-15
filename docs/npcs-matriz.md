@@ -28,7 +28,7 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **19** implementados sin verificar, **6** en desarrollo y **14** pendientes (total 39).
+Hoy: **22** implementados sin verificar, **5** en desarrollo y **12** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -69,10 +69,10 @@ Hoy: **19** implementados sin verificar, **6** en desarrollo y **14** pendientes
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
 | NPC-020 | Guardián de Portales (`GuardianPortales`) | Rojo, Azul, Neutral | viajes por territorio | — | Implementado sin verificar |
-| NPC-021 | Maestro de Establo (`MaestroEstablo`) | Rojo, Azul, Neutral | el sistema existe en: Monturas (tecla G): caballo gratis y Dragón de Fuego con pase | Monturas compradas con oro y entrenamiento | En desarrollo |
+| NPC-021 | Maestro de Establo (`MaestroEstablo`) | Rojo, Azul, Neutral | Comprar el Corcel de Guerra, Comprar el Lobo de las Nieves, Alquilar un corcel por una hora, Entrenar velocidad | Alimentar monturas; Restricciones de montura por zona | Implementado sin verificar |
 | NPC-022 | Navegante (`Navegante`) | Rojo, Azul, Neutral | — | Rutas con vehículo (hoy se puede usar el Guardián de Portales) | Pendiente |
-| NPC-023 | Cartógrafo (`Cartografo`) | Rojo, Azul, Neutral | — | Puntos de interés por zona | Pendiente |
-| NPC-024 | Guardián de Piedra Teleport (`GuardianPiedraTeleport`) | Rojo, Azul, Neutral | — | Waypoints guardados en el perfil | Pendiente |
+| NPC-023 | Cartógrafo (`Cartografo`) | Rojo, Azul, Neutral | Comprar el mapa de la zona | Mapas de otras zonas; Coleccionables de exploración | Implementado sin verificar |
+| NPC-024 | Guardián de Piedra Teleport (`GuardianPiedraTeleport`) | Rojo, Azul, Neutral | Activar la piedra cercana | Costo en cristales en lugar de oro | Implementado sin verificar |
 
 ### Grupo E — Misiones, facciones y progresión
 

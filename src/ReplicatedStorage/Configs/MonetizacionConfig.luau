@@ -31,6 +31,10 @@ export type Montura = {
 	NivelMinimo: number,
 	Color: Color3,
 	Fuego: boolean?,
+	-- Monturas del Maestro de Establo (NPC-021): se compran con oro y quedan
+	-- en el perfil. Sin Precio y sin Pase, la montura es gratis para todos.
+	Precio: number?,
+	Icono: string?,
 }
 
 local MonetizacionConfig = {
@@ -84,6 +88,22 @@ local MonetizacionConfig = {
 			NivelMinimo = 1,
 			Color = Color3.fromRGB(120, 80, 45),
 		},
+		Corcel = {
+			Nombre = "Corcel de Guerra",
+			Velocidad = 26,
+			NivelMinimo = 5,
+			Color = Color3.fromRGB(70, 70, 80),
+			Precio = 1500,
+			Icono = "🐴",
+		},
+		Lobo = {
+			Nombre = "Lobo de las Nieves",
+			Velocidad = 28,
+			NivelMinimo = 12,
+			Color = Color3.fromRGB(200, 205, 215),
+			Precio = 6000,
+			Icono = "🐺",
+		},
 		Dragon = {
 			Nombre = "Dragón de Fuego",
 			Velocidad = 27.6, -- +15% sobre el caballo
@@ -94,6 +114,15 @@ local MonetizacionConfig = {
 		},
 	} :: { [string]: Montura },
 	SegundosSinCombateParaMontar = 5,
+
+	-- Maestro de Establo (NPC-021).
+	Establo = {
+		-- Alquiler: la montura `Id` por `Duracion` segundos, sin quedársela.
+		Alquiler = { Id = "Corcel", Costo = 150, Duracion = 3600 },
+		-- Entrenamiento: cada sesión suma `Paso` % de velocidad a todas tus
+		-- monturas, hasta `Maximo` %. El costo sube con cada sesión.
+		Entrenamiento = { Costo = 1000, Paso = 2, Maximo = 10, AumentoPorNivel = 0.5 },
+	},
 
 	-- Fase 6.2: Developer Products (compras repetibles). Id = 0: igual que los
 	-- pases, no se venden todavía pero se pueden simular en modo pruebas.

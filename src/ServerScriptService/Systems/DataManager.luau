@@ -247,6 +247,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.PuntosHonor
 	elseif seccion == "Vault" then
 		return datos.Vault or false
+	elseif seccion == "Exploracion" then
+		return { Waypoints = datos.Waypoints or {}, Interes = datos.Interes or {} }
 	elseif seccion == "Cosmeticos" then
 		return {
 			Titulos = datos.Titulos,
@@ -258,6 +260,9 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 			Apariencias = datos.Apariencias or {},
 			Transmog = datos.Transmog or {},
 			Barras = DataManager.Barras(datos),
+			MonturasCompradas = datos.MonturasCompradas or {},
+			MonturaAlquiler = datos.MonturaAlquiler or false,
+			MonturaVelocidad = datos.MonturaVelocidad or 0,
 		}
 	else
 		return datos.Equipamiento
@@ -450,6 +455,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		Profesiones = d.Profesiones,
 		Ajustes = d.Ajustes,
 		Vault = d.Vault or false,
+		Exploracion = { Waypoints = d.Waypoints or {}, Interes = d.Interes or {} },
 	}
 end
 
