@@ -134,6 +134,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	NpcSobreItem = { Tipo = "Function", Critico = false }, -- (npcId, operacion, ranura, extra?): desencantar, reforjar, engarzar
 	NpcViajar = { Tipo = "Function", Critico = false, Timeout = 20 }, -- (npcId, zonaId)
 
+	-- Barbero (AparienciaManager)
+	BarberoAplicar = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (npcId, piel?, peinado?, marca?)
+
 	-- Progresión social (ProgresionSocialManager)
 	EmisarioComprar = { Tipo = "Function", Critico = false }, -- (npcId, indiceOferta)
 

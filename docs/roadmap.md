@@ -82,8 +82,10 @@ Chatarrero, minimapa con marco y mapa del mundo, una pasada de buenas prácticas
 de misión que se expanden y se minimizan ([misiones](misiones.md)).
 
 **En curso: los 39 NPC.** Avance y orden de trabajo en la [matriz](npcs-matriz.md). Hecho hasta ahora: la
-infraestructura, el Grupo A casi completo ([consumibles](consumibles.md)) y el Grupo B ([forja](forja.md), con
-durabilidad del equipo).
+infraestructura y los grupos A ([consumibles](consumibles.md)), B ([forja](forja.md), con durabilidad del equipo),
+C (economía), D ([exploración](exploracion.md)), E ([progresión social](progresion-social.md)) y F
+([cosméticos](cosmeticos.md)). Quedan los grupos G (vivienda, cocina, pesca, minijuegos) y H (PvP), más el
+Entrenador de Clase, el Borrador de Recuerdos, el Inscriptor, el Navegante y el Tintorero.
 
 **Hecho (sin probar en Studio):** [NPC vendedor y personalizador 3D](personalizador.md), con probador sobre el
 avatar y material y color por pieza. Cubre también la parte de materiales y colores del pedido de forja estética;

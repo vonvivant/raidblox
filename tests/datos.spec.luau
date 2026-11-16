@@ -387,3 +387,67 @@ prueba("reputación: niveles ordenados y ofertas alcanzables", function()
 	local diasAlMaximo = Social.Reputacion.Maximo / Social.Reputacion.MaximoPorDia
 	exigir(diasAlMaximo >= 7, "llegar al tope de reputación toma " .. diasAlMaximo .. " días: demasiado rápido")
 end)
+
+-- Cosméticos: barbero y mascotas compradas con oro.
+local Apariencia = cargar("ReplicatedStorage/Configs/AparienciaConfig")
+local Mascotas = cargar("ReplicatedStorage/Configs/MascotasConfig")
+
+prueba("barbero: pieles con color, y los estilos sin asset quedan marcados", function()
+	local pieles = 0
+	for id, piel in Apariencia.Barbero.Pieles do
+		pieles += 1
+		exigir(type(piel.Nombre) == "string" and piel.Nombre ~= "", id .. " sin nombre")
+		exigir(piel.Color ~= nil, id .. " sin color")
+	end
+	exigir(pieles >= 2, "hace falta más de un color de piel")
+	exigir(Apariencia.Barbero.Pieles.Avatar ~= nil, "falta la opción de volver al color del avatar")
+	exigir(Apariencia.Barbero.Costo > 0, "el barbero tiene que cobrar algo")
+	for _, tabla in { Apariencia.Barbero.Peinados, Apariencia.Barbero.Marcas } do
+		for id, estilo in tabla do
+			exigir(type(estilo.Nombre) == "string" and estilo.Nombre ~= "", id .. " sin nombre")
+			exigir(type(estilo.AssetId) == "number" and estilo.AssetId >= 0, id .. " con AssetId inválido")
+		end
+	end
+end)
+
+prueba("mascotas: las de oro tienen precio creciente y las del pase no", function()
+	local conPrecio, sinPrecio = 0, 0
+	for id, def in Mascotas.Mascotas do
+		exigir(type(def.Nombre) == "string" and def.Nombre ~= "", id .. " sin nombre")
+		exigir(def.Tam > 0, id .. " con tamaño inválido")
+		if def.Precio then
+			conPrecio += 1
+			exigir(def.Precio > 0, id .. " con precio inválido")
+		else
+			sinPrecio += 1
+		end
+	end
+	exigir(conPrecio >= 1, "ninguna mascota se compra con oro")
+	exigir(sinPrecio >= 1, "ninguna mascota queda para el pase de batalla")
+end)
+
+prueba("NPCs: las acciones de los servicios siguen el patrón esperado", function()
+	-- Las acciones que arman otros módulos por id (monturas, mascotas) tienen
+	-- que coincidir con una entrada real de su config.
+	local Monet = cargar("ReplicatedStorage/Configs/MonetizacionConfig")
+	for id, a in Npcs.Arquetipos do
+		for _, s in a.Servicios or {} do
+			local accion = s.Accion
+			if type(accion) ~= "string" then
+				continue
+			end
+			local montura = string.match(accion, "^ComprarMontura(%w+)$")
+			if montura then
+				exigir(Monet.Monturas[montura] ~= nil, id .. ": montura inexistente " .. montura)
+				exigir(Monet.Monturas[montura].Precio ~= nil, id .. ": " .. montura .. " no se vende por oro")
+				exigir(s.Costo == Monet.Monturas[montura].Precio, id .. ": el costo del servicio no coincide con el precio")
+			end
+			local mascota = string.match(accion, "^ComprarMascota(%w+)$")
+			if mascota then
+				exigir(Mascotas.Mascotas[mascota] ~= nil, id .. ": mascota inexistente " .. mascota)
+				exigir(Mascotas.Mascotas[mascota].Precio ~= nil, id .. ": " .. mascota .. " no se vende por oro")
+				exigir(s.Costo == Mascotas.Mascotas[mascota].Precio, id .. ": el costo del servicio no coincide con el precio")
+			end
+		end
+	end
+end)

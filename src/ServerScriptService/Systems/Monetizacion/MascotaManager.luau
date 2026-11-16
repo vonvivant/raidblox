@@ -16,6 +16,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local CFG = require(ReplicatedStorage.Configs.MascotasConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
+local NpcManager = require(script.Parent.Parent.NpcManager)
 local LootManager = require(script.Parent.Parent.Combate.LootManager)
 
 type Respuesta = Types.Respuesta
@@ -149,9 +150,51 @@ local function elegir(player: Player, id: string): Respuesta
 	return NetworkBridge.Ok(nil)
 end
 
+local function avisar(player: Player, texto: string, tipo: string?)
+	NetworkBridge.Server.FireClient("Notificacion", player, texto, tipo or "Info")
+end
+
+-- Vendedor de Mascotas (NPC-032): compra con oro.
+local function comprar(player: Player, id: string): boolean
+	local def = CFG.Mascotas[id]
+	local datos = DataManager.GetData(player)
+	if not def or not def.Precio or not datos then
+		return false
+	end
+	local mias: { string } = datos.Mascotas or {}
+	if table.find(mias, id) then
+		avisar(player, `Ya tenés a {def.Nombre}.`, "Info")
+		return false
+	end
+	if not DataManager.SpendGold(player, def.Precio) then
+		avisar(player, `{def.Nombre} cuesta {def.Precio} de oro.`, "Error")
+		return false
+	end
+	local nuevas = table.clone(mias)
+	table.insert(nuevas, id)
+	DataManager.Mutar(player, "Cosmeticos", function(d)
+		d.Mascotas = nuevas
+	end)
+	avisar(player, `{def.Nombre} te acompaña. Equipala en la Tienda, pestaña Colección.`, "Oro")
+	return true
+end
+
 function MascotaManager.Init()
 	assert(not iniciado, "MascotaManager.Init() se llamó dos veces")
 	iniciado = true
+
+	for id, def in CFG.Mascotas do
+		if def.Precio then
+			NpcManager.RegistrarAccion(`ComprarMascota{id}`, function(player: Player): boolean
+				return comprar(player, id)
+			end)
+		end
+	end
+	-- Transfigurador (030) y Vendedor de Mascotas (032): abren la Colección.
+	NpcManager.RegistrarAccion("Coleccion", function(player: Player): boolean
+		NetworkBridge.Server.FireClient("NpcVentana", player, "Coleccion")
+		return true
+	end)
 
 	NetworkBridge.Server.OnInvoke("EquiparMascota", function(player: Player, id: unknown): Respuesta
 		local i = if id == "" then "" else NetworkBridge.Guard.String(id, 40)

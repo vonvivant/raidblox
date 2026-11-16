@@ -138,6 +138,7 @@ src/
         ├── PersonalizadorUI.client.luau  Tienda y probador del NPC personalizador
         ├── PiedrasUI.client.luau         Viaje rápido entre piedras activadas
         ├── EmisarioUI.client.luau        Recompensas de facción por reputación
+        ├── BarberoUI.client.luau         Color de piel, peinado y marcas
         ├── SubastaUI.client.luau         Casa de Subastas
         ├── ComercioUI.client.luau        Comercio 1v1
         ├── MisionesUI.client.luau        Diálogos, seguimiento y marcadores
@@ -283,6 +284,7 @@ devuelven siempre `{ Success, ErrorCode, Data }`.
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaComprar` | Function | C → S |
 | NPCs por arquetipo | `NpcAbrir` | Event | S → C |
 | NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcSobreItem`, `NpcFabricar`, `NpcViajar` | Function | C → S |
+| Barbero | `BarberoAplicar` | Function | C → S |
 | Progresión social | `EmisarioComprar` | Function | C → S |
 | Exploración | `PiedraAbrir` | Event | S → C |
 | Exploración | `PiedraViajar` | Function | C → S |

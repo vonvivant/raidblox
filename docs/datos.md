@@ -75,6 +75,7 @@ classDiagram
         map? Buffs
         map? ComprasRotativas
         map? ComprasPersonalizador
+        map? Apariencia
         number? Descanso
         map? Reputacion
         map? ReputacionHoy

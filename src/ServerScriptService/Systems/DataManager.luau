@@ -262,6 +262,7 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 			Apariencias = datos.Apariencias or {},
 			Transmog = datos.Transmog or {},
 			Barras = DataManager.Barras(datos),
+			Apariencia = datos.Apariencia or {},
 			MonturasCompradas = datos.MonturasCompradas or {},
 			MonturaAlquiler = datos.MonturaAlquiler or false,
 			MonturaVelocidad = datos.MonturaVelocidad or 0,

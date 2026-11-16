@@ -175,6 +175,8 @@ export type DatosJugador = {
 	-- Establo: monturas compradas, alquiler en curso y entrenamiento (% extra).
 	-- Progresión social: descanso del Tabernero, reputación por bando y
 	-- misiones diarias tomadas hoy.
+	-- Barbero: estilo del personaje (claves de AparienciaConfig.Barbero).
+	Apariencia: { Piel: string?, Peinado: string?, Marca: string? }?,
 	Descanso: number?,
 	Reputacion: { [string]: number }?,
 	ReputacionHoy: { Dia: number, Puntos: number }?,

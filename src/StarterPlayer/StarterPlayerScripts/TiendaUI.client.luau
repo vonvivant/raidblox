@@ -553,6 +553,17 @@ recargar = function()
 	end
 end
 
+-- El Transfigurador y el Vendedor de Mascotas abren la Colección.
+NetworkBridge.Client.OnEvent("NpcVentana", function(nombre: any)
+	if nombre ~= "Coleccion" then
+		return
+	end
+	vista = "Colección"
+	ventana.Visible = true
+	task.spawn(recargar)
+	UIKit.EnfocarPrimero(ventana)
+end)
+
 abrir.Activated:Connect(function()
 	ventana.Visible = not ventana.Visible
 	if ventana.Visible then
