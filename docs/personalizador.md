@@ -62,6 +62,31 @@ Está completo en los archivos de arriba, todos con `--!strict`.
 
 ## E. Cómo preparar un modelo
 
+### Formato del archivo 3D
+
+El importador de Studio acepta **`.fbx`, `.gltf`/`.glb` y `.obj`**, pero para este sistema **no sirven igual**:
+
+| Formato | Para esto |
+| --- | --- |
+| `.fbx` o `.glb` | **Lo que hay que usar.** Mantienen la jerarquía y los nombres de cada objeto, así que cada pieza entra como su propio `MeshPart` dentro del `Model`, y esos nombres son justamente los ids de pieza que usa el personalizador |
+| `.obj` | Solo para una pieza suelta. No trae jerarquía, ni nombres de objetos, ni materiales: el arma entera llega como una sola malla y no se puede editar pieza por pieza |
+
+Otras cosas que importan acá:
+
+- **Cada pieza editable tiene que ser un objeto aparte y con nombre** (`Hoja`, `Guarda`, `Mango`…). Si exportás
+  el arma unificada, el personalizador va a ver una sola pieza.
+- **Hasta ~20.000 triángulos por malla** (el importador avisa y simplifica solo por encima de eso). Para un arma
+  conviene estar bastante abajo.
+- **Hace falta UV** en las piezas que vayan a llevar calcomanía o relieve: sin coordenadas de textura, el stencil
+  sale estirado o no se ve.
+- Los **relieves** (normal map) solo funcionan sobre `MeshPart`, que es lo que produce importar `.fbx`/`.glb`.
+  Una `Part` común no acepta `SurfaceAppearance`.
+- Las **texturas** van como imágenes subidas aparte, con su id en `StencilsConfig`. El importador también puede
+  armar un `SurfaceAppearance` de base si el archivo trae mapas PBR; el relieve del grabador reemplaza ese
+  aspecto mientras está puesto.
+
+### Pasos
+
 1. Poné el `Model` en `ReplicatedStorage.CustomizableItems.Armas` o `.Armaduras`. No hay que registrarlo en
    ningún script: aparece solo en el catálogo.
 2. Atributos del modelo:
