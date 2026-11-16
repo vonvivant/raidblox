@@ -249,6 +249,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.Vault or false
 	elseif seccion == "Exploracion" then
 		return { Waypoints = datos.Waypoints or {}, Interes = datos.Interes or {} }
+	elseif seccion == "Social" then
+		return { Descanso = datos.Descanso or 0, Reputacion = datos.Reputacion or {}, Diarias = datos.Diarias or false }
 	elseif seccion == "Cosmeticos" then
 		return {
 			Titulos = datos.Titulos,
@@ -456,6 +458,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		Ajustes = d.Ajustes,
 		Vault = d.Vault or false,
 		Exploracion = { Waypoints = d.Waypoints or {}, Interes = d.Interes or {} },
+		Social = { Descanso = d.Descanso or 0, Reputacion = d.Reputacion or {}, Diarias = d.Diarias or false },
 	}
 end
 
@@ -762,11 +765,22 @@ function DataManager.XpParaSiguienteNivel(nivel: number): number
 end
 
 -- Suma XP y sube de nivel las veces que corresponda. Devuelve los niveles ganados.
+-- Gancho de la experiencia descansada (ProgresionSocialManager): recibe la
+-- experiencia que se va a dar y devuelve la final. Por defecto no cambia nada.
+local bonusXp: (Player, number) -> number = function(_player: Player, cantidad: number): number
+	return cantidad
+end
+
+function DataManager.SetBonusXp(fn: (Player, number) -> number)
+	bonusXp = fn
+end
+
 function DataManager.AddExperience(player: Player, cantidad: number): number
 	local perfil = perfilActivo(player)
 	if not perfil or not esEnteroPositivo(cantidad) then
 		return 0
 	end
+	cantidad = math.max(1, math.floor(bonusXp(player, cantidad)))
 	local d = perfil.Data
 	local maximo = GameConfig.Progresion.NivelMaximo
 	if d.Nivel >= maximo then

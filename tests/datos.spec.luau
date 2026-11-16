@@ -327,3 +327,63 @@ prueba("establo: monturas comprables coherentes y entrenamiento acotado", functi
 	exigir(alquiler.Costo < montura.Precio, "alquilar no puede costar más que comprar")
 	exigir(alquiler.Duracion >= 60, "duración del alquiler")
 end)
+
+-- Progresión social: descanso, diarias y reputación.
+local Social = cargar("ReplicatedStorage/Configs/ProgresionSocialConfig")
+local Misiones = cargar("ReplicatedStorage/Configs/MisionesConfig")
+
+prueba("descanso: el bonus sale del saldo y nunca da experiencia infinita", function()
+	local xp, usado = Social.AplicarDescanso(100, 0)
+	exigir(xp == 100 and usado == 0, "sin saldo no cambia nada")
+	xp, usado = Social.AplicarDescanso(100, 1000)
+	exigir(xp == 150 and usado == 50, "con saldo: " .. xp .. " / " .. usado)
+	xp, usado = Social.AplicarDescanso(100, 20)
+	exigir(xp == 120 and usado == 20, "el saldo corto limita el extra")
+	xp, usado = Social.AplicarDescanso(0, 1000)
+	exigir(xp == 0 and usado == 0, "sin experiencia no se gasta saldo")
+	exigir(Social.Descanso.PorCompra <= Social.Descanso.Maximo, "una compra no puede pasar el tope")
+	exigir(Social.Descanso.Costo > 0 and Social.Descanso.Bonus > 0, "costos del descanso")
+end)
+
+prueba("diarias: el día cambia una vez cada 24 h y hay contratos para llenar el cupo", function()
+	local base = 1800000000
+	exigir(Social.DiaDe(base) == Social.DiaDe(base + 3600), "una hora después es el mismo día")
+	exigir(Social.DiaDe(base + 86400) == Social.DiaDe(base) + 1, "un día después es el siguiente")
+	local falta = Social.FaltaParaReinicio(base)
+	exigir(falta > 0 and falta <= 86400, "falta para el reinicio: " .. falta)
+	exigir(Social.DiaDe(base + falta + 1) == Social.DiaDe(base) + 1, "pasado el reinicio cambia el día")
+	local diarias = 0
+	for id, mision in Misiones.Misiones do
+		if mision.Diaria then
+			diarias += 1
+			exigir(mision.Repetible, id .. " es diaria pero no repetible")
+			exigir(mision.Npc == "Tablon", id .. " es diaria y no la da el tablón")
+			exigir(Misiones.Npcs[mision.Npc] ~= nil, id .. " apunta a un NPC que no existe")
+		end
+	end
+	exigir(diarias >= Social.Diarias.PorDia, "hay " .. diarias .. " diarias y el cupo es " .. Social.Diarias.PorDia)
+	exigir(Social.Diarias.MultiplicadorRecompensa >= 1, "las diarias no pueden rendir menos")
+end)
+
+prueba("reputación: niveles ordenados y ofertas alcanzables", function()
+	local previo = -1
+	for _, nivel in Social.Niveles do
+		exigir(nivel.Desde > previo, "los niveles no están ordenados: " .. nivel.Nombre)
+		previo = nivel.Desde
+	end
+	exigir(Social.Niveles[1].Desde == 0, "el primer nivel tiene que arrancar en 0")
+	local nombre, falta = Social.NivelDe(0)
+	exigir(nombre == "Neutral" and falta > 0, "nivel inicial")
+	exigir(select(1, Social.NivelDe(Social.Reputacion.Maximo)) == "Exaltado", "con el máximo se llega a Exaltado")
+	exigir(select(2, Social.NivelDe(Social.Reputacion.Maximo)) == 0, "al tope no falta nada")
+	for i, oferta in Social.Ofertas do
+		exigir(oferta.Costo > 0, "oferta " .. i .. " sin costo")
+		exigir(oferta.Reputacion <= Social.Reputacion.Maximo, "oferta " .. i .. " pide más de lo alcanzable")
+		exigir((oferta.Titulo ~= nil) ~= (oferta.ItemId ~= nil), "oferta " .. i .. " tiene que dar un título o un ítem")
+		if oferta.ItemId then
+			exigir(ItemCatalog[oferta.ItemId] ~= nil, "oferta " .. i .. " con ítem inexistente")
+		end
+	end
+	local diasAlMaximo = Social.Reputacion.Maximo / Social.Reputacion.MaximoPorDia
+	exigir(diasAlMaximo >= 7, "llegar al tope de reputación toma " .. diasAlMaximo .. " días: demasiado rápido")
+end)

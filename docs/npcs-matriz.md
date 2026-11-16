@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja (16 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (28 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **22** implementados sin verificar, **5** en desarrollo y **12** pendientes (total 39).
+Hoy: **24** implementados sin verificar, **5** en desarrollo y **10** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -78,9 +78,9 @@ Hoy: **22** implementados sin verificar, **5** en desarrollo y **12** pendientes
 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
-| NPC-025 | Tabernero (`Tabernero`) | Rojo, Azul, Neutral | el sistema existe en: Misiones (NPCs con ! del mapa) | Experiencia de descanso | En desarrollo |
-| NPC-026 | Tablón de Anuncios (`TablonAnuncios`) | Rojo, Azul, Neutral | — | Misiones diarias con reinicio | Pendiente |
-| NPC-027 | Emisario de Facción (`EmisarioFaccion`) | Rojo, Azul | — | Reputación por bando | Pendiente |
+| NPC-025 | Tabernero (`Tabernero`) | Rojo, Azul, Neutral | Alquilar una habitación, Preguntar por rumores | — | Implementado sin verificar |
+| NPC-026 | Tablón de Anuncios (`TablonAnuncios`) | Rojo, Azul, Neutral | el sistema existe en: El Tablón de Anuncios de las misiones (3 contratos diarios; hablale a él, no a este NPC) | Contratos de PvP; Contratos semanales | En desarrollo |
+| NPC-027 | Emisario de Facción (`EmisarioFaccion`) | Rojo, Azul | Ver recompensas de facción | Monturas y equipo exclusivo por reputación | Implementado sin verificar |
 | NPC-028 | Entrenador de Clase (`EntrenadorClase`) | Rojo, Azul, Neutral | el sistema existe en: Las habilidades vienen con la clase (panel Personaje; el Chatarrero elige con K) | Habilidades que se aprenden | En desarrollo |
 
 ### Grupo F — Cosméticos y personalización
@@ -127,7 +127,7 @@ Hoy: **22** implementados sin verificar, **5** en desarrollo y **12** pendientes
 3. ~~Grupo B: durabilidad y reparación (009), gemas (010), desencantar (011), reforja (012), transmutación (013)~~ (hecho). Quedan mejoras menores anotadas en cada fila.
 4. ~~Grupo C: banco de clan desde el NPC (015), filtros de subastas (016), cambista (018), stock rotativo del mercado negro (019)~~ (hecho). **Falta decidir** las pujas y la separación de subastas por bando.
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
-6. Grupo E: descanso y rumores (025), diarias y contratos (026), reputación (027), entrenador (028).
+6. ~~Grupo E: descanso y rumores (025), diarias (026), reputación (027)~~ (hecho, ver [progresión social](progresion-social.md)). Queda 028 (entrenador): **falta decidir** si vende habilidades por oro o si se hace un sistema de talentos.
 7. Grupo F: barbero (029), transfigurador desde el NPC (030), tintes (031), mascotas por oro (032).
 8. Grupo G: vivienda (033, con las parcelas), cocina (034), pesca (035), minijuegos sin apuestas (036).
 9. Grupo H: equipo PvP (037), arenas (038), asedio (039).

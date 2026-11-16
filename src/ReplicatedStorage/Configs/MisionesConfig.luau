@@ -20,6 +20,9 @@ export type Mision = {
 	NpcEntrega: string?, -- quien la recibe (por defecto, el mismo)
 	Previa: string?, -- misión que hay que haber completado antes
 	Repetible: boolean?,
+	-- Misión diaria del Tablón: se puede tomar una vez por día y hay un tope
+	-- de cuántas por día (ProgresionSocialConfig.Diarias).
+	Diaria: boolean?,
 	Objetivos: { Objetivo },
 	Recompensas: { Xp: number, Oro: number, Items: { RecompensaItem }? },
 }
@@ -50,9 +53,86 @@ local MisionesConfig = {
 			Color = Color3.fromRGB(70, 140, 70),
 			Posicion = Vector3.new(92, 0, -50),
 		},
+		Tablon = {
+			Nombre = "Tablón de Anuncios",
+			Titulo = "Contratos del día",
+			Color = Color3.fromRGB(120, 85, 55),
+			Posicion = Vector3.new(-20, 0, 2),
+		},
 	} :: { [string]: Npc },
 
 	Misiones = {
+		-- Diarias del Tablón: repetibles, una vez por día cada una.
+		DiariaCazaLobos = {
+			Nombre = "Contrato: manada de lobos",
+			Descripcion = "El tablón pide reducir la manada de lobos que ronda el camino.",
+			NivelRequerido = 1,
+			Npc = "Tablon",
+			Repetible = true,
+			Diaria = true,
+			Objetivos = { { Id = "l", Tipo = "Matar", Objetivo = "Lobo", Cantidad = 8, Texto = "Derrotá lobos" } },
+			Recompensas = { Xp = 60, Oro = 25 },
+		},
+		DiariaMineral = {
+			Nombre = "Contrato: mineral de hierro",
+			Descripcion = "La fragua necesita mineral y paga por él.",
+			NivelRequerido = 1,
+			Npc = "Tablon",
+			Repetible = true,
+			Diaria = true,
+			Objetivos = {
+				{
+					Id = "m",
+					Tipo = "Recolectar",
+					Objetivo = "MineralHierro",
+					Cantidad = 10,
+					Texto = "Entregá mineral de hierro",
+				},
+			},
+			Recompensas = { Xp = 50, Oro = 30 },
+		},
+		DiariaHierbas = {
+			Nombre = "Contrato: hierbas sanadoras",
+			Descripcion = "El boticario se quedó sin existencias.",
+			NivelRequerido = 1,
+			Npc = "Tablon",
+			Repetible = true,
+			Diaria = true,
+			Objetivos = {
+				{
+					Id = "h",
+					Tipo = "Recolectar",
+					Objetivo = "HierbaSanadora",
+					Cantidad = 8,
+					Texto = "Entregá hierbas sanadoras",
+				},
+			},
+			Recompensas = { Xp = 50, Oro = 25 },
+		},
+		DiariaPractica = {
+			Nombre = "Contrato: entrenamiento diario",
+			Descripcion = "Mantené la forma con los muñecos de práctica.",
+			NivelRequerido = 1,
+			Npc = "Tablon",
+			Repetible = true,
+			Diaria = true,
+			Objetivos = {
+				{ Id = "p", Tipo = "Matar", Objetivo = "Muneco", Cantidad = 10, Texto = "Derrotá muñecos" },
+			},
+			Recompensas = { Xp = 40, Oro = 20 },
+		},
+		DiariaBandidos = {
+			Nombre = "Contrato: bandidos del camino",
+			Descripcion = "Los bandidos asaltan a los mercaderes. Pagan por cada uno.",
+			NivelRequerido = 3,
+			Npc = "Tablon",
+			Repetible = true,
+			Diaria = true,
+			Objetivos = {
+				{ Id = "b", Tipo = "Matar", Objetivo = "Bandido", Cantidad = 6, Texto = "Derrotá bandidos" },
+			},
+			Recompensas = { Xp = 80, Oro = 40 },
+		},
 		Bienvenida = {
 			Nombre = "Bienvenida al reino",
 			Descripcion = "El capitán quiere que conozcas a Brom, el herrero, junto a las estaciones de crafteo.",

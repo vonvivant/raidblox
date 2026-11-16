@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Types = require(ReplicatedStorage.Shared.Types)
 local MisionesConfig = require(ReplicatedStorage.Configs.MisionesConfig)
+local ProgresionSocialConfig = require(ReplicatedStorage.Configs.ProgresionSocialConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
@@ -61,6 +62,15 @@ local function cumplido(player: Player, progreso: Types.ProgresoMision, obj: Mis
 	return (progreso.Objetivos[obj.Id] or 0) >= obj.Cantidad
 end
 
+-- Diarias que el jugador tomó hoy (la lista se reinicia solo al cambiar el día).
+local function diariasDeHoy(datos: Types.DatosJugador): { string }
+	local registro = datos.Diarias
+	if registro and registro.Dia == ProgresionSocialConfig.DiaDe(os.time()) then
+		return registro.Tomadas
+	end
+	return {}
+end
+
 -- Motivo por el que no puede aceptar la misión (nil = puede).
 local function motivoNoAceptar(player: Player, id: string, mision: Mision): string?
 	local datos = DataManager.GetData(player)
@@ -72,6 +82,17 @@ local function motivoNoAceptar(player: Player, id: string, mision: Mision): stri
 	end
 	if datos.MisionesCompletadas[id] and not mision.Repetible then
 		return "Ya completaste esa misión."
+	end
+	if mision.Diaria then
+		local hoy = diariasDeHoy(datos)
+		local cupo = ProgresionSocialConfig.Diarias.PorDia
+		if table.find(hoy, id) then
+			return "Ese contrato ya lo tomaste hoy. Volvé mañana."
+		end
+		if #hoy >= cupo then
+			local horas = math.ceil(ProgresionSocialConfig.FaltaParaReinicio(os.time()) / 3600)
+			return `Ya tomaste {cupo} contratos hoy. Hay más en {horas} h.`
+		end
 	end
 	if datos.Nivel < mision.NivelRequerido then
 		return `Necesitás nivel {mision.NivelRequerido}.`
@@ -106,6 +127,14 @@ local function aceptar(player: Player, id: string): Respuesta
 	end
 	if not DataManager.AceptarMision(player, id) then
 		return NetworkBridge.Fail("INTERNAL_ERROR")
+	end
+	if mision.Diaria then
+		local datos = DataManager.GetData(player)
+		local tomadas = table.clone(if datos then diariasDeHoy(datos) else {})
+		table.insert(tomadas, id)
+		DataManager.Mutar(player, "Social", function(d)
+			d.Diarias = { Dia = ProgresionSocialConfig.DiaDe(os.time()), Tomadas = tomadas }
+		end)
 	end
 	-- Los objetivos de "Hablar" con el mismo NPC que la da se cumplen enseguida.
 	for _, obj in mision.Objetivos do
@@ -152,8 +181,10 @@ local function entregar(player: Player, id: string): Respuesta
 	DataManager.CompletarMision(player, id)
 	PaseBatallaManager.SumarXp(player, PaseBatallaConfig.Xp.Mision)
 
-	-- Recompensas.
-	local r = mision.Recompensas
+	-- Recompensas. Las diarias rinden más que una misión normal del mismo tamaño.
+	local factor = if mision.Diaria then ProgresionSocialConfig.Diarias.MultiplicadorRecompensa else 1
+	local base = mision.Recompensas
+	local r = { Xp = base.Xp * factor, Oro = base.Oro * factor, Items = base.Items }
 	if r.Xp > 0 then
 		local niveles = DataManager.AddExperience(player, Bonos.Xp(player, r.Xp))
 		if niveles > 0 then

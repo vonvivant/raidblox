@@ -79,6 +79,7 @@ flowchart LR
 - [Bandos](docs/bandos.md): Violeta, Rojo y Azul, PvP y cambio de bando.
 - [NPCs](docs/npcs.md): 39 arquetipos, facciones Rojo / Azul / Neutral, vendedores, artesanos y Guardián de Portales.
 - [Matriz de los 39 NPC](docs/npcs-matriz.md): qué funciona hoy, qué falta y el estado de cada uno.
+- [Descanso, diarias y reputación](docs/progresion-social.md): Tabernero, contratos del Tablón y Emisario.
 - [Viajes y exploración](docs/exploracion.md): piedras de viaje rápido, puntos de interés y establo.
 - [Vendedor y personalizador 3D](docs/personalizador.md): probador sobre el avatar, material y color por pieza.
 - [Forja](docs/forja.md): durabilidad y reparación, desencantar, reforjar y gemas.

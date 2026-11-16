@@ -24,11 +24,13 @@ local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local Teams = game:GetService("Teams")
 
 local GuerraConfig = require(ReplicatedStorage.Configs.GuerraConfig)
+local ProgresionSocialConfig = require(ReplicatedStorage.Configs.ProgresionSocialConfig)
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local BandoManager = require(script.Parent.Parent.BandoManager)
+local ProgresionSocialManager = require(script.Parent.Parent.ProgresionSocialManager)
 local AntiCheat = require(script.Parent.Parent.AntiCheat)
 local ArenaGuerra = require(script.Parent.ArenaGuerra)
 
@@ -389,6 +391,14 @@ local function darRecompensas(idGanador: string?)
 			if DataManager.AddHonor(player, premio.Honor) then
 				table.insert(partes, `+{premio.Honor} de honor`)
 			end
+			-- Reputación con el bando del jugador (el Emisario la pide).
+			ProgresionSocialManager.DarReputacion(
+				player,
+				if gano
+					then ProgresionSocialConfig.Reputacion.PorVictoriaGuerra
+					else ProgresionSocialConfig.Reputacion.PorDerrotaGuerra,
+				"Guerra de Arquitectos"
+			)
 			if #partes > 0 then
 				avisar(player, table.concat(partes, " y "))
 			end

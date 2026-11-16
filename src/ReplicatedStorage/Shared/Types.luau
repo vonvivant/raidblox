@@ -173,6 +173,12 @@ export type DatosJugador = {
 	-- Exploración: piedras de teletransporte activadas y puntos de interés
 	-- descubiertos (claves de ExploracionConfig).
 	-- Establo: monturas compradas, alquiler en curso y entrenamiento (% extra).
+	-- Progresión social: descanso del Tabernero, reputación por bando y
+	-- misiones diarias tomadas hoy.
+	Descanso: number?,
+	Reputacion: { [string]: number }?,
+	ReputacionHoy: { Dia: number, Puntos: number }?,
+	Diarias: { Dia: number, Tomadas: { string } }?,
 	MonturasCompradas: { string }?,
 	MonturaAlquiler: { Id: string, Hasta: number }?,
 	MonturaVelocidad: number?,
@@ -209,6 +215,7 @@ export type SeccionDatos =
 	| "Faccion"
 	| "Ajustes"
 	| "Exploracion"
+	| "Social"
 	| "Vault"
 
 -- Respuesta estándar de todas las RemoteFunctions.

@@ -35,6 +35,7 @@ src/
 │   │   ├── ForjaConfig.luau          Durabilidad, reparación, desencantar, reforjar y gemas (reglas puras)
 │   │   ├── PersonalizadorConfig.luau NPC personalizador: formato, validadores y precio (reglas puras)
 │   │   ├── ExploracionConfig.luau    Piedras de viaje rápido y puntos de interés
+│   │   ├── ProgresionSocialConfig.luau Descanso, contratos diarios y reputación de facción
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
 │   │   ├── EnemigosConfig.luau       Enemigos, spawns y botín
@@ -77,6 +78,7 @@ src/
 │       ├── NpcFactory.luau           Modelos de NPC
 │       ├── NpcManager.luau           NPCs por arquetipo: facciones, vendedores, servicios y Guardián de Portales
 │       ├── ExploracionManager.luau   Piedras de teletransporte y puntos de interés
+│       ├── ProgresionSocialManager.luau Descanso, rumores y reputación de facción
 │       ├── MisionManager.luau        Misiones
 │       ├── GrupoManager.luau         Grupos (party) de hasta 5
 │       ├── HermandadManager.luau     Hermandades, rangos y banco
@@ -135,6 +137,7 @@ src/
         ├── VaultUI.client.luau           Bóveda global: pestañas, buscador, filtros y mochila
         ├── PersonalizadorUI.client.luau  Tienda y probador del NPC personalizador
         ├── PiedrasUI.client.luau         Viaje rápido entre piedras activadas
+        ├── EmisarioUI.client.luau        Recompensas de facción por reputación
         ├── SubastaUI.client.luau         Casa de Subastas
         ├── ComercioUI.client.luau        Comercio 1v1
         ├── MisionesUI.client.luau        Diálogos, seguimiento y marcadores
@@ -238,7 +241,7 @@ avisarle a uno de arriba, usa una señal (`Signal`) o un gancho (`CraftingManage
 6. **Economía:** inventario, crafteo, recolección, subastas y comercio.
 7. **Social, mazmorras, monetización y clases:** `GrupoManager`, `HermandadManager`, `VozManager`,
    `MazmorraManager`, `PasesManager`, `MonturaManager`, `ProductosManager`, `PaseBatallaManager`, `MascotaManager`,
-   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager`, `ForjaManager`, `ExploracionManager` y `MisionManager`.
+   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager`, `ForjaManager`, `ExploracionManager`, `ProgresionSocialManager` y `MisionManager`.
 8. **Modo de juego del place:** `ArchitectWarManager.Init()` si corresponde.
 9. **Herramientas de prueba:** `DebugStudio` (solo Studio), `NpcsPrueba` y `EditorPiedra`.
 
@@ -280,6 +283,7 @@ devuelven siempre `{ Success, ErrorCode, Data }`.
 | Pruebas: NPCs de oro y materiales (solo con Pruebas.Activas()) | `TiendaPruebaComprar` | Function | C → S |
 | NPCs por arquetipo | `NpcAbrir` | Event | S → C |
 | NPCs por arquetipo | `NpcComprar`, `NpcVender`, `NpcServicio`, `NpcSobreItem`, `NpcFabricar`, `NpcViajar` | Function | C → S |
+| Progresión social | `EmisarioComprar` | Function | C → S |
 | Exploración | `PiedraAbrir` | Event | S → C |
 | Exploración | `PiedraViajar` | Function | C → S |
 | NPC personalizador | `PersonalizadorAbrir` | Event | S → C |

@@ -29,7 +29,10 @@ sequenceDiagram
 ```
 
 **Marcadores** (solo los ve cada jugador): `!` amarillo = misión disponible, `?` gris = en curso, `?` amarillo = lista
-para entregar. El **seguimiento** a la derecha muestra hasta 5 misiones activas, cada una como una tarjeta con tres estados:
+para entregar. Los **contratos diarios** del Tablón de Anuncios (hasta 3 por día) están en
+[progresión social](progresion-social.md).
+
+El **seguimiento** a la derecha muestra hasta 5 misiones activas, cada una como una tarjeta con tres estados:
 
 ```mermaid
 stateDiagram-v2

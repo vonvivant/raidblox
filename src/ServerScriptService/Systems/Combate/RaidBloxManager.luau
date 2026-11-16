@@ -318,6 +318,17 @@ aparecer = function(id: string, def: RaidBloxConfig.DefinicionRaidBlox, invocado
 	)
 end
 
+-- Un jefe vivo en este servidor y dónde está (para los rumores del Tabernero).
+function RaidBloxManager.JefeActivo(): (string?, Vector3?)
+	for _, jefe in jefes do
+		local c = jefe.Npc.Combatiente
+		if c.Humanoid.Health > 0 then
+			return jefe.Def.Nombre, c.Raiz.Position
+		end
+	end
+	return nil, nil
+end
+
 -- Panel de admin: trae un jefe de prueba a una posición. No reaparece al
 -- morir. Falla si ese jefe ya está vivo en este servidor.
 function RaidBloxManager.Invocar(id: string, posicion: Vector3): (boolean, string?)

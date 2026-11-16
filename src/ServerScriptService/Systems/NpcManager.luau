@@ -125,6 +125,13 @@ local function validar(player: Player, npcId: unknown): (Npc?, Types.CodigoError
 	return npc, nil
 end
 
+-- ¿El jugador está junto a ese NPC y puede hablarle? `arquetipo` exige además
+-- que sea de ese tipo. Lo usan otros sistemas que atienden sus propios remotes.
+function NpcManager.Cerca(player: Player, npcId: unknown, arquetipo: string?): boolean
+	local npc = validar(player, npcId)
+	return npc ~= nil and (arquetipo == nil or npc.ArquetipoId == arquetipo)
+end
+
 ------------------------------------------------------------------------
 -- Guardián de Portales
 ------------------------------------------------------------------------

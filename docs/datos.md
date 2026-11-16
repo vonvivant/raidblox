@@ -75,6 +75,10 @@ classDiagram
         map? Buffs
         map? ComprasRotativas
         map? ComprasPersonalizador
+        number? Descanso
+        map? Reputacion
+        map? ReputacionHoy
+        map? Diarias
         list? Waypoints
         list? Interes
         list? MonturasCompradas
