@@ -33,27 +33,14 @@ local function quitar(personaje: Model)
 	end
 end
 
-function MascotaManager.Actualizar(player: Player)
-	local personaje = player.Character
-	local datos = DataManager.GetData(player)
-	if not personaje or not datos then
-		return
+-- Arma el cuerpo de una mascota, sin pegarlo a nadie. Lo usan tanto la
+-- mascota equipada como el patio de mascotas de las parcelas, así que las dos
+-- se ven igual.
+function MascotaManager.Construir(id: string): Part?
+	local def = CFG.Mascotas[id]
+	if not def then
+		return nil
 	end
-	local raiz = personaje:FindFirstChild("HumanoidRootPart")
-	if not raiz or not raiz:IsA("BasePart") then
-		return
-	end
-	local id = datos.MascotaEquipada
-	local def = if id then CFG.Mascotas[id] else nil
-	local actual = personaje:FindFirstChild("Mascota")
-	if actual and def and actual:GetAttribute("Id") == id then
-		return -- ya está la correcta
-	end
-	quitar(personaje)
-	if not def or not id then
-		return
-	end
-
 	local cuerpo = Instance.new("Part")
 	cuerpo.Name = "Mascota"
 	cuerpo.Shape = Enum.PartType.Ball
@@ -65,7 +52,6 @@ function MascotaManager.Actualizar(player: Player)
 	cuerpo.CanTouch = false
 	cuerpo.Massless = true
 	cuerpo.CastShadow = false
-	cuerpo.CFrame = raiz.CFrame * CFrame.new(CFG.Desplazamiento)
 	cuerpo:SetAttribute("Id", id)
 
 	-- Ojitos, para que se note hacia dónde mira.
@@ -105,6 +91,36 @@ function MascotaManager.Actualizar(player: Player)
 		l.Brightness = 1.2
 		l.Parent = cuerpo
 	end
+
+	return cuerpo
+end
+
+function MascotaManager.Actualizar(player: Player)
+	local personaje = player.Character
+	local datos = DataManager.GetData(player)
+	if not personaje or not datos then
+		return
+	end
+	local raiz = personaje:FindFirstChild("HumanoidRootPart")
+	if not raiz or not raiz:IsA("BasePart") then
+		return
+	end
+	local id = datos.MascotaEquipada
+	local def = if id then CFG.Mascotas[id] else nil
+	local actual = personaje:FindFirstChild("Mascota")
+	if actual and def and actual:GetAttribute("Id") == id then
+		return -- ya está la correcta
+	end
+	quitar(personaje)
+	if not def or not id then
+		return
+	end
+
+	local cuerpo = MascotaManager.Construir(id)
+	if not cuerpo then
+		return
+	end
+	cuerpo.CFrame = raiz.CFrame * CFrame.new(CFG.Desplazamiento)
 
 	local a0 = Instance.new("Attachment")
 	a0.Parent = cuerpo

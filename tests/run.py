@@ -55,6 +55,24 @@ local Color3 = {
 	new = function(r, g, b) return { R = r or 0, G = g or 0, B = b or 0 } end,
 	fromHex = function() return { R = 0, G = 0, B = 0 } end,
 }
+local Random = {}
+Random.__index = Random
+function Random.new(semilla)
+	return setmetatable({ estado = (semilla or 0) % 2147483647 + 1 }, Random)
+end
+function Random.NextNumber(self, minimo, maximo)
+	-- Generador congruencial simple: alcanza para probar rangos.
+	self.estado = (self.estado * 48271) % 2147483647
+	local u = self.estado / 2147483647
+	if minimo == nil then
+		return u
+	end
+	return minimo + u * (maximo - minimo)
+end
+function Random.NextInteger(self, minimo, maximo)
+	return math.floor(self:NextNumber(minimo, maximo + 1 - 1e-9))
+end
+
 local Vector3 = {}
 local MetaVector3 = {}
 MetaVector3.__index = MetaVector3

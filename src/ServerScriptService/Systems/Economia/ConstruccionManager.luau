@@ -21,6 +21,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local CFG = require(ReplicatedStorage.Configs.ConstruccionConfig)
@@ -31,6 +32,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local NpcManager = require(script.Parent.Parent.NpcManager)
 local ParcelaManager = require(script.Parent.ParcelaManager)
+local MascotaManager = require(script.Parent.Parent.Monetizacion.MascotaManager)
 
 type Puesta = ParcelaManager.Puesta
 type Pieza = CFG.Pieza
@@ -97,6 +99,44 @@ local function textoCantero(puesta: Puesta): (string, Color3)
 	return `{cultivo.Nombre}: {cuanto}`, Color3.fromRGB(230, 215, 150)
 end
 
+-- Patio de mascotas: las mascotas que compró el dueño se pasean solas adentro
+-- del patio. La lista sale del registro de la parcela (una foto que se
+-- actualiza cuando el dueño está en el servidor), así que también se ven
+-- cuando el dueño no está.
+local function pasear(cuerpo: Part, centro: Vector3, lado: number)
+	task.spawn(function()
+		while cuerpo.Parent do
+			local destino = centro + CFG.PuntoDePaseo(lado, azar)
+			local cuanto = azar:NextNumber(CFG.PatioPaseoMin, CFG.PatioPaseoMax)
+			TweenService:Create(
+				cuerpo,
+				TweenInfo.new(cuanto, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{ CFrame = CFrame.lookAt(destino, centro) }
+			):Play()
+			task.wait(cuanto + azar:NextNumber(0.5, 2))
+		end
+	end)
+end
+
+local function soltarMascotas(registro: ParcelaManager.Registro?, centro: Vector3, lado: number, padre: Folder)
+	local lista: { string } = if registro then (registro :: any).Mascotas or {} else {}
+	local cuantas = 0
+	for _, id in lista do
+		if cuantas >= CFG.PatioMaxMascotas then
+			break
+		end
+		local cuerpo = MascotaManager.Construir(id)
+		if not cuerpo then
+			continue
+		end
+		cuantas += 1
+		cuerpo.Anchored = true
+		cuerpo.CFrame = CFrame.new(centro + CFG.PuntoDePaseo(lado, azar))
+		cuerpo.Parent = padre
+		pasear(cuerpo, centro, lado)
+	end
+end
+
 local function dibujarPieza(parcelaId: string, indice: number, puesta: Puesta, centro: Vector3, padre: Folder)
 	local pieza = CFG.Pieza(puesta.Pieza)
 	if not pieza then
@@ -120,6 +160,10 @@ local function dibujarPieza(parcelaId: string, indice: number, puesta: Puesta, c
 		luz.Brightness = 2
 		luz.Color = Color3.fromRGB(255, 170, 90)
 		luz.Parent = parte
+	end
+
+	if pieza.Categoria == "Mascotas" then
+		soltarMascotas(ParcelaManager.Leer(parcelaId), parte.Position, pieza.Tamano.X, padre)
 	end
 
 	if pieza.Categoria == "Huerta" then
@@ -278,6 +322,11 @@ local function construir(
 		avisar(player, "No se pudo guardar la construcción. No se te cobró nada.")
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
+	if pieza.Categoria == "Mascotas" then
+		-- Recién puesto el patio, se guarda la foto de las mascotas y se
+		-- vuelve a dibujar con ellas adentro.
+		ConstruccionManager.ActualizarMascotas(player, parcelaId)
+	end
 	ConstruccionManager.Dibujar(parcelaId)
 	avisar(player, `{pieza.Nombre} puesta por {pieza.Precio} de oro.`, "Exito")
 	return NetworkBridge.Ok({ Piezas = #piezasDe(ParcelaManager.Leer(parcelaId, 0)) })
@@ -417,6 +466,70 @@ local function cosechar(player: Player, parcelaId: string, indice: number): Type
 	return NetworkBridge.Ok({ Cantidad = cantidad })
 end
 
+-- Guarda en la parcela qué mascotas tiene el dueño, para que el patio las
+-- muestre también cuando él no está. Solo escribe si cambió algo.
+function ConstruccionManager.ActualizarMascotas(player: Player, parcelaId: string)
+	local registro = ParcelaManager.Leer(parcelaId)
+	if not registro or registro.Dueno ~= player.UserId then
+		return
+	end
+	local tienePatio = false
+	for _, puesta in piezasDe(registro) do
+		local pieza = CFG.Pieza(puesta.Pieza)
+		if pieza and pieza.Categoria == "Mascotas" then
+			tienePatio = true
+		end
+	end
+	if not tienePatio then
+		return
+	end
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return
+	end
+	local suyas: { string } = (datos :: any).Mascotas or {}
+	local antes: { string } = (registro :: any).Mascotas or {}
+	if #antes == #suyas then
+		local igual = true
+		for i, id in suyas do
+			if antes[i] ~= id then
+				igual = false
+			end
+		end
+		if igual then
+			return -- nada cambió: no se escribe al DataStore
+		end
+	end
+	local copia: { string } = table.clone(suyas)
+	local ok = ParcelaManager.Editar(parcelaId, function(actual)
+		if not actual or actual.Dueno ~= player.UserId then
+			return nil
+		end
+		local libre: { [string]: any } = actual :: any
+		libre.Mascotas = copia
+		return actual
+	end)
+	if ok then
+		ConstruccionManager.Dibujar(parcelaId)
+	end
+end
+
+-- Repasa las parcelas de los jugadores que están en este servidor.
+local function refrescarMascotas()
+	for _, player in Players:GetPlayers() do
+		local datos = DataManager.GetData(player)
+		if not datos then
+			continue
+		end
+		local mias: { string } = (datos :: any).Parcelas or {}
+		for _, parcelaId in mias do
+			if dibujadas[parcelaId] then
+				pcall(ConstruccionManager.ActualizarMascotas, player, parcelaId)
+			end
+		end
+	end
+end
+
 ------------------------------------------------------------------------
 -- Init
 ------------------------------------------------------------------------
@@ -511,6 +624,7 @@ function ConstruccionManager.Init()
 			for parcelaId in dibujadas do
 				pcall(ConstruccionManager.Dibujar, parcelaId)
 			end
+			pcall(refrescarMascotas)
 		end
 	end)
 end

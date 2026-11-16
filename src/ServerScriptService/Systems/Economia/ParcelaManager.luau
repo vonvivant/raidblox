@@ -57,6 +57,9 @@ export type Registro = {
 	Permisos: { [string]: Permiso }, -- UserId en texto -> nivel
 	Fusion: { string }?, -- ids fusionados con esta
 	Piezas: { Puesta }?, -- lo construido (ver ConstruccionManager)
+	-- Foto de las mascotas del dueño, para que el patio las muestre aunque él
+	-- no esté en este servidor.
+	Mascotas: { string }?,
 }
 
 local ParcelaManager = {}

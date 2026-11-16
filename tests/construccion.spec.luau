@@ -147,3 +147,36 @@ prueba("huerta: la cosecha no se puede apurar", function()
 	-- Un "plantado" en el futuro (reloj raro) no rompe nada: sigue sin estar listo.
 	exigir(not C.Lista(cultivo, plantado + 99999, plantado), "no se cosecha lo que no se plantó")
 end)
+
+prueba("patio: las mascotas se pasean adentro y no se escapan", function()
+	local patio = C.Pieza("PatioMascotas")
+	exigir(patio ~= nil, "el patio existe")
+	exigir(C.PatioMaxMascotas >= 1, "al menos una mascota")
+	exigir(C.PatioPaseoMin > 0 and C.PatioPaseoMax >= C.PatioPaseoMin, "los tiempos de paseo tienen que cerrar")
+	exigir(C.PatioAlturaVuelo > 0, "flotan sobre el patio")
+	exigir(C.PatioMargen * 2 < patio.Tamano.X, "el margen no puede comerse el patio entero")
+
+	-- Cien puntos al azar: ninguno puede caer fuera del patio.
+	local azar = Random.new(1234)
+	local lado = patio.Tamano.X
+	local limite = lado / 2 - C.PatioMargen
+	for _ = 1, 100 do
+		local punto = C.PuntoDePaseo(lado, azar)
+		exigir(math.abs(punto.X) <= limite, "una mascota se fue del patio por X")
+		exigir(math.abs(punto.Z) <= limite, "una mascota se fue del patio por Z")
+		exigir(punto.Y > 0, "ninguna se mete bajo el piso")
+	end
+	-- Un patio imposible (más margen que tamaño) no rompe: todos al centro.
+	local apretado = C.PuntoDePaseo(C.PatioMargen, azar)
+	exigir(apretado.X == 0 and apretado.Z == 0, "sin lugar, se quedan en el centro")
+end)
+
+prueba("patio: hay mascotas para mostrar y la foto no se desborda", function()
+	local MASCOTAS = cargar("ReplicatedStorage/Configs/MascotasConfig")
+	local cuantas = 0
+	for id, def in MASCOTAS.Mascotas do
+		cuantas += 1
+		exigir(def.Nombre ~= nil and def.Tam > 0, "mascota incompleta: " .. id)
+	end
+	exigir(cuantas >= C.PatioMaxMascotas, "el tope del patio pide más mascotas de las que existen")
+end)

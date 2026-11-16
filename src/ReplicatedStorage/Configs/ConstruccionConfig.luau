@@ -40,6 +40,24 @@ Config.AlturaMaxima = 24
 Config.Margen = 2 -- cuánto hay que dejar libre contra el borde de la parcela
 Config.DistanciaConstruir = 60 -- desde dónde se puede poner o sacar una pieza
 
+-- Patio de mascotas: cuántas se pasean y cómo.
+Config.PatioMaxMascotas = 5 -- hoy MascotasConfig tiene cinco; si se agregan más, se puede subir
+Config.PatioAlturaVuelo = 3 -- a qué altura flotan sobre el patio
+Config.PatioPaseoMin = 3 -- segundos que tarda en ir de un punto a otro
+Config.PatioPaseoMax = 7
+Config.PatioMargen = 2 -- cuánto se quedan adentro del borde del patio
+
+-- Un punto al azar adentro del patio, en coordenadas relativas a su centro.
+-- `lado` es el ancho del patio (su pieza es cuadrada).
+function Config.PuntoDePaseo(lado: number, azar: Random): Vector3
+	local libre = math.max(0, lado / 2 - Config.PatioMargen)
+	return Vector3.new(
+		azar:NextNumber(-libre, libre),
+		Config.PatioAlturaVuelo + azar:NextNumber(-0.5, 0.5),
+		azar:NextNumber(-libre, libre)
+	)
+end
+
 Config.Piezas = {
 	-- Estructura
 	{

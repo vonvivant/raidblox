@@ -107,16 +107,25 @@ salir a buscarlos.
 
 ## Patio de mascotas
 
-Es una pieza más, única por parcela. Por ahora es el lugar: que las mascotas compradas se paseen ahí falta.
+Una pieza, única por parcela. Una vez puesta, **las mascotas del dueño se pasean solas adentro**: cada una va
+flotando de un punto al azar a otro del patio, con tiempos y pausas distintas, así que no se mueven todas
+igual. Nunca salen del borde (hay dos studs de margen) y son solo decoración: no juntan botín ni dan nada.
+
+La lista de mascotas se guarda como una **foto en el registro de la parcela**, no se lee del perfil al
+dibujarlas. Por eso el patio se ve igual aunque el dueño no esté en ese servidor, o no esté jugando. La foto se
+actualiza sola cuando el dueño está presente (al poner el patio y después cada minuto), y solo se escribe al
+DataStore si la lista cambió.
+
+Se muestran hasta cinco, que es todo lo que hay hoy en `MascotasConfig`.
 
 ## Lo que falta
 
 - **Subasta con pujas**: hoy la parcela libre se compra al precio del barrio, el primero que llega. Las pujas
   esperan la misma decisión que las de la [casa de subastas](economia.md), que el usuario todavía no tomó.
 - **Alquilar tu parcela a otro jugador** (hoy el alquiler es el que se le paga al barrio, no entre jugadores).
-- **Mascotas paseando** en el patio, y muebles que se usen de verdad (sentarse en la silla, cocinar en la
-  fogata).
+- **Muebles que se usen de verdad** (sentarse en la silla, cocinar en la fogata).
 
 Por eso el NPC-033 sigue figurando como **Parcial** en la [matriz](npcs-matriz.md). Nada de esto se probó en
 Studio: las pruebas de `python3 tests/run.py` cubren la grilla, la vecindad, la fusión, los plazos del alquiler,
-los permisos, el encaje y la superposición de piezas y los tiempos de la huerta, no el DataStore andando.
+los permisos, el encaje y la superposición de piezas, los tiempos de la huerta y que las mascotas no se escapen
+del patio, no el DataStore andando.
