@@ -60,6 +60,7 @@ export type Registro = {
 	-- Foto de las mascotas del dueño, para que el patio las muestre aunque él
 	-- no esté en este servidor.
 	Mascotas: { string }?,
+	Bando: string?, -- bando del dueño, para el estandarte
 }
 
 local ParcelaManager = {}

@@ -66,7 +66,8 @@ seguido sale) y un `NivelMinimo` opcional de profesión. La Orilla del Río (niv
 nivel 3 y alguna bota vieja; el Lago Profundo (nivel 5) da salmón plateado y, desde nivel 12, el pez lunar. El nivel
 de profesión también suma cantidad, igual que en minería.
 
-El **Chef** atiende en un **fogón** (`EstacionCrafteo` con `Estacion = "Fogon"`) y vende lo que no se pesca: sal,
+El **Chef** atiende en un **fogón** (`EstacionCrafteo` con `Estacion = "Fogon"`; la fogata de tu
+[parcela](parcelas.md) también lo es) y vende lo que no se pesca: sal,
 hierbas de cocina y agua de manantial. Sus cinco recetas convierten pescado en **comidas** de 20 minutos:
 
 | Comida | Nivel | Efecto |

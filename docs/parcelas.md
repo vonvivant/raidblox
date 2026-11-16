@@ -79,6 +79,14 @@ Hay diez piezas en cuatro grupos: estructura (piso, pared, techo, marco de puert
 fogata, estandarte), huerta (cantero) y mascotas (patio). Hasta **40 piezas por parcela**, con límites propios:
 seis canteros y un solo patio.
 
+Tres muebles hacen algo además de estar:
+
+- **Silla:** es un asiento de verdad, el jugador se sienta.
+- **Fogata:** es un **fogón** como el del Chef, con su propio cartel: las recetas de [cocina](economia.md) se
+  hacen ahí mismo, sin volver a la ciudad. Cocina cualquiera que llegue hasta ella, no solo el dueño.
+- **Estandarte:** toma el color del bando del dueño (rojo, azul o violeta). El bando se guarda en la parcela
+  junto con la lista de mascotas, por lo mismo: para que se vea igual aunque el dueño no esté.
+
 El servidor revalida todo en cada pieza: que seas dueño o socio, que estés cerca, que la pieza exista, que no te
 hayas pasado de los topes, que **entre adentro del terreno** (con dos studs de margen y sin pasar los 24 de
 alto) y que **no se pise** con otra ya puesta. Las posiciones se acomodan a una grilla de 2 studs *antes* de
@@ -123,7 +131,6 @@ Se muestran hasta cinco, que es todo lo que hay hoy en `MascotasConfig`.
 - **Subasta con pujas**: hoy la parcela libre se compra al precio del barrio, el primero que llega. Las pujas
   esperan la misma decisión que las de la [casa de subastas](economia.md), que el usuario todavía no tomó.
 - **Alquilar tu parcela a otro jugador** (hoy el alquiler es el que se le paga al barrio, no entre jugadores).
-- **Muebles que se usen de verdad** (sentarse en la silla, cocinar en la fogata).
 
 Por eso el NPC-033 sigue figurando como **Parcial** en la [matriz](npcs-matriz.md). Nada de esto se probó en
 Studio: las pruebas de `python3 tests/run.py` cubren la grilla, la vecindad, la fusión, los plazos del alquiler,

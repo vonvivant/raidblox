@@ -19,6 +19,7 @@
 -- pieza, así que sigue corriendo con el servidor apagado y no se puede acelerar
 -- desde el cliente.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -32,6 +33,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local NpcManager = require(script.Parent.Parent.NpcManager)
 local ParcelaManager = require(script.Parent.ParcelaManager)
+local BandoManager = require(script.Parent.Parent.BandoManager)
 local MascotaManager = require(script.Parent.Parent.Monetizacion.MascotaManager)
 
 type Puesta = ParcelaManager.Puesta
@@ -142,7 +144,8 @@ local function dibujarPieza(parcelaId: string, indice: number, puesta: Puesta, c
 	if not pieza then
 		return
 	end
-	local parte = Instance.new("Part")
+	-- Una silla es un Seat de verdad; lo demás, una Part común.
+	local parte: BasePart = if pieza.Asiento then Instance.new("Seat") else Instance.new("Part")
 	parte.Name = `{indice}_{pieza.Id}`
 	parte.Anchored = true
 	parte.Size = CFG.TamanoGirado(pieza, puesta.Giro)
@@ -152,7 +155,21 @@ local function dibujarPieza(parcelaId: string, indice: number, puesta: Puesta, c
 	parte:SetAttribute("Parcela", parcelaId)
 	parte:SetAttribute("Indice", indice)
 	parte:SetAttribute("Pieza", pieza.Id)
+	if pieza.PorBando then
+		-- El estandarte lleva el color del bando del dueño (guardado en la
+		-- parcela, así se ve igual aunque él no esté en este servidor).
+		local registro = ParcelaManager.Leer(parcelaId)
+		local bando = if registro then (registro :: any).Bando else nil
+		parte.Color = CFG.ColorDeBando(if typeof(bando) == "string" then bando else nil)
+	end
 	parte.Parent = padre
+
+	-- Una fogata es un fogón de verdad: CraftingManager le pone su cartel y
+	-- ahí se cocinan las recetas del Chef.
+	if pieza.Estacion then
+		parte:SetAttribute("Estacion", pieza.Estacion)
+		CollectionService:AddTag(parte, "EstacionCrafteo")
+	end
 
 	if pieza.Id == "Fogata" then
 		local luz = Instance.new("PointLight")
@@ -322,10 +339,10 @@ local function construir(
 		avisar(player, "No se pudo guardar la construcción. No se te cobró nada.")
 		return NetworkBridge.Fail("INTERNAL_ERROR")
 	end
-	if pieza.Categoria == "Mascotas" then
-		-- Recién puesto el patio, se guarda la foto de las mascotas y se
-		-- vuelve a dibujar con ellas adentro.
-		ConstruccionManager.ActualizarMascotas(player, parcelaId)
+	if pieza.Categoria == "Mascotas" or pieza.PorBando then
+		-- Recién puesto el patio (o el estandarte), se guarda la foto del
+		-- dueño y se vuelve a dibujar con ella.
+		ConstruccionManager.ActualizarDelDueno(player, parcelaId)
 	end
 	ConstruccionManager.Dibujar(parcelaId)
 	avisar(player, `{pieza.Nombre} puesta por {pieza.Precio} de oro.`, "Exito")
@@ -468,19 +485,19 @@ end
 
 -- Guarda en la parcela qué mascotas tiene el dueño, para que el patio las
 -- muestre también cuando él no está. Solo escribe si cambió algo.
-function ConstruccionManager.ActualizarMascotas(player: Player, parcelaId: string)
+function ConstruccionManager.ActualizarDelDueno(player: Player, parcelaId: string)
 	local registro = ParcelaManager.Leer(parcelaId)
 	if not registro or registro.Dueno ~= player.UserId then
 		return
 	end
-	local tienePatio = false
+	local interesa = false
 	for _, puesta in piezasDe(registro) do
 		local pieza = CFG.Pieza(puesta.Pieza)
-		if pieza and pieza.Categoria == "Mascotas" then
-			tienePatio = true
+		if pieza and (pieza.Categoria == "Mascotas" or pieza.PorBando) then
+			interesa = true
 		end
 	end
-	if not tienePatio then
+	if not interesa then
 		return
 	end
 	local datos = DataManager.GetData(player)
@@ -489,7 +506,9 @@ function ConstruccionManager.ActualizarMascotas(player: Player, parcelaId: strin
 	end
 	local suyas: { string } = (datos :: any).Mascotas or {}
 	local antes: { string } = (registro :: any).Mascotas or {}
-	if #antes == #suyas then
+	local bando = BandoManager.De(player)
+	local mismoBando = (registro :: any).Bando == bando
+	if mismoBando and #antes == #suyas then
 		local igual = true
 		for i, id in suyas do
 			if antes[i] ~= id then
@@ -507,6 +526,7 @@ function ConstruccionManager.ActualizarMascotas(player: Player, parcelaId: strin
 		end
 		local libre: { [string]: any } = actual :: any
 		libre.Mascotas = copia
+		libre.Bando = bando
 		return actual
 	end)
 	if ok then
@@ -515,7 +535,7 @@ function ConstruccionManager.ActualizarMascotas(player: Player, parcelaId: strin
 end
 
 -- Repasa las parcelas de los jugadores que están en este servidor.
-local function refrescarMascotas()
+local function refrescarDeLosDuenos()
 	for _, player in Players:GetPlayers() do
 		local datos = DataManager.GetData(player)
 		if not datos then
@@ -524,7 +544,7 @@ local function refrescarMascotas()
 		local mias: { string } = (datos :: any).Parcelas or {}
 		for _, parcelaId in mias do
 			if dibujadas[parcelaId] then
-				pcall(ConstruccionManager.ActualizarMascotas, player, parcelaId)
+				pcall(ConstruccionManager.ActualizarDelDueno, player, parcelaId)
 			end
 		end
 	end
@@ -624,7 +644,7 @@ function ConstruccionManager.Init()
 			for parcelaId in dibujadas do
 				pcall(ConstruccionManager.Dibujar, parcelaId)
 			end
-			pcall(refrescarMascotas)
+			pcall(refrescarDeLosDuenos)
 		end
 	end)
 end

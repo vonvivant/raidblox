@@ -21,6 +21,10 @@ export type Pieza = {
 	Color: Color3,
 	Material: Enum.Material,
 	Limite: number?, -- cuántas de estas entran en una parcela (nil = sin límite propio)
+	-- Muebles que se usan de verdad:
+	Asiento: boolean?, -- se dibuja como Seat: el jugador se sienta
+	Estacion: string?, -- es una estación de fabricación (ver CraftingManager)
+	PorBando: boolean?, -- toma el color del bando del dueño
 }
 
 export type Cultivo = {
@@ -115,31 +119,34 @@ Config.Piezas = {
 		Id = "Silla",
 		Nombre = "Silla",
 		Categoria = "Mueble",
-		Descripcion = "Para sentarse de verdad.",
+		Descripcion = "Para sentarse de verdad: hacés clic y te sentás.",
 		Precio = 45,
 		Tamano = Vector3.new(2, 4, 2),
 		Color = Color3.fromRGB(130, 95, 60),
 		Material = Enum.Material.Wood,
+		Asiento = true,
 	},
 	{
 		Id = "Fogata",
 		Nombre = "Fogata",
 		Categoria = "Mueble",
-		Descripcion = "Luz, calor y un lugar donde juntarse.",
+		Descripcion = "Luz, calor y un fogón de verdad: se cocina acá mismo.",
 		Precio = 140,
 		Tamano = Vector3.new(4, 2, 4),
 		Color = Color3.fromRGB(90, 70, 60),
 		Material = Enum.Material.Slate,
+		Estacion = "Fogon",
 	},
 	{
 		Id = "Estandarte",
 		Nombre = "Estandarte",
 		Categoria = "Mueble",
-		Descripcion = "Un estandarte con el color de tu bando.",
+		Descripcion = "Toma el color del bando del dueño de la parcela.",
 		Precio = 250,
 		Tamano = Vector3.new(1, 10, 1),
 		Color = Color3.fromRGB(80, 75, 90),
 		Material = Enum.Material.Fabric,
+		PorBando = true,
 	},
 	-- Huerta
 	{
@@ -202,6 +209,17 @@ Config.Cultivos = {
 		Horas = 4,
 	},
 } :: { Cultivo }
+
+-- Color del estandarte según el bando del dueño.
+Config.ColorPorBando = {
+	Rojo = Color3.fromRGB(190, 60, 60),
+	Azul = Color3.fromRGB(60, 110, 200),
+	Neutral = Color3.fromRGB(130, 95, 180),
+}
+
+function Config.ColorDeBando(bando: string?): Color3
+	return Config.ColorPorBando[bando or "Neutral"] or Config.ColorPorBando.Neutral
+end
 
 function Config.Pieza(id: string): Pieza?
 	for _, pieza in Config.Piezas do

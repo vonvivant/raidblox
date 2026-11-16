@@ -180,3 +180,43 @@ prueba("patio: hay mascotas para mostrar y la foto no se desborda", function()
 	end
 	exigir(cuantas >= C.PatioMaxMascotas, "el tope del patio pide más mascotas de las que existen")
 end)
+
+prueba("muebles: los que hacen algo lo declaran bien", function()
+	local silla = C.Pieza("Silla")
+	local fogata = C.Pieza("Fogata")
+	local estandarte = C.Pieza("Estandarte")
+	exigir(silla ~= nil and fogata ~= nil and estandarte ~= nil, "los tres muebles")
+	exigir(silla.Asiento == true, "la silla tiene que ser un asiento")
+	exigir(fogata.Estacion == "Fogon", "la fogata tiene que ser un fogón")
+	exigir(estandarte.PorBando == true, "el estandarte toma el color del bando")
+
+	-- La estación de un mueble tiene que existir de verdad: si no, el jugador
+	-- compra una fogata que no cocina nada.
+	local PROF = cargar("ReplicatedStorage/Configs/ProfesionesConfig")
+	for _, pieza in C.Piezas do
+		if not pieza.Estacion then
+			continue
+		end
+		local usada = false
+		for _, receta in PROF.Recetas do
+			if receta.Estacion == pieza.Estacion then
+				usada = true
+			end
+		end
+		exigir(usada, pieza.Id .. " dice ser estación " .. pieza.Estacion .. " y no hay recetas para esa estación")
+	end
+	-- Un asiento no puede ser al mismo tiempo estación: el prompt y el sentarse
+	-- se pelearían.
+	for _, pieza in C.Piezas do
+		exigir(not (pieza.Asiento and pieza.Estacion), pieza.Id .. " no puede ser asiento y estación a la vez")
+	end
+end)
+
+prueba("muebles: el estandarte tiene color para cada bando", function()
+	for _, bando in { "Rojo", "Azul", "Neutral" } do
+		exigir(C.ColorPorBando[bando] ~= nil, "falta el color de " .. bando)
+	end
+	exigir(C.ColorDeBando("Rojo") ~= C.ColorDeBando("Azul"), "los bandos se distinguen")
+	exigir(C.ColorDeBando(nil) == C.ColorDeBando("Neutral"), "sin bando, neutral")
+	exigir(C.ColorDeBando("Inventado") == C.ColorDeBando("Neutral"), "un bando raro no rompe nada")
+end)
