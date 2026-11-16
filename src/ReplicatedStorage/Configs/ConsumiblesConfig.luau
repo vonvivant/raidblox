@@ -46,6 +46,10 @@ export type Definicion = {
 	-- Consumibles con riesgo: con `Probabilidad` salen los efectos `Malos` en
 	-- lugar de los normales.
 	Riesgo: { Probabilidad: number, Malos: { EfectoTemporal }, Texto: string }?,
+	-- true cuando el buff no corresponde a ningún ítem del catálogo: lo
+	-- reparte otro sistema (por ejemplo el Pergamino de Fortaleza, que lo da
+	-- a todo el grupo).
+	SinItem: boolean?,
 }
 
 local Definiciones: { [string]: Definicion } = {
@@ -185,6 +189,17 @@ local Definiciones: { [string]: Definicion } = {
 		} :: { EfectoTemporal },
 	},
 
+	-- Pergaminos del Inscriptor (NPC-005). El id es distinto del ItemId
+	-- porque el pergamino no se aplica solo al que lo lee: lo reparte
+	-- PergaminoManager a todo el grupo.
+	BuffFortaleza = {
+		Nombre = "Fortaleza",
+		Categoria = "Pergamino",
+		SinItem = true, -- no es un ítem: lo reparte PergaminoManager al grupo
+		Duracion = 600,
+		Efectos = { { Tipo = "Aura", Stat = "Defensa", Porcentaje = 10 } },
+	},
+
 	-- Servicios de NPC (no son ítems) -------------------------------------
 	ServicioAfilar = {
 		Nombre = "Arma afilada",
@@ -197,6 +212,7 @@ local Definiciones: { [string]: Definicion } = {
 return {
 	Definiciones = Definiciones,
 	NombresCategoria = {
+		Pergamino = "Pergamino",
 		Elixir = "Elixir",
 		Tonico = "Tónico",
 		Infusion = "Infusión",

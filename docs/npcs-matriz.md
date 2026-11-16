@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (64 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (69 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **32** implementados sin verificar, **3** en desarrollo y **4** pendientes (total 39).
+Hoy: **33** implementados sin verificar, **3** en desarrollo y **3** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -38,7 +38,7 @@ Hoy: **32** implementados sin verificar, **3** en desarrollo y **4** pendientes 
 | NPC-002 | Boticario Espiritual (`BoticarioEspiritual`) | Rojo, Azul, Neutral | vende 4 ítems, fabrica en MesaAlquimia | — | Implementado sin verificar |
 | NPC-003 | Alquimista Experimental (`AlquimistaExperimental`) | Rojo, Azul, Neutral | vende 5 ítems, fabrica en MesaAlquimia | — | Implementado sin verificar |
 | NPC-004 | Borrador de Recuerdos (`BorradorRecuerdos`) | Rojo, Azul, Neutral | — | Sistema de talentos (hoy la clase define todas las habilidades) | Pendiente |
-| NPC-005 | Inscriptor (`Inscriptor`) | Rojo, Azul, Neutral | — | Pergaminos: usar el viaje del Guardián desde un ítem, buff a todo el grupo e ítems sin identificar | Pendiente |
+| NPC-005 | Inscriptor (`Inscriptor`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Telar | Ítems sin identificar y el mapa que los revela | Implementado sin verificar |
 | NPC-006 | Barista de Tés (`BaristaTes`) | Rojo, Azul, Neutral | vende 4 ítems, fabrica en MesaAlquimia | Recetas raras por bioma; Resistencia a estados negativos (hoy: +defensa) | Implementado sin verificar |
 
 ### Grupo B — Herrería, equipamiento y forja

@@ -37,10 +37,37 @@ local function avisar(player: Player, texto: string, tipo: string?)
 	NetworkBridge.Server.FireClient("Notificacion", player, texto, tipo or "Error")
 end
 
+-- Usos a medida que registran otros sistemas (los pergaminos, por ejemplo).
+-- La función devuelve (hizoAlgo, motivo); el ítem se gasta solo si hizo algo.
+local usosPropios: { [string]: (Player) -> (boolean, string?) } = {}
+
+function InventarioManager.RegistrarUso(itemId: string, fn: (Player) -> (boolean, string?))
+	usosPropios[itemId] = fn
+end
+
 local function usar(player: Player, clave: string)
 	local item = DataManager.ItemEnRanura(player, clave)
 	local def = item and ItemCatalog[item.ItemId]
 	if not item or not def then
+		return
+	end
+	local propio = usosPropios[item.ItemId]
+	if propio then
+		local ok, motivo = propio(player)
+		if not ok then
+			if motivo then
+				avisar(player, motivo)
+			end
+			return
+		end
+		-- Se gasta recién cuando el efecto se aplicó. Ojo: el uso propio puede
+		-- haber tardado (un pergamino con rezo), así que se busca de nuevo por
+		-- si el ítem se movió de ranura mientras tanto.
+		if DataManager.ItemEnRanura(player, clave) then
+			DataManager.QuitarDeRanura(player, clave, 1)
+		else
+			DataManager.RemoveItem(player, item.ItemId, 1)
+		end
 		return
 	end
 	local consumo = def.Consumo

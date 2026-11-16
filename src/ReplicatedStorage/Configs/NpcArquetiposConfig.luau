@@ -199,21 +199,19 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Sastre de pergaminos: teletransporte, buffs de grupo y mapas.",
 		Interfaces = { "IVendor", "ICrafter" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = Color3.fromRGB(170, 150, 110),
 		Estacion = "Telar",
+		Vende = {
+			{ ItemId = "PergaminoRegreso", Precio = 120 },
+			{ ItemId = "PergaminoReunion", Precio = 160 },
+			{ ItemId = "PergaminoFortaleza", Precio = 220 },
+		} :: { Oferta },
 		Parametros = {
-			Pergaminos = {
-				{ Nombre = "Pergamino de Teletransporte", Efecto = "Vuelve a la última ciudad", Precio = 120 },
-				{ Nombre = "Pergamino de Fortaleza", Efecto = "+10% Defensa al grupo por 10 min", Precio = 200 },
-				{
-					Nombre = "Mapa de Identificación",
-					Efecto = "Revela los efectos de un ítem sin identificar",
-					Precio = 80,
-				},
-			},
-			Materiales = { "TelaLino", "FlorLunar" },
-			Requiere = "Pergaminos: usar el viaje del Guardián desde un ítem, buff a todo el grupo e ítems sin identificar",
+			Pergaminos = { "Regreso a tu capital", "Fortaleza al grupo (10 min)", "Reunión con tu líder" },
+			Donde = "Se usan desde la mochila; no andan en combate, Guerra, arena ni mazmorra",
+			Fabricar = "También se hacen en el Telar con tela de lino y flor lunar",
+			Futuro = { "Ítems sin identificar y el mapa que los revela" },
 		},
 	},
 	BaristaTes = {
@@ -1171,5 +1169,6 @@ return {
 		{ Arquetipo = "MaestroPesca", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 92) },
 		{ Arquetipo = "Crupier", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 102) },
 		{ Arquetipo = "Arquitecto", Faccion = "Neutral", Posicion = Vector3.new(-30, 0, 102) },
+		{ Arquetipo = "Inscriptor", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 102) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

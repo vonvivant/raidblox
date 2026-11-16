@@ -5,6 +5,7 @@ local Consumibles = cargar("ReplicatedStorage/Configs/ConsumiblesConfig")
 local Npcs = cargar("ReplicatedStorage/Configs/NpcArquetiposConfig")
 local Zonas = cargar("ReplicatedStorage/Configs/ZoneConfig")
 local Vault = cargar("ReplicatedStorage/Configs/VaultConfig")
+local Pergaminos = cargar("ReplicatedStorage/Configs/PergaminosConfig")
 
 local FACCIONES = { Rojo = true, Azul = true, Neutral = true }
 
@@ -13,7 +14,12 @@ prueba("ítems: los consumibles tienen efecto y los apilables un stack válido",
 		exigir(type(def.Nombre) == "string" and def.Nombre ~= "", id .. " sin nombre")
 		exigir(def.PrecioVenta >= 0, id .. " con precio negativo")
 		if def.Tipo == "Consumible" then
-			exigir(def.Consumo ~= nil or Consumibles.Definiciones[id] ~= nil, id .. " es consumible pero no hace nada")
+			-- Un consumible hace algo de tres maneras: recupera (Consumo), tiene
+			-- definición de buff, o lo maneja un sistema propio (los pergaminos).
+			exigir(
+				def.Consumo ~= nil or Consumibles.Definiciones[id] ~= nil or Pergaminos.Es(id),
+				id .. " es consumible pero no hace nada"
+			)
 		end
 		if def.MaxStack then
 			exigir(def.Apilable and def.MaxStack >= 1, id .. " con MaxStack inválido")
@@ -42,7 +48,9 @@ prueba("consumibles: definiciones completas y dentro de los límites", function(
 			exigir(def.Categoria and Consumibles.NombresCategoria[def.Categoria], id .. " sin categoría válida")
 			exigir(def.Duracion and def.Duracion > 0, id .. " sin duración")
 			exigir(def.Efectos and #def.Efectos > 0, id .. " sin efectos")
-			if string.sub(id, 1, 8) ~= "Servicio" then
+			-- Los buffs que no son un ítem (los reparte otro sistema, como el
+			-- Pergamino de Fortaleza) se declaran con SinItem.
+			if string.sub(id, 1, 8) ~= "Servicio" and not def.SinItem then
 				exigir(ItemCatalog[id] and ItemCatalog[id].Tipo == "Consumible", id .. " no es un consumible del catálogo")
 			end
 			local listas = { def.Efectos }

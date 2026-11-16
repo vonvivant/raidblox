@@ -219,6 +219,31 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		PrecioVenta = 1,
 		Descripcion = "Lo que el río te da cuando no es tu día.",
 	},
+	-- Pergaminos (Inscriptor, NPC-005)
+	PergaminoRegreso = {
+		Nombre = "Pergamino de Regreso",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 10,
+		PrecioVenta = 40,
+		Descripcion = "Te devuelve a la capital de tu bando. No sirve en combate.",
+	},
+	PergaminoFortaleza = {
+		Nombre = "Pergamino de Fortaleza",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 10,
+		PrecioVenta = 70,
+		Descripcion = "+10% de defensa a tu grupo cercano, 10 minutos.",
+	},
+	PergaminoReunion = {
+		Nombre = "Pergamino de Reunión",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 10,
+		PrecioVenta = 55,
+		Descripcion = "Te lleva junto al líder de tu grupo, en la misma zona.",
+	},
 	-- Semillas de la huerta (las vende el Arquitecto, NPC-033)
 	SemillaHierba = { Nombre = "Semilla de Hierba Sanadora", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
 	SemillaCocina = { Nombre = "Semilla de Hierbas de Cocina", Tipo = "Material", Apilable = true, PrecioVenta = 3 },

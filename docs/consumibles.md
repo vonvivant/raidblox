@@ -14,8 +14,8 @@ con efecto propio y las mejoras temporales que dan los NPC. Módulos: `Configs/C
 ## Reglas de acumulación (temporales)
 
 - **Uno solo activo por categoría.** Tomar otro de la misma categoría lo reemplaza (el juego avisa cuál reemplazó).
-- **Categorías distintas se suman**: se puede tener a la vez un elixir, un tónico, una infusión, una comida y el arma
-  afilada.
+- **Categorías distintas se suman**: se puede tener a la vez un elixir, un tónico, una infusión, una comida, el
+  pergamino de fortaleza y el arma afilada.
 - La reducción de recargas sumada nunca pasa de 30% (`PrisaMaxima`).
 - **No se pierden** al morir, cambiar de zona o desconectarse: se guardan en el perfil (`Buffs`) con su hora de
   vencimiento y se vuelven a aplicar al reaparecer con el tiempo que les queda. El tiempo corre aunque el jugador
@@ -45,6 +45,25 @@ con efecto propio y las mejoras temporales que dan los NPC. Módulos: `Configs/C
 | Guiso del Pescador | Comida | +8% de ataque, +8% de poder y 2% de vida cada 5 s, 20 min | — | Cocina nivel 10 |
 | Tarta Lunar | Comida | +15% de poder y 4% del maná cada 5 s, 20 min | — | Cocina nivel 16 |
 | (Afilar el arma) | Filo | +10% de ataque, 10 min | Servicio del Afilador | — |
+
+### Pergaminos (Inscriptor, NPC-005)
+
+Tres pergaminos que se usan desde la mochila, no son pociones y tienen su propia recarga:
+
+| Pergamino | Qué hace | Rezo | Recarga |
+| --- | --- | --- | --- |
+| Regreso | Te devuelve a la capital de tu bando (a la ciudad, si sos neutral) | 4 s | 5 min |
+| Reunión | Te lleva junto al líder de tu grupo, en la misma zona | 6 s | 3 min |
+| Fortaleza | +10% de defensa a tu grupo cercano, 10 min | — | 1 min |
+
+Ninguno anda **en combate, en la Guerra, en una arena ni en una mazmorra**. Los dos que te mueven tienen un
+rezo: hay que quedarse quieto, y si te pegan o te movés más de 6 studs se corta y **el pergamino no se gasta**.
+Al terminar el rezo se vuelve a revisar todo, porque en esos segundos pudo empezar una pelea.
+
+El de Fortaleza es su propia categoría de buff, así que no pisa al elixir ni al tónico, y lo reparte el servidor
+a cada miembro del grupo que esté a menos de 60 studs. El buff no existe como ítem (está marcado `SinItem`).
+
+Los vende el Inscriptor y también se fabrican en el Telar con tela de lino y flor lunar.
 
 Material nuevo: **Agua de Manantial** (lo vende el Barista; va en tés, tónicos y comidas).
 

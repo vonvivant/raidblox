@@ -39,6 +39,7 @@ src/
 │   │   ├── JuegosConfig.luau         Juegos del Crupier: récords, títulos y tiempos (reglas puras)
 │   │   ├── ParcelasConfig.luau       Parcelas: grilla, precios, alquiler, permisos y fusión (reglas puras)
 │   │   ├── ConstruccionConfig.luau   Piezas, encaje, superposición y cultivos de la huerta (reglas puras)
+│   │   ├── PergaminosConfig.luau     Pergaminos del Inscriptor: efectos, rezo y recargas (reglas puras)
 │   │   ├── ProgresionSocialConfig.luau Descanso, contratos diarios y reputación de facción
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
@@ -108,6 +109,7 @@ src/
 │       │   ├── CraftingManager.luau     Estaciones y recetas
 │       │   ├── ParcelaManager.luau   Dueños de parcelas en DataStore global, alquiler y permisos
 │       │   ├── ConstruccionManager.luau Muebles, huerta y patio dentro de la parcela
+│       │   ├── PergaminoManager.luau Regreso, reunión y fortaleza de grupo
 │       │   ├── VaultManager.luau        Bóveda global: depósito, retiro, pestañas y puntos de acceso
 │       │   ├── ForjaManager.luau        Desgaste del equipo y servicios de herrería de los NPC
 │       │   ├── PersonalizadorManager.luau NPC vendedor y personalizador: catálogo, presupuesto y compra
