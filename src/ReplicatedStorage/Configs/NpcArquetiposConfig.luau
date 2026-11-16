@@ -890,10 +890,16 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Nombre = "Arquitecto de Viviendas",
 		Categoria = "Social",
 		Descripcion = "Vende, alquila y registra las parcelas del barrio.",
-		Interfaces = { "IServiceProvider" },
+		Interfaces = { "IVendor", "IServiceProvider" },
 		Facciones = TODAS,
 		Estado = "Parcial",
-		Sistema = "ParcelaManager (compra, alquiler, permisos y fusión); falta construir",
+		Sistema = "ParcelaManager y ConstruccionManager; falta la subasta con pujas",
+		Vende = {
+			{ ItemId = "SemillaHierba", Precio = 8 },
+			{ ItemId = "SemillaCocina", Precio = 12 },
+			{ ItemId = "SemillaLino", Precio = 15 },
+			{ ItemId = "SemillaLunar", Precio = 25 },
+		} :: { Oferta },
 		Color = GRIS,
 		Servicios = {
 			{
@@ -903,11 +909,19 @@ local Arquetipos: { [string]: Arquetipo } = {
 				Costo = 0,
 				Accion = "ParcelasAbrir",
 			},
+			{
+				Id = "ParcelasConstruir",
+				Nombre = "Construir en mi parcela",
+				Descripcion = "Muebles, paredes, canteros y patio de mascotas.",
+				Costo = 0,
+				Accion = "ParcelasConstruir",
+			},
 		} :: { Servicio },
 		Parametros = {
 			Barrios = { "Barrio Norte", "La Ribera", "Claro del Bosque" },
 			Alquiler = "150 de oro por día; 7 días vienen con la compra",
-			Falta = { "Construcción y muebles", "Huerta", "Patio de mascotas", "Subasta con pujas" },
+			Construccion = "10 piezas, hasta 40 por parcela; huerta con 4 cultivos",
+			Falta = { "Subasta con pujas", "Alquilar entre jugadores" },
 		},
 	},
 	Chef = {

@@ -56,6 +56,8 @@ combate).
 Niveles 1–50, XP para subir `50 × nivel^1.4`. Cada jugador nuevo recibe un pico y una hoz (kit inicial, una sola
 vez); la caña la vende el Maestro de Pesca por 30 de oro.
 
+Las hierbas de cocina y la flor lunar también se pueden plantar en la [huerta de tu parcela](parcelas.md).
+
 ### Pesca (NPC-035) y cocina (NPC-034)
 
 Las orillas son nodos como las vetas, con tag `NodoRecoleccion` y atributo `Nodo`, pero piden **caña** equipada y

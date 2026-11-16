@@ -65,16 +65,58 @@ fusionar: comparten nombre y cofre, y el área de construcción pasa a ser la su
 parcelas para el límite. Si una de las dos escrituras no entra, se deshace la otra, así no queda una fusión a
 medias.
 
+## Construir
+
+Reglas en `Configs/ConstruccionConfig.luau`, servidor en `Systems/Economia/ConstruccionManager.luau`, ventana en
+`ConstruccionUI`. Lo construido se guarda en el mismo registro de la parcela, con las posiciones **relativas al
+centro**, así vale igual en todos los servidores.
+
+Se abre con el Arquitecto ("Construir en mi parcela"): se elige una pieza y aparece una vista fantasma que sigue
+al mouse sobre el terreno; **clic** la pone, **R** la gira, **Q** la sube, **E** la baja, **clic derecho**
+cancela. En modo sacar, el clic sobre algo puesto lo saca y devuelve **la mitad** de lo que costó.
+
+Hay diez piezas en cuatro grupos: estructura (piso, pared, techo, marco de puerta), muebles (mesa, silla,
+fogata, estandarte), huerta (cantero) y mascotas (patio). Hasta **40 piezas por parcela**, con límites propios:
+seis canteros y un solo patio.
+
+El servidor revalida todo en cada pieza: que seas dueño o socio, que estés cerca, que la pieza exista, que no te
+hayas pasado de los topes, que **entre adentro del terreno** (con dos studs de margen y sin pasar los 24 de
+alto) y que **no se pise** con otra ya puesta. Las posiciones se acomodan a una grilla de 2 studs *antes* de
+validar, así lo que se valida es exactamente lo que se guarda. Se cobra y después se escribe; si la escritura no
+entra, se devuelve el oro.
+
+## Huerta
+
+Un **cantero** se planta con una semilla del inventario (las vende el Arquitecto) y se cosecha cuando está
+lista. El cartel del cantero dice cuánto falta.
+
+| Semilla | Da | Tarda | Cosecha |
+| --- | --- | --- | --- |
+| Hierba sanadora | Hierba Sanadora | 1 h | 3–5 |
+| Hierbas de cocina | Hierbas de Cocina | 2 h | 3–6 |
+| Lino | Lino | 4 h | 4–7 |
+| Flor lunar | Flor Lunar | 6 h | 2–4 |
+
+El tiempo se mide con la hora guardada en la pieza, así que **corre con el servidor apagado** y no se puede
+acelerar desde el cliente. Si al cosechar no entra en la mochila, el cantero queda plantado y se puede volver;
+si la cosecha se entrega pero el registro no se puede limpiar, se saca lo entregado, para que un cantero no se
+coseche dos veces.
+
+Esto conecta la casa con las profesiones: la huerta da ingredientes de [cocina](economia.md) y de alquimia sin
+salir a buscarlos.
+
+## Patio de mascotas
+
+Es una pieza más, única por parcela. Por ahora es el lugar: que las mascotas compradas se paseen ahí falta.
+
 ## Lo que falta
 
-Esto es la **primera mitad** del pedido: la propiedad. Todavía no están:
-
-- **Construcción y muebles**: poner piezas dentro de la parcela, con el Arquitecto vendiendo planos.
-- **Huerta** (plantar y cosechar) y **patio de mascotas**.
 - **Subasta con pujas**: hoy la parcela libre se compra al precio del barrio, el primero que llega. Las pujas
   esperan la misma decisión que las de la [casa de subastas](economia.md), que el usuario todavía no tomó.
 - **Alquilar tu parcela a otro jugador** (hoy el alquiler es el que se le paga al barrio, no entre jugadores).
+- **Mascotas paseando** en el patio, y muebles que se usen de verdad (sentarse en la silla, cocinar en la
+  fogata).
 
-Por eso el NPC-033 figura como **Parcial** en la [matriz](npcs-matriz.md). Nada de esto se probó en Studio: las
-pruebas de `python3 tests/run.py` cubren la grilla, la vecindad, la fusión, los plazos del alquiler y los
-permisos, no el DataStore andando.
+Por eso el NPC-033 sigue figurando como **Parcial** en la [matriz](npcs-matriz.md). Nada de esto se probó en
+Studio: las pruebas de `python3 tests/run.py` cubren la grilla, la vecindad, la fusión, los plazos del alquiler,
+los permisos, el encaje y la superposición de piezas y los tiempos de la huerta, no el DataStore andando.

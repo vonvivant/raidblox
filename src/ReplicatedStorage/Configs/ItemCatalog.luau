@@ -219,6 +219,11 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		PrecioVenta = 1,
 		Descripcion = "Lo que el río te da cuando no es tu día.",
 	},
+	-- Semillas de la huerta (las vende el Arquitecto, NPC-033)
+	SemillaHierba = { Nombre = "Semilla de Hierba Sanadora", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
+	SemillaCocina = { Nombre = "Semilla de Hierbas de Cocina", Tipo = "Material", Apilable = true, PrecioVenta = 3 },
+	SemillaLunar = { Nombre = "Semilla de Flor Lunar", Tipo = "Material", Apilable = true, PrecioVenta = 3 },
+	SemillaLino = { Nombre = "Semilla de Lino", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
 	-- Cocina (Chef, NPC-034)
 	Sal = { Nombre = "Sal", Tipo = "Material", Apilable = true, PrecioVenta = 1 },
 	HierbasCocina = { Nombre = "Hierbas de Cocina", Tipo = "Material", Apilable = true, PrecioVenta = 2 },

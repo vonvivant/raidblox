@@ -36,6 +36,17 @@ local ZoneManager = require(script.Parent.Parent.ZoneManager)
 type Barrio = CFG.Barrio
 type Permiso = CFG.Permiso
 
+-- Una pieza construida, con la posición relativa al centro de la parcela.
+export type Puesta = {
+	Pieza: string,
+	X: number,
+	Y: number,
+	Z: number,
+	Giro: number,
+	Cultivo: string?, -- semilla plantada, si es un cantero
+	Desde: number?, -- cuándo se plantó
+}
+
 export type Registro = {
 	Id: string,
 	Dueno: number,
@@ -45,6 +56,7 @@ export type Registro = {
 	Nombre: string?,
 	Permisos: { [string]: Permiso }, -- UserId en texto -> nivel
 	Fusion: { string }?, -- ids fusionados con esta
+	Piezas: { Puesta }?, -- lo construido (ver ConstruccionManager)
 }
 
 local ParcelaManager = {}
@@ -229,6 +241,16 @@ local function anotarEnPerfil(player: Player, id: string, tenerla: boolean)
 		end
 		libre.Parcelas = lista
 	end)
+end
+
+-- Para ConstruccionManager: leer y editar el registro sin duplicar la lógica
+-- del DataStore. `Editar` no cede el hilo adentro de `cambiar`.
+function ParcelaManager.Leer(id: string, frescura: number?): Registro?
+	return leer(id, frescura)
+end
+
+function ParcelaManager.Editar(id: string, cambiar: (Registro?) -> Registro?): (boolean, Registro?)
+	return escribir(id, cambiar)
 end
 
 ------------------------------------------------------------------------

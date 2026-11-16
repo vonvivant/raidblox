@@ -21,7 +21,7 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (57 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (64 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
@@ -96,7 +96,7 @@ Hoy: **32** implementados sin verificar, **3** en desarrollo y **4** pendientes 
 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
-| NPC-033 | Arquitecto de Viviendas (`Arquitecto`) | Rojo, Azul, Neutral | Ver las parcelas; el sistema existe en: ParcelaManager (compra, alquiler, permisos y fusión); falta construir | — | En desarrollo |
+| NPC-033 | Arquitecto de Viviendas (`Arquitecto`) | Rojo, Azul, Neutral | vende 4 ítems, Ver las parcelas, Construir en mi parcela; el sistema existe en: ParcelaManager y ConstruccionManager; falta la subasta con pujas | — | En desarrollo |
 | NPC-034 | Chef (`Chef`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Fogon | — | Implementado sin verificar |
 | NPC-035 | Maestro de Pesca (`MaestroPesca`) | Rojo, Azul, Neutral | vende 1 ítems, compra excedentes, ¿Dónde pican hoy? | Cebos por bioma; Peces raros por temporada | Implementado sin verificar |
 | NPC-036 | Crupier (`Crupier`) | Neutral | Memoria de Runas, Encontrá los Pares | Carreras en la taberna; Tablero de récords del servidor | Implementado sin verificar |
