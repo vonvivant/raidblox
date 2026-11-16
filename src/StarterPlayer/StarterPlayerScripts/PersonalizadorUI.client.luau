@@ -219,6 +219,7 @@ local conexiones: { any } = {} -- conexiones de Roblox y de señales propias
 
 local modoRetoque = false
 local soloColor = false
+local soloStencil = false
 -- En modo retoque: el ítem elegido de la mochila y lo que ya tenía guardado.
 local uidElegido: string? = nil
 local persGuardada: { [string]: Pieza } = {}
@@ -510,9 +511,15 @@ local function fijar(id: string, material: string?, color: string?)
 	if not s or not original or not estado then
 		return
 	end
-	local nuevo: Pieza = { Material = material or estado.Material, Color = color or estado.Color }
+	-- El stencil que ya tenía la pieza se conserva: cambiar el color no borra
+	-- la calcomanía.
+	local nuevo: Pieza = {
+		Material = material or estado.Material,
+		Color = color or estado.Color,
+		Stencil = estado.Stencil,
+	}
 	local c = cambios()
-	if nuevo.Material == original.Material and nuevo.Color == original.Color then
+	if nuevo.Material == original.Material and nuevo.Color == original.Color and nuevo.Stencil == nil then
 		c[id] = nil
 	else
 		c[id] = nuevo
@@ -553,6 +560,16 @@ end
 
 local function llenarMateriales()
 	UIKit.Limpiar(listaMateriales)
+	if soloStencil then
+		local aviso = UIKit.Texto(
+			listaMateriales,
+			'El grabador solo pone calcomanías: el material y el color quedan como están. Elegí una pieza y tocá "Stencil…".',
+			UDim2.new(1, 0, 0, 56)
+		)
+		aviso.TextColor3 = UIKit.Colores.TextoSuave
+		aviso.TextWrapped = true
+		return
+	end
 	if soloColor then
 		local aviso = UIKit.Texto(
 			listaMateriales,
@@ -633,7 +650,7 @@ botonATodas.Activated:Connect(function()
 	local estado = if piezaId then actual(piezaId) else nil
 	if s and estado then
 		for _, pieza in s.Piezas do
-			fijar(pieza.Id, if soloColor then nil else estado.Material, estado.Color)
+			fijar(pieza.Id, if soloColor then nil else estado.Material, if soloStencil then nil else estado.Color)
 		end
 		despuesDeEditar()
 	end
@@ -648,7 +665,7 @@ end)
 botonPegar.Activated:Connect(function()
 	local copia = portapapeles
 	if piezaId and copia then
-		fijar(piezaId, if soloColor then nil else copia.Material, copia.Color)
+		fijar(piezaId, if soloColor then nil else copia.Material, if soloStencil then nil else copia.Color)
 		despuesDeEditar()
 	end
 end)
@@ -664,11 +681,13 @@ local contenidoStencil: Frame
 ventanaStencil, contenidoStencil = UIKit.Ventana(gui, "Stencil", UDim2.fromScale(0.26, 0.5))
 ventanaStencil.Visible = false
 
-local avisoStencil = UIKit.Texto(contenidoStencil, "", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 0))
+local pestanaDecal = UIKit.Boton(contenidoStencil, "Calcomanía", UDim2.new(0.5, -3, 0, 26), UDim2.fromOffset(0, 0))
+local pestanaRelieve = UIKit.Boton(contenidoStencil, "Relieve", UDim2.new(0.5, -3, 0, 26), UDim2.new(0.5, 3, 0, 0))
+local avisoStencil = UIKit.Texto(contenidoStencil, "", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 30))
 avisoStencil.TextWrapped = true
 avisoStencil.TextXAlignment = Enum.TextXAlignment.Left
 avisoStencil.TextColor3 = UIKit.Colores.TextoSuave
-local listaStencils = UIKit.Lista(contenidoStencil, UDim2.new(1, 0, 1, -140), UDim2.fromOffset(0, 38))
+local listaStencils = UIKit.Lista(contenidoStencil, UDim2.new(1, 0, 1, -172), UDim2.fromOffset(0, 68))
 local filaEscala = UIKit.Texto(contenidoStencil, "", UDim2.new(0.5, 0, 0, 26), UDim2.new(0, 0, 1, -98))
 filaEscala.TextXAlignment = Enum.TextXAlignment.Left
 local masEscala = UIKit.Boton(contenidoStencil, "+", UDim2.fromOffset(34, 26), UDim2.new(1, -34, 1, -98))
@@ -686,6 +705,7 @@ local botonSinStencil = UIKit.Boton(
 )
 
 local librosMios: { string } = {}
+local pestana = "Decal" -- "Decal" | "Relieve"
 local escalaElegida = StencilsConfig.AcomodarEscala(60)
 local opacidadElegida = StencilsConfig.AcomodarOpacidad(100)
 
@@ -706,6 +726,21 @@ local function ponerStencil(stencilId: string?)
 	dibujarStencils()
 end
 
+-- Guarda (o saca) el relieve en la pieza seleccionada.
+local function ponerRelieve(relieveId: string?)
+	local id = piezaId
+	local estado = if id then actual(id) else nil
+	if not id or not estado then
+		return
+	end
+	local nueva: Pieza = { Material = estado.Material, Color = estado.Color, Stencil = estado.Stencil }
+	nueva.Relieve = relieveId
+	cambios()[id] = nueva
+	pintar(id)
+	cotizar()
+	dibujarStencils()
+end
+
 dibujarStencils = function()
 	UIKit.Limpiar(listaStencils)
 	local id = piezaId
@@ -714,11 +749,55 @@ dibujarStencils = function()
 		avisoStencil.Text = "Elegí primero una pieza del objeto."
 		return
 	end
+	pestanaDecal.BackgroundColor3 = if pestana == "Decal" then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+	pestanaRelieve.BackgroundColor3 = if pestana == "Relieve" then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+	local enRelieve = pestana == "Relieve"
+	-- El relieve no tiene tamaño ni opacidad: es el material de la pieza.
+	filaEscala.Visible = not enRelieve
+	filaOpacidad.Visible = not enRelieve
+	masEscala.Visible = not enRelieve
+	menosEscala.Visible = not enRelieve
+	masOpacidad.Visible = not enRelieve
+	menosOpacidad.Visible = not enRelieve
+
 	local puesto = estado.Stencil
 	filaEscala.Text = `Tamaño: {escalaElegida}%`
 	filaOpacidad.Text = `Opacidad: {opacidadElegida}%`
 	if #librosMios == 0 then
-		avisoStencil.Text = "No tenés ningún libro de stencils. Se aprenden leyendo los libros."
+		avisoStencil.Text = "No tenés ningún libro. Se aprenden leyendo los libros que vende el Inscriptor."
+		return
+	end
+
+	if enRelieve then
+		local info = if seleccion then seleccion.PorId[id] else nil
+		if info and not info.EsMesh then
+			avisoStencil.Text =
+				`La pieza "{id}" no acepta relieve: solo funciona sobre piezas que son mallas (MeshPart).`
+			return
+		end
+		avisoStencil.Text =
+			`Pieza "{id}" · ahora: {estado.Relieve or "sin relieve"}. El relieve reemplaza el aspecto del material y suma {StencilsConfig.CostoPorRelieve} de oro.`
+		for _, libroId in librosMios do
+			local libro = StencilsConfig.Libro(libroId)
+			if not libro then
+				continue
+			end
+			local encabezado = UIKit.Texto(listaStencils, libro.Nombre, UDim2.new(1, -8, 0, 22))
+			encabezado.TextColor3 = UIKit.Colores.Oro
+			encabezado.TextXAlignment = Enum.TextXAlignment.Left
+			for _, relieve in StencilsConfig.RelievesDelLibro(libroId) do
+				local hay = StencilsConfig.RelieveDisponible(relieve)
+				local texto = if hay then relieve.Nombre else `{relieve.Nombre} (falta el arte)`
+				local color = if estado.Relieve == relieve.Id then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+				local boton = UIKit.Boton(listaStencils, texto, UDim2.new(1, -8, 0, 26), nil, color)
+				boton.AutoButtonColor = hay
+				boton.Activated:Connect(function()
+					if hay then
+						ponerRelieve(relieve.Id)
+					end
+				end)
+			end
+		end
 		return
 	end
 	avisoStencil.Text = if puesto
@@ -784,7 +863,22 @@ menosOpacidad.Activated:Connect(function()
 	cambiarOpacidad(-StencilsConfig.OpacidadPaso)
 end)
 botonSinStencil.Activated:Connect(function()
-	ponerStencil(nil)
+	if pestana == "Relieve" then
+		ponerRelieve(nil)
+	else
+		ponerStencil(nil)
+	end
+end)
+
+pestanaDecal.Activated:Connect(function()
+	pestana = "Decal"
+	botonSinStencil.Text = "Sacar la calcomanía"
+	dibujarStencils()
+end)
+pestanaRelieve.Activated:Connect(function()
+	pestana = "Relieve"
+	botonSinStencil.Text = "Sacar el relieve"
+	dibujarStencils()
 end)
 
 botonStencil.Activated:Connect(function()
@@ -1137,7 +1231,7 @@ local function cerrar()
 	quitarClon()
 	seleccion, piezaId, presupuesto, pedidoId = nil, nil, nil, nil
 	uidElegido, persGuardada = nil, {}
-	modoRetoque, soloColor = false, false
+	modoRetoque, soloColor, soloStencil = false, false, false
 	table.clear(cambiosPorItem)
 	portapapeles = nil
 	ventanaStencil.Visible = false
@@ -1198,10 +1292,13 @@ local function abrir(posicion: Vector3, categoriaNpc: string?, solo: string?)
 	sesion += 1
 	posicionNpc = posicion
 	soloColor = solo == "Color"
-	modoRetoque = soloColor -- hoy el único que retoca es el Tintorero
+	soloStencil = solo == "Stencil"
+	-- Los dos NPC que trabajan sobre lo que ya tenés: el Tintorero (colores)
+	-- y el Inscriptor (calcomanías).
+	modoRetoque = soloColor or soloStencil
 	tituloConfirmar.Text = if modoRetoque then "Confirmar el cambio" else "Confirmar compra"
 	botonComprar.Text = if modoRetoque then "APLICAR" else "COMPRAR"
-	cartel.Text = if modoRetoque then "RETOQUE" else "VISTA PREVIA"
+	cartel.Text = if soloStencil then "GRABADO" elseif modoRetoque then "RETOQUE" else "VISTA PREVIA"
 	if categoriaNpc == "Armas" or categoriaNpc == "Armaduras" then
 		categoria = categoriaNpc
 	end

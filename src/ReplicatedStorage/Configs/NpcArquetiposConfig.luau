@@ -210,9 +210,19 @@ local Arquetipos: { [string]: Arquetipo } = {
 			{ ItemId = "LibroHeraldica", Precio = 1500 },
 			{ ItemId = "LibroBestias", Precio = 1500 },
 		} :: { Oferta },
+		Servicios = {
+			{
+				Id = "Grabar",
+				Nombre = "Grabar un objeto mío",
+				Descripcion = "Elegís algo de tu mochila y le aplicás calcomanías de los libros que sepas.",
+				Costo = 0,
+				Accion = "Grabar",
+			},
+		} :: { Servicio },
 		Parametros = {
 			Pergaminos = { "Regreso a tu capital", "Fortaleza al grupo (10 min)", "Reunión con tu líder" },
 			Libros = "Los tres libros de stencils del personalizador",
+			Graba = "Aplica calcomanías sobre lo que ya tenés, sin tocar material ni color",
 			Donde = "Se usan desde la mochila; no andan en combate, Guerra, arena ni mazmorra",
 			Fabricar = "También se hacen en el Telar con tela de lino y flor lunar",
 			Futuro = { "Ítems sin identificar y el mapa que los revela" },

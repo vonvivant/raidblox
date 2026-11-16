@@ -30,6 +30,9 @@ export type InfoPieza = {
 	Parte: BasePart, -- la pieza de la PLANTILLA (no modificar)
 	Material: string, -- material original
 	Color: string, -- color original "RRGGBB"
+	-- Los relieves (normal map) solo se pueden aplicar sobre MeshParts: una
+	-- Part común no acepta SurfaceAppearance.
+	EsMesh: boolean,
 }
 
 export type Entrada = {
@@ -196,6 +199,7 @@ function Personalizador.Piezas(modelo: Model): ({ InfoPieza }?, string?)
 				Parte = parte,
 				Material = parte.Material.Name,
 				Color = Personalizador.HexDeColor(parte.Color),
+				EsMesh = parte:IsA("MeshPart"),
 			})
 		end
 	end
@@ -375,7 +379,7 @@ function Personalizador.Normalizar(
 		end
 		-- Solo se aceptan los campos esperados.
 		for campo in valor do
-			if campo ~= "Material" and campo ~= "Color" and campo ~= "Stencil" then
+			if campo ~= "Material" and campo ~= "Color" and campo ~= "Stencil" and campo ~= "Relieve" then
 				return nil, "propiedad no permitida"
 			end
 		end
@@ -414,13 +418,33 @@ function Personalizador.Normalizar(
 			stencil = { Id = stencilId, Escala = escala, Opacidad = opacidad }
 		end
 
-		if material ~= pieza.Material or color ~= pieza.Color or stencil ~= nil then
-			resultado[id] = { Material = material, Color = color, Stencil = stencil }
+		-- Relieve (grabado con normal map): solo sobre MeshParts, porque una
+		-- Part común no acepta SurfaceAppearance.
+		local relieve: string? = nil
+		if valor.Relieve ~= nil then
+			if typeof(valor.Relieve) ~= "string" then
+				return nil, "relieve inválido"
+			end
+			if not pieza.EsMesh then
+				return nil, `la pieza "{id}" no acepta relieve (no es una malla)`
+			end
+			if not StencilsConfig.RelievePermitido(valor.Relieve, librosStencil or {}) then
+				return nil, "ese relieve no está desbloqueado o todavía no tiene arte"
+			end
+			relieve = valor.Relieve
+		end
+
+		if material ~= pieza.Material or color ~= pieza.Color or stencil ~= nil or relieve ~= nil then
+			resultado[id] = { Material = material, Color = color, Stencil = stencil, Relieve = relieve }
 		end
 	end
 	local conStencil = Config.CuantosStencils(resultado)
 	if conStencil > StencilsConfig.MaxPorItem then
 		return nil, `como mucho {StencilsConfig.MaxPorItem} piezas con stencil`
+	end
+	local conRelieve = Config.CuantosRelieves(resultado)
+	if conRelieve > StencilsConfig.MaxRelievesPorItem then
+		return nil, `como mucho {StencilsConfig.MaxRelievesPorItem} piezas con relieve`
 	end
 	return resultado, nil
 end
@@ -470,6 +494,24 @@ function Personalizador.Aplicar(entrada: Entrada, mapa: { [string]: BasePart }, 
 		if viejo then
 			viejo:Destroy()
 		end
+		-- Relieve: un SurfaceAppearance reemplaza el aspecto del material de la
+		-- pieza, así que se borra el anterior siempre.
+		local viejoRelieve = parte:FindFirstChildOfClass("SurfaceAppearance")
+		if viejoRelieve then
+			viejoRelieve:Destroy()
+		end
+		local relieveId = if cambio then cambio.Relieve else nil
+		local relieve = if relieveId then StencilsConfig.Relieve(relieveId) else nil
+		if relieve and StencilsConfig.RelieveDisponible(relieve) and parte:IsA("MeshPart") then
+			local aspecto = Instance.new("SurfaceAppearance")
+			aspecto.Name = "Relieve"
+			aspecto.ColorMap = `rbxassetid://{relieve.ColorMap}`
+			aspecto.NormalMap = `rbxassetid://{relieve.NormalMap}`
+			aspecto.RoughnessMap = ""
+			aspecto.AlphaMode = Enum.AlphaMode.Overlay
+			aspecto.Parent = parte
+		end
+
 		local stencil = if cambio then cambio.Stencil else nil
 		local def = if stencil then StencilsConfig.Stencil(stencil.Id) else nil
 		local idTextura = if def then StencilsConfig.TexturaDe(def, Pruebas.Activas()) else 0

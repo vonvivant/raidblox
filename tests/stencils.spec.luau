@@ -123,3 +123,91 @@ prueba("stencils: viajan en la personalización y se cuentan como cambio", funct
 	exigir(P.MismoStencil(nil, nil), "dos sin stencil son iguales")
 	exigir(not P.MismoStencil(nil, stencil), "uno con y uno sin, distintos")
 end)
+
+prueba("stencils: el Inscriptor graba sobre lo que ya tenés", function()
+	local inscriptor = NPC.Arquetipos.Inscriptor
+	local graba = false
+	for _, servicio in inscriptor.Servicios or {} do
+		if servicio.Accion == "Grabar" then
+			graba = true
+			exigir(servicio.Costo == 0, "abrir el grabado no cobra: se paga al aplicar")
+		end
+	end
+	exigir(graba, "el Inscriptor tiene que poder grabar un ítem de tu mochila")
+	-- El Tintorero sigue siendo el de los colores: son dos oficios distintos.
+	local tintorero = NPC.Arquetipos.Tintorero
+	local tinta = false
+	for _, servicio in tintorero.Servicios or {} do
+		if servicio.Accion == "Tintar" then
+			tinta = true
+		end
+	end
+	exigir(tinta, "el Tintorero sigue pintando")
+end)
+
+prueba("relieves: son otra cosa que las calcomanías y piden las dos texturas", function()
+	exigir(#S.Relieves >= 3, "hacen falta relieves")
+	local vistos: { [string]: boolean } = {}
+	for _, relieve in S.Relieves do
+		exigir(not vistos[relieve.Id], "relieve repetido: " .. relieve.Id)
+		vistos[relieve.Id] = true
+		exigir(S.Relieve(relieve.Id) ~= nil, "Relieve() tiene que encontrarlo")
+		exigir(S.Libro(relieve.Libro) ~= nil, relieve.Id .. " está en un libro que no existe")
+		exigir(relieve.Rugosidad >= 0 and relieve.Rugosidad <= 1, relieve.Id .. " con rugosidad fuera de rango")
+		-- Un relieve necesita ColorMap y NormalMap: con una sola no alcanza.
+		if relieve.ColorMap == 0 or relieve.NormalMap == 0 then
+			exigir(not S.RelieveDisponible(relieve), relieve.Id .. " no debería estar disponible a medias")
+			exigir(not S.RelievePermitido(relieve.Id, { relieve.Libro }), "sin arte no se puede usar")
+		end
+		-- No hay relleno de prueba para relieves, ni con el libro puesto.
+		exigir(S.Relieve(relieve.Id) ~= nil, "sigue existiendo")
+	end
+	exigir(S.Relieve("NoExiste") == nil, "no inventa relieves")
+	exigir(not S.RelievePermitido("NoExiste", { "Runas" }), "ni permite los inventados")
+
+	-- Un id de calcomanía no es un id de relieve, y al revés tampoco.
+	for _, stencil in S.Stencils do
+		exigir(S.Relieve(stencil.Id) == nil, "una calcomanía no puede ser relieve: " .. stencil.Id)
+	end
+	for _, relieve in S.Relieves do
+		exigir(S.Stencil(relieve.Id) == nil, "un relieve no puede ser calcomanía: " .. relieve.Id)
+	end
+
+	exigir(S.CostoRelieves(0) == 0, "sin relieves no se cobra")
+	exigir(S.CostoRelieves(1) == S.CostoPorRelieve, "uno")
+	exigir(S.CostoRelieves(99) == S.CostoPorRelieve * S.MaxRelievesPorItem, "nunca más que el tope")
+	exigir(S.CostoPorRelieve > S.CostoPorStencil, "un relieve cuesta más que una calcomanía")
+end)
+
+prueba("relieves: viajan en la personalización y son un cambio aparte", function()
+	local base = { Hoja = { Material = "Metal", Color = "A0B1C2" } }
+	local conRelieve = { Hoja = { Material = "Metal", Color = "A0B1C2", Relieve = "RelieveRunico" } }
+	local texto = P.Codificar(conRelieve)
+	local vuelta = P.Decodificar(texto)
+	exigir(vuelta ~= nil and vuelta.Hoja.Relieve == "RelieveRunico", "el relieve sobrevive la ida y vuelta")
+	exigir(P.Codificar(vuelta) == texto, "codificar dos veces da lo mismo")
+	exigir(P.CuantosRelieves(vuelta) == 1, "cuenta uno")
+	exigir(P.CuantosRelieves(base) == 0, "sin relieve, cero")
+	exigir(P.Diferencias(base, conRelieve) == 1, "ponerlo es un cambio")
+	exigir(P.Diferencias(conRelieve, base) == 1, "sacarlo también")
+	exigir(P.Diferencias(conRelieve, conRelieve) == 0, "lo mismo no es cambio")
+
+	-- Calcomanía y relieve conviven en la misma pieza.
+	local ambos = {
+		Hoja = {
+			Material = "Metal",
+			Color = "A0B1C2",
+			Stencil = { Id = "RunaVida", Escala = S.AcomodarEscala(40), Opacidad = S.AcomodarOpacidad(90) },
+			Relieve = "RelieveRunico",
+		},
+	}
+	local textoAmbos = P.Codificar(ambos)
+	local vueltaAmbos = P.Decodificar(textoAmbos)
+	exigir(vueltaAmbos ~= nil, "se decodifica")
+	exigir(vueltaAmbos.Hoja.Stencil ~= nil and vueltaAmbos.Hoja.Relieve == "RelieveRunico", "los dos sobreviven")
+	exigir(P.Codificar(vueltaAmbos) == textoAmbos, "ida y vuelta estable")
+
+	-- Las versiones viejas no pueden traer relieves.
+	exigir(P.Decodificar("2|Hoja=Metal,A0B1C2;R=RelieveRunico") == nil, "la versión 2 no tiene relieves")
+	exigir(P.Decodificar(P.Version .. "|Hoja=Metal,A0B1C2;X=1") == nil, "basura con ; se rechaza")
+end)

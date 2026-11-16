@@ -69,7 +69,9 @@ local iniciado = false
 local sesiones: { [Player]: BasePart } = {}
 local enCurso: { [Player]: boolean } = {}
 -- Qué permite el NPC con el que está hablando (el Tintorero, solo color).
-local soloColor: { [Player]: boolean } = {}
+-- Qué permite el NPC con el que está hablando: "Color" (Tintorero),
+-- "Stencil" (Grabador) o nil (todo, el Maestro Personalizador).
+local restriccion: { [Player]: string? } = {}
 local auditoria: { Auditoria } = {}
 local avisados: { [Model]: string } = {}
 
@@ -243,7 +245,9 @@ local function cotizar(player: Player, itemId: unknown, datos: unknown): (Cotiza
 		return nil, "INVALID_ARGS", `Personalización inválida: {motivo or "?"}.`
 	end
 	local modificadas = Personalizador.Modificadas(pers)
-	local precio = Config.Precio(entrada.Precio, modificadas) + StencilsConfig.Costo(Config.CuantosStencils(pers))
+	local precio = Config.Precio(entrada.Precio, modificadas)
+		+ StencilsConfig.Costo(Config.CuantosStencils(pers))
+		+ StencilsConfig.CostoRelieves(Config.CuantosRelieves(pers))
 	return { Entrada = entrada, Pers = pers, Base = entrada.Precio, Extra = precio - entrada.Precio, Precio = precio },
 		"INTERNAL_ERROR",
 		nil
@@ -436,7 +440,7 @@ local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown):
 	end
 	-- El Tintorero solo cambia colores: cada pieza tiene que conservar el
 	-- material que tiene hoy.
-	if soloColor[player] then
+	if restriccion[player] == "Color" then
 		for piezaId, pieza in pers do
 			local original = entrada.PorId[piezaId]
 			local actual = antes[piezaId]
@@ -454,6 +458,36 @@ local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown):
 			end
 		end
 	end
+	-- El Grabador solo pone y saca calcomanías: material y color quedan como
+	-- están. Así no hace falta explicarle al jugador por qué le cambió el
+	-- color de una pieza que solo quería grabar.
+	if restriccion[player] == "Stencil" then
+		local function comoEsta(piezaId: string): (string?, string?)
+			local actual = antes[piezaId]
+			if actual then
+				return actual.Material, actual.Color
+			end
+			local original = entrada.PorId[piezaId]
+			return if original then original.Material else nil, if original then original.Color else nil
+		end
+		for piezaId, pieza in pers do
+			local material, color = comoEsta(piezaId)
+			if (material and pieza.Material ~= material) or (color and pieza.Color ~= color) then
+				return nil, "NOT_ALLOWED", "El grabador solo pone calcomanías, no cambia material ni color."
+			end
+		end
+		for piezaId, pieza in antes do
+			if pers[piezaId] ~= nil then
+				continue
+			end
+			local original = entrada.PorId[piezaId]
+			-- Sacar una pieza retocada volvería material y color al original.
+			if original and (pieza.Material ~= original.Material or pieza.Color ~= original.Color) then
+				return nil, "NOT_ALLOWED", "El grabador solo pone calcomanías, no cambia material ni color."
+			end
+		end
+	end
+
 	local cambiadas = Config.Diferencias(antes, pers)
 	return {
 		Clave = clave,
@@ -463,8 +497,9 @@ local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown):
 		Pers = pers,
 		Cambiadas = cambiadas,
 		-- Los stencils nuevos se pagan aparte de las piezas retocadas.
-		Precio = Config.PrecioRetoque(cambiadas)
-			+ StencilsConfig.Costo(math.max(0, Config.CuantosStencils(pers) - Config.CuantosStencils(antes))),
+		Precio = Config.PrecioRetoque(cambiadas) + StencilsConfig.Costo(
+			math.max(0, Config.CuantosStencils(pers) - Config.CuantosStencils(antes))
+		) + StencilsConfig.CostoRelieves(math.max(0, Config.CuantosRelieves(pers) - Config.CuantosRelieves(antes))),
 	},
 		"INTERNAL_ERROR",
 		nil
@@ -565,7 +600,7 @@ local function abrir(player: Player, raizNpc: BasePart, categoria: string?, solo
 		return
 	end
 	sesiones[player] = raizNpc
-	soloColor[player] = solo == "Color"
+	restriccion[player] = solo
 	NetworkBridge.Server.FireClient("PersonalizadorAbrir", player, raizNpc.Position, categoria, solo)
 end
 
@@ -633,6 +668,16 @@ function PersonalizadorManager.Init()
 		)
 	end
 
+	-- Inscriptor (NPC-005): graba calcomanías en un ítem que ya tenés.
+	NpcManager.RegistrarAccion("Grabar", function(player: Player, npc: any): boolean
+		local raiz = if typeof(npc) == "table" then npc.Raiz else nil
+		if not raiz or not raiz:IsA("BasePart") then
+			return false
+		end
+		abrir(player, raiz, nil, "Stencil")
+		return true
+	end)
+
 	-- Tintorero (NPC-031): abre el probador en modo retoque (solo colores).
 	NpcManager.RegistrarAccion("Tintar", function(player: Player, npc: any): boolean
 		local raiz = if typeof(npc) == "table" then npc.Raiz else nil
@@ -645,7 +690,7 @@ function PersonalizadorManager.Init()
 
 	NetworkBridge.Server.OnEvent("PersonalizadorCerrar", function(player: Player)
 		sesiones[player] = nil
-		soloColor[player] = nil
+		restriccion[player] = nil
 	end)
 
 	NetworkBridge.Server.OnInvoke(
@@ -702,7 +747,7 @@ function PersonalizadorManager.Init()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		sesiones[player] = nil
 		enCurso[player] = nil
-		soloColor[player] = nil
+		restriccion[player] = nil
 	end)
 end
 

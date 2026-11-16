@@ -18,12 +18,12 @@
 -- (los dos en %, ver StencilsConfig).
 export type Stencil = { Id: string, Escala: number, Opacidad: number }
 
-export type Pieza = { Material: string, Color: string, Stencil: Stencil? } -- Color: "RRGGBB"
+export type Pieza = { Material: string, Color: string, Stencil: Stencil?, Relieve: string? } -- Color: "RRGGBB"
 export type Personalizacion = { [string]: Pieza } -- id de pieza -> material y color
 
 local Config = {}
 
-Config.Version = 2 -- 1 = material y color; 2 = agrega stencils
+Config.Version = 3 -- 1 = material y color; 2 = agrega stencils; 3 = agrega relieves
 Config.Carpeta = "CustomizableItems"
 -- Subcarpeta -> tipo de ítem
 Config.Subcarpetas = { Armas = "Arma", Armaduras = "Armadura" } :: { [string]: string }
@@ -138,6 +138,11 @@ function Config.Codificar(personalizacion: Personalizacion): string
 		if stencil then
 			texto ..= `,{stencil.Id},{math.floor(stencil.Escala)},{math.floor(stencil.Opacidad)}`
 		end
+		-- El relieve va aparte, con ";R=", para que no dependa de que haya
+		-- calcomanía ni del orden de los campos.
+		if pieza.Relieve then
+			texto ..= `;R={pieza.Relieve}`
+		end
 		table.insert(partes, texto)
 	end
 	return table.concat(partes, "|")
@@ -159,6 +164,18 @@ function Config.Decodificar(texto: any): Personalizacion?
 	local resultado: Personalizacion = {}
 	for i = 2, #partes do
 		local cuerpo = partes[i]
+		-- El relieve, si está, viene al final como ";R=Id".
+		local relieve: string? = nil
+		local sinRelieve, idRelieve = string.match(cuerpo, "^(.-);R=(%w+)$")
+		if sinRelieve then
+			if version < 3 then
+				return nil -- una versión vieja no puede traer relieves
+			end
+			cuerpo = sinRelieve :: string
+			relieve = idRelieve :: string
+		elseif string.find(cuerpo, ";", 1, true) then
+			return nil -- hay un ";" que no es un relieve bien formado
+		end
 		-- Formato: id=Material,RRGGBB[,StencilId,escala,opacidad]
 		local id, material, color, resto = string.match(cuerpo, "^(.-)=(%w+),(%x+),?(.*)$")
 		if
@@ -182,6 +199,7 @@ function Config.Decodificar(texto: any): Personalizacion?
 			end
 			pieza.Stencil = { Id = stencilId :: string, Escala = e, Opacidad = o }
 		end
+		pieza.Relieve = relieve
 		resultado[id] = pieza
 	end
 	return resultado
@@ -202,6 +220,17 @@ function Config.CuantosStencils(personalizacion: Personalizacion): number
 	local cuantos = 0
 	for _, pieza in personalizacion do
 		if pieza.Stencil then
+			cuantos += 1
+		end
+	end
+	return cuantos
+end
+
+-- Cuántas piezas llevan relieve.
+function Config.CuantosRelieves(personalizacion: Personalizacion): number
+	local cuantos = 0
+	for _, pieza in personalizacion do
+		if pieza.Relieve then
 			cuantos += 1
 		end
 	end
@@ -233,6 +262,7 @@ function Config.Diferencias(antes: Personalizacion, despues: Personalizacion): n
 			or previa.Material ~= pieza.Material
 			or previa.Color ~= pieza.Color
 			or not Config.MismoStencil(previa.Stencil, pieza.Stencil)
+			or previa.Relieve ~= pieza.Relieve
 		then
 			total += 1
 		end

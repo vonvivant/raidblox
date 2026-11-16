@@ -214,11 +214,42 @@ consumible que vende el Inscriptor: al leerlo se desbloquea el libro entero **pa
 El servidor revalida todo: que el libro esté desbloqueado, que el stencil tenga arte, que la escala y la
 opacidad sean de las permitidas, y que no se pasen las tres piezas. El cliente nunca decide el precio.
 
+### Grabar lo que ya tenés
+
+El **Inscriptor** (NPC-005) tiene el servicio "Grabar un objeto mío": abre este mismo probador en modo
+**grabado**, con tus ítems de la mochila en el panel izquierdo. Ahí se ponen y se sacan calcomanías y relieves,
+y **el material y el color quedan como están** (el servidor lo revalida: si llega un pedido que además cambia el
+color, lo rechaza). Como el Tintorero, no entrega un ítem nuevo: actualiza el que elegiste, así conserva su Uid,
+su durabilidad y sus gemas.
+
+Quedan tres oficios separados y fáciles de explicar: el **Maestro Personalizador** hace todo al comprar, el
+**Tintorero** cambia colores, y el **Inscriptor** graba.
+
+### Relieves (normal map)
+
+Segunda pestaña de la ventana de stencils. Un relieve es un grabado con **normal map**, y en Roblox eso es un
+`SurfaceAppearance`, no una calcomanía. Eso trae dos consecuencias que la interfaz dice de frente:
+
+- **Solo funciona sobre piezas que son mallas** (`MeshPart`). Sobre una Part común no se puede, y el servidor
+  lo rechaza con ese motivo (`InfoPieza.EsMesh`).
+- **Reemplaza el aspecto del material** de esa pieza: mientras haya relieve, el material elegido deja de
+  verse. Por eso el relieve no tiene tamaño ni opacidad: no es una calcomanía encima, es la superficie.
+
+Cuestan 200 de oro, hasta dos piezas por ítem, y van por los mismos libros que las calcomanías. Necesitan
+**dos texturas** (ColorMap y NormalMap): con una sola el relieve no se habilita, y acá **no hay relleno de
+prueba**, porque un normal map falso se ve mal y confunde más de lo que ayuda.
+
 ### Formato guardado
 
-`Meta.Pers` pasó a **versión 2**: una pieza con stencil se escribe
-`Hoja=Metal,A0B1C2,RunaVida,50,80` (stencil, escala, opacidad). Lo guardado en versión 1 se sigue leyendo igual,
-y un texto de versión 1 que traiga stencils se rechaza, porque sería inventado.
+`Meta.Pers` pasó a **versión 3**:
+
+- `Hoja=Metal,A0B1C2` — material y color (versión 1).
+- `Hoja=Metal,A0B1C2,RunaVida,50,80` — con calcomanía: stencil, escala, opacidad (versión 2).
+- `Hoja=Metal,A0B1C2;R=RelieveRunico` — con relieve, al final y con su propio separador, para que no dependa
+  de que haya calcomanía (versión 3).
+
+Lo guardado en versiones anteriores se sigue leyendo igual, y un texto que diga ser de una versión vieja pero
+traiga campos nuevos se rechaza en vez de inventarse.
 
 ### Poner el arte
 

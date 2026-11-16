@@ -18,6 +18,19 @@ export type Stencil = {
 	Textura: number, -- rbxassetid; 0 = todavía no hay arte
 }
 
+-- Un relieve es un grabado con normal map. En Roblox eso es un
+-- `SurfaceAppearance`, que **solo funciona sobre MeshParts** y **reemplaza el
+-- aspecto del material** de esa pieza (por eso no conviven con el material
+-- elegido: mientras hay relieve, manda el relieve).
+export type Relieve = {
+	Id: string,
+	Nombre: string,
+	Libro: string,
+	ColorMap: number, -- rbxassetid; 0 = todavía no hay arte
+	NormalMap: number,
+	Rugosidad: number, -- 0 = espejo, 1 = mate
+}
+
 export type Libro = {
 	Id: string,
 	Nombre: string,
@@ -41,6 +54,9 @@ Config.CostoPorStencil = 75 -- oro, se suma al precio del ítem o del retoque
 -- que todavía tienen Textura = 0. Es una imagen cualquiera de Roblox: alcanza
 -- para ver que la escala, la opacidad y el cobro funcionan.
 Config.TexturaPrueba = 6023426923
+
+Config.CostoPorRelieve = 200 -- más caro que una calcomanía: son dos texturas
+Config.MaxRelievesPorItem = 2
 
 Config.Libros = {
 	{
@@ -74,6 +90,58 @@ Config.Stencils = {
 	{ Id = "AlaCuervo", Nombre = "Ala de Cuervo", Libro = "Bestias", Textura = 0 },
 	{ Id = "OjoSerpiente", Nombre = "Ojo de Serpiente", Libro = "Bestias", Textura = 0 },
 } :: { Stencil }
+
+-- Relieves (grabados con normal map). Van por los mismos libros que las
+-- calcomanías: quien aprendió el libro puede usar las dos cosas.
+Config.Relieves = {
+	{ Id = "RelieveRunico", Nombre = "Grabado Rúnico", Libro = "Runas", ColorMap = 0, NormalMap = 0, Rugosidad = 0.6 },
+	{
+		Id = "RelieveBlason",
+		Nombre = "Blasón en Relieve",
+		Libro = "Heraldica",
+		ColorMap = 0,
+		NormalMap = 0,
+		Rugosidad = 0.5,
+	},
+	{ Id = "RelieveEscama", Nombre = "Escamas", Libro = "Bestias", ColorMap = 0, NormalMap = 0, Rugosidad = 0.8 },
+} :: { Relieve }
+
+function Config.Relieve(id: string): Relieve?
+	for _, relieve in Config.Relieves do
+		if relieve.Id == id then
+			return relieve
+		end
+	end
+	return nil
+end
+
+function Config.RelievesDelLibro(libroId: string): { Relieve }
+	local lista: { Relieve } = {}
+	for _, relieve in Config.Relieves do
+		if relieve.Libro == libroId then
+			table.insert(lista, relieve)
+		end
+	end
+	return lista
+end
+
+-- Un relieve necesita las dos texturas subidas. No tiene relleno de prueba:
+-- un normal map falso se vería mal y confundiría más de lo que ayuda.
+function Config.RelieveDisponible(relieve: Relieve): boolean
+	return relieve.ColorMap > 0 and relieve.NormalMap > 0
+end
+
+function Config.RelievePermitido(id: string, librosDesbloqueados: { string }): boolean
+	local relieve = Config.Relieve(id)
+	if not relieve or not Config.RelieveDisponible(relieve) then
+		return false
+	end
+	return table.find(librosDesbloqueados, relieve.Libro) ~= nil
+end
+
+function Config.CostoRelieves(cuantos: number): number
+	return Config.CostoPorRelieve * math.clamp(math.floor(cuantos), 0, Config.MaxRelievesPorItem)
+end
 
 function Config.Stencil(id: string): Stencil?
 	for _, stencil in Config.Stencils do
