@@ -68,7 +68,8 @@ El importador de Studio acepta **`.fbx`, `.gltf`/`.glb` y `.obj`**, pero para es
 
 | Formato | Para esto |
 | --- | --- |
-| `.fbx` o `.glb` | **Lo que hay que usar.** Mantienen la jerarquía y los nombres de cada objeto, así que cada pieza entra como su propio `MeshPart` dentro del `Model`, y esos nombres son justamente los ids de pieza que usa el personalizador |
+| `.glb` | **El que conviene acá.** Un solo archivo con las texturas adentro, con jerarquía y nombres: cada pieza entra como su propio `MeshPart` y esos nombres son los ids de pieza del personalizador. Las armas y armaduras de este sistema son estáticas (se montan con weld a un `Attachment`), así que no hace falta nada de lo que aporta FBX |
+| `.fbx` | Equivalente para esto, y necesario **solo** si algún día se hace ropa que se deforme con el avatar (rig y cage meshes). Trae dos molestias evitables: texturas en archivos aparte y problemas de escala y ejes según el programa que exportó |
 | `.obj` | Solo para una pieza suelta. No trae jerarquía, ni nombres de objetos, ni materiales: el arma entera llega como una sola malla y no se puede editar pieza por pieza |
 
 Otras cosas que importan acá:
