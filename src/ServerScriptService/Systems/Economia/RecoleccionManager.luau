@@ -70,8 +70,14 @@ local function herramientaEquipada(player: Player): string?
 	return if def then def.Herramienta else nil
 end
 
+-- Las orillas se dibujan semitransparentes; al agotarse y volver, hay que
+-- devolverles la suya y no un 0 fijo.
+local TRANSPARENCIA_AGUA = 0.3
+local transparenciaOriginal: { [BasePart]: number } = {}
+
 local function agotar(nodo: BasePart, segundos: number)
 	agotados[nodo] = true
+	transparenciaOriginal[nodo] = transparenciaOriginal[nodo] or nodo.Transparency
 	nodo.Transparency = 0.75
 	local pp = nodo:FindFirstChildOfClass("ProximityPrompt")
 	if pp then
@@ -79,7 +85,7 @@ local function agotar(nodo: BasePart, segundos: number)
 	end
 	task.delay(segundos, function()
 		agotados[nodo] = nil
-		nodo.Transparency = 0
+		nodo.Transparency = transparenciaOriginal[nodo] or 0
 		local prompt = nodo:FindFirstChildOfClass("ProximityPrompt")
 		if prompt then
 			prompt.Enabled = true
@@ -271,9 +277,13 @@ local function crearNodoPrueba(id: string, offset: Vector3)
 		elseif esAgua then Vector3.new(10, 1, 10)
 		else Vector3.new(2, 2.5, 2)
 	parte.Shape = if esMineral or esAgua then Enum.PartType.Block else Enum.PartType.Ball
-	parte.Material = if esMineral then Enum.Material.Rock elseif esAgua then Enum.Material.Water else Enum.Material.Grass
+	-- Ojo: `Enum.Material.Water` (y Air) son materiales de **terreno**: asignarlos
+	-- a una Part tira error. Para que la orilla parezca agua se usa Glass con
+	-- transparencia.
+	parte.Material = if esMineral then Enum.Material.Rock elseif esAgua then Enum.Material.Glass else Enum.Material.Grass
 	if esAgua then
-		parte.Transparency = 0.3
+		parte.Transparency = TRANSPARENCIA_AGUA
+		parte.Reflectance = 0.2
 	end
 	parte.Color = def.Color
 	parte.Position = AREA_PRUEBA + offset + Vector3.new(0, parte.Size.Y / 2, 0)
@@ -286,18 +296,28 @@ function RecoleccionManager.Init()
 	assert(not iniciado, "RecoleccionManager.Init() se llamó dos veces")
 	iniciado = true
 
+	-- Cada nodo de prueba se crea aislado: si uno falla (un material o un id
+	-- inválido), se avisa y los demás se crean igual. Antes, un error acá
+	-- cortaba el Init y ningún nodo quedaba con su cartel: nada era
+	-- recolectable, ni en Studio ni en el servidor publicado.
+	local function crear(id: string, offset: Vector3)
+		local ok, err = pcall(crearNodoPrueba, id, offset)
+		if not ok then
+			warn(`[Recoleccion] no se pudo crear el nodo de prueba {id}: {err}`)
+		end
+	end
 	if Pruebas.Activas() and #CollectionService:GetTagged(TAG_NODO) == 0 then
-		crearNodoPrueba("VetaHierro", Vector3.new(0, 0, 0))
-		crearNodoPrueba("VetaHierro", Vector3.new(8, 0, -6))
-		crearNodoPrueba("VetaPlata", Vector3.new(16, 0, 0))
-		crearNodoPrueba("HierbaSanadora", Vector3.new(0, 0, -16))
-		crearNodoPrueba("HierbaSanadora", Vector3.new(6, 0, -20))
-		crearNodoPrueba("FlorLunar", Vector3.new(12, 0, -18))
-		crearNodoPrueba("Lino", Vector3.new(-6, 0, -12))
-		crearNodoPrueba("Lino", Vector3.new(-10, 0, -18))
-		crearNodoPrueba("OrillaRio", Vector3.new(-22, 0, 0))
-		crearNodoPrueba("OrillaRio", Vector3.new(-22, 0, 14))
-		crearNodoPrueba("LagoProfundo", Vector3.new(-36, 0, 7))
+		crear("VetaHierro", Vector3.new(0, 0, 0))
+		crear("VetaHierro", Vector3.new(8, 0, -6))
+		crear("VetaPlata", Vector3.new(16, 0, 0))
+		crear("HierbaSanadora", Vector3.new(0, 0, -16))
+		crear("HierbaSanadora", Vector3.new(6, 0, -20))
+		crear("FlorLunar", Vector3.new(12, 0, -18))
+		crear("Lino", Vector3.new(-6, 0, -12))
+		crear("Lino", Vector3.new(-10, 0, -18))
+		crear("OrillaRio", Vector3.new(-22, 0, 0))
+		crear("OrillaRio", Vector3.new(-22, 0, 14))
+		crear("LagoProfundo", Vector3.new(-36, 0, 7))
 	end
 	for _, nodo in CollectionService:GetTagged(TAG_NODO) do
 		prepararNodo(nodo)
