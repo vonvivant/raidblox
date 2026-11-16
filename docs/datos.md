@@ -87,6 +87,7 @@ classDiagram
         number? MonturaVelocidad
         map? Pvp
         map? Juegos
+        list? Parcelas
     }
 
     DatosJugador *-- Inventario

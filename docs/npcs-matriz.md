@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (49 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (57 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **32** implementados sin verificar, **2** en desarrollo y **5** pendientes (total 39).
+Hoy: **32** implementados sin verificar, **3** en desarrollo y **4** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -96,7 +96,7 @@ Hoy: **32** implementados sin verificar, **2** en desarrollo y **5** pendientes 
 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
-| NPC-033 | Arquitecto (`Arquitecto`) | Rojo, Azul, Neutral | — | Parcelas | Pendiente |
+| NPC-033 | Arquitecto de Viviendas (`Arquitecto`) | Rojo, Azul, Neutral | Ver las parcelas; el sistema existe en: ParcelaManager (compra, alquiler, permisos y fusión); falta construir | — | En desarrollo |
 | NPC-034 | Chef (`Chef`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Fogon | — | Implementado sin verificar |
 | NPC-035 | Maestro de Pesca (`MaestroPesca`) | Rojo, Azul, Neutral | vende 1 ítems, compra excedentes, ¿Dónde pican hoy? | Cebos por bioma; Peces raros por temporada | Implementado sin verificar |
 | NPC-036 | Crupier (`Crupier`) | Neutral | Memoria de Runas, Encontrá los Pares | Carreras en la taberna; Tablero de récords del servidor | Implementado sin verificar |
@@ -129,5 +129,5 @@ Hoy: **32** implementados sin verificar, **2** en desarrollo y **5** pendientes 
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
 6. ~~Grupo E: descanso y rumores (025), diarias (026), reputación (027)~~ (hecho, ver [progresión social](progresion-social.md)). Queda 028 (entrenador): **falta decidir** si vende habilidades por oro o si se hace un sistema de talentos.
 7. ~~Grupo F completo: barbero (029), transfigurador (030), tintorero (031, retoca lo que ya tenés) y mascotas por oro (032)~~ (hecho, ver [cosméticos](cosmeticos.md)).
-8. Grupo G: ~~cocina (034), pesca (035) y minijuegos sin apuestas (036, ver [juegos](juegos.md))~~ (hecho). Queda vivienda (033), que va con las parcelas.
+8. Grupo G: ~~cocina (034), pesca (035) y minijuegos sin apuestas (036, ver [juegos](juegos.md))~~ (hecho). La vivienda (033) está a medias: la propiedad de las [parcelas](parcelas.md) funciona, falta construir.
 9. Grupo H: ~~equipo PvP (037) y arenas clasificatorias (038, ver [arenas](arenas.md))~~ (hecho). Queda 039 (asedio), que depende de los castillos de hermandad.

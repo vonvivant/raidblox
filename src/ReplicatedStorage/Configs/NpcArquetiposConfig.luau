@@ -887,14 +887,28 @@ local Arquetipos: { [string]: Arquetipo } = {
 	--------------------------------------------------------------------
 	Arquitecto = {
 		Numero = 33,
-		Nombre = "Arquitecto",
+		Nombre = "Arquitecto de Viviendas",
 		Categoria = "Social",
-		Descripcion = "Planos de casas, terrenos y decoración.",
-		Interfaces = { "IVendor" },
+		Descripcion = "Vende, alquila y registra las parcelas del barrio.",
+		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Parcial",
+		Sistema = "ParcelaManager (compra, alquiler, permisos y fusión); falta construir",
 		Color = GRIS,
-		Parametros = { Vende = { "Planos", "Muebles", "Trofeos de jefes" }, Requiere = "Parcelas" },
+		Servicios = {
+			{
+				Id = "ParcelasAbrir",
+				Nombre = "Ver las parcelas",
+				Descripcion = "Comprar, pagar el alquiler, dar permisos y fusionar.",
+				Costo = 0,
+				Accion = "ParcelasAbrir",
+			},
+		} :: { Servicio },
+		Parametros = {
+			Barrios = { "Barrio Norte", "La Ribera", "Claro del Bosque" },
+			Alquiler = "150 de oro por día; 7 días vienen con la compra",
+			Falta = { "Construcción y muebles", "Huerta", "Patio de mascotas", "Subasta con pujas" },
+		},
 	},
 	Chef = {
 		Numero = 34,
@@ -1142,5 +1156,6 @@ return {
 		{ Arquetipo = "Chef", Faccion = "Neutral", Posicion = Vector3.new(-30, 0, 92) },
 		{ Arquetipo = "MaestroPesca", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 92) },
 		{ Arquetipo = "Crupier", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 102) },
+		{ Arquetipo = "Arquitecto", Faccion = "Neutral", Posicion = Vector3.new(-30, 0, 102) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

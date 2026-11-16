@@ -20,7 +20,7 @@ Solo cerca (16 studs) de un punto de bóveda:
 |---|---|
 | Banquero (NPC 13) | Automático: el arquetipo lleva el tag `BancoVault` |
 | Banco de ciudad | Una `Part` con el tag `BancoVault` |
-| Cofre de bóveda de una parcela | Una `Part` con el tag `CofreVault` |
+| Cofre de bóveda de una parcela | Una `Part` con el tag `CofreVault`. Si además tiene el atributo `Parcela`, solo la abren el dueño y los socios de esa [parcela](parcelas.md) |
 
 A las partes con esos tags se les agrega solo el cartel "Abrir". El servidor revisa la cercanía **en cada
 operación**, no solo al abrir.

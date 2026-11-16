@@ -137,6 +137,9 @@ activá **Permitir solicitudes HTTP** en Configuración del juego → Seguridad.
   Máximo 4 a la vez; un mensaje repetido se junta en uno con "×N". Escalan con
   el HUD.
 - **Barras de RaidBlox:** debajo del marco del objetivo.
+- **Parcelas** (`ParcelasUI`): pestañas por barrio, lista con el estado de cada
+  parcela y panel para comprar, pagar el alquiler, dar permisos, renombrar,
+  fusionar y abandonar ([parcelas](parcelas.md)).
 - **Juegos del Crupier** (`JuegosUI`): ventana con el tablero de runas o de
   cartas; cerrarla termina la partida ([juegos](juegos.md)).
 - **Arena** (`ArenaUI`): cartel arriba al centro. En cola muestra el modo, el

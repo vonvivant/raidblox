@@ -55,7 +55,33 @@ local Color3 = {
 	new = function(r, g, b) return { R = r or 0, G = g or 0, B = b or 0 } end,
 	fromHex = function() return { R = 0, G = 0, B = 0 } end,
 }
-local Vector3 = { new = function(x, y, z) return { X = x or 0, Y = y or 0, Z = z or 0 } end }
+local Vector3 = {}
+local MetaVector3 = {}
+MetaVector3.__index = MetaVector3
+function Vector3.new(x, y, z)
+	return setmetatable({ X = x or 0, Y = y or 0, Z = z or 0 }, MetaVector3)
+end
+function MetaVector3.__add(a, b)
+	return Vector3.new(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
+end
+function MetaVector3.__sub(a, b)
+	return Vector3.new(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
+end
+function MetaVector3.__mul(a, k)
+	if type(a) == "number" then
+		a, k = k, a
+	end
+	return Vector3.new(a.X * k, a.Y * k, a.Z * k)
+end
+function MetaVector3.__eq(a, b)
+	return a.X == b.X and a.Y == b.Y and a.Z == b.Z
+end
+function MetaVector3.__tostring(v)
+	return string.format("%s, %s, %s", tostring(v.X), tostring(v.Y), tostring(v.Z))
+end
+function MetaVector3.Magnitude(v)
+	return math.sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z)
+end
 Vector3.zero = Vector3.new(0, 0, 0)
 Vector3.one = Vector3.new(1, 1, 1)
 local Vector2 = { new = function(x, y) return { X = x or 0, Y = y or 0 } end }

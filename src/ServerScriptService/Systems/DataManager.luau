@@ -255,6 +255,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 		return datos.Pvp or { Modos = {} }
 	elseif seccion == "Juegos" then
 		return datos.Juegos or {}
+	elseif seccion == "Parcelas" then
+		return datos.Parcelas or {}
 	elseif seccion == "Cosmeticos" then
 		return {
 			Titulos = datos.Titulos,
@@ -466,6 +468,7 @@ local function snapshotCliente(d: DatosJugador): { [string]: any }
 		Social = { Descanso = d.Descanso or 0, Reputacion = d.Reputacion or {}, Diarias = d.Diarias or false },
 		Pvp = d.Pvp or { Modos = {} },
 		Juegos = d.Juegos or {},
+		Parcelas = d.Parcelas or {},
 	}
 end
 

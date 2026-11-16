@@ -98,6 +98,10 @@ local DEFINICIONES: { [string]: Definicion } = {
 	JuegoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	JuegoJugar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (runa|carta)
 	JuegoSalir = { Tipo = "Event", Critico = false }, -- ()
+	-- Parcelas (NPC-033)
+	ParcelaPanel = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (abrir)
+	ParcelaListar = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (barrioId?)
+	ParcelaAccion = { Tipo = "Function", Critico = true, Timeout = 20 }, -- (accion, parcelaId, extra?)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})

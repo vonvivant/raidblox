@@ -164,7 +164,15 @@ local function raizDe(player: Player): BasePart?
 	return if raiz and raiz:IsA("BasePart") then raiz else nil
 end
 
--- ¿Está junto a un punto de bóveda?
+-- Gancho de ParcelaManager: el cofre de una parcela solo lo abren el dueño y
+-- los socios. Se registra en Init para no acoplar los dos módulos.
+local permisoParcela: ((Player, string) -> boolean)? = nil
+
+function VaultManager.SetPermisoParcela(fn: (Player, string) -> boolean)
+	permisoParcela = fn
+end
+
+-- ¿Está junto a un punto de bóveda que pueda usar?
 function VaultManager.Cerca(player: Player): boolean
 	local raiz = raizDe(player)
 	if not raiz then
@@ -172,9 +180,22 @@ function VaultManager.Cerca(player: Player): boolean
 	end
 	for _, tag in VaultConfig.Tags do
 		for _, punto in CollectionService:GetTagged(tag) do
-			if punto:IsA("BasePart") and (punto.Position - raiz.Position).Magnitude <= VaultConfig.Distancia then
-				return true
+			if not punto:IsA("BasePart") then
+				continue
 			end
+			if (punto.Position - raiz.Position).Magnitude > VaultConfig.Distancia then
+				continue
+			end
+			local parcela = punto:GetAttribute("Parcela")
+			if typeof(parcela) == "string" then
+				-- Cofre de parcela: hace falta permiso de esa parcela.
+				local permitido = permisoParcela
+				if permitido and permitido(player, parcela) then
+					return true
+				end
+				continue
+			end
+			return true
 		end
 	end
 	return false
