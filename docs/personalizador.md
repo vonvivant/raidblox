@@ -136,6 +136,16 @@ Si un modelo está mal configurado no se vende, y la consola del servidor dice c
 tapa material y color. La vista previa y el ítem entregado se ven igual entre sí, pero en esas piezas el cambio
 puede notarse poco o nada: conviene marcarlas `NoEditable`.
 
+### El cartel del vendedor
+
+El Maestro Personalizador **no es uno de los 39 del catálogo**: salió de este pedido, no del prompt de los NPC, y
+los 39 números están todos tomados. Para que igual se encuentre de lejos lleva el mismo cartel sobre la cabeza que
+los demás, pero con la etiqueta **"A MEDIDA"** en vez de un número (`NpcManager.PonerEtiqueta`). Así no se
+confunde con la numeración de la [matriz](npcs-matriz.md), que sigue siendo 1 a 39.
+
+Los que sí tienen número son los que trabajan sobre lo que ya tenés: el **Tintorero (#31)** para colores y el
+**Inscriptor (#5)** para calcomanías y relieves.
+
 ## F. Integración
 
 Ya está integrado:
