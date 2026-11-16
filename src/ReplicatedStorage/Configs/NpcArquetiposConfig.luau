@@ -950,14 +950,30 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Maestro de juegos: dados, cartas y carreras en tabernas.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = NEUTRAL,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = Color3.fromRGB(60, 110, 70),
+		Servicios = {
+			{
+				Id = "JuegoRunas",
+				Nombre = "Memoria de Runas",
+				Descripcion = "Repetí la secuencia; cada ronda agrega una runa.",
+				Costo = 0,
+				Accion = "JuegoRunas",
+			},
+			{
+				Id = "JuegoPares",
+				Nombre = "Encontrá los Pares",
+				Descripcion = "16 cartas, 8 pares, 16 intentos.",
+				Costo = 0,
+				Accion = "JuegoPares",
+			},
+		} :: { Servicio },
 		Parametros = {
-			Juegos = { "Dados", "Cartas", "Carreras" },
+			Juegos = { "Memoria de Runas", "Encontrá los Pares" },
 			-- Roblox no permite apuestas con nada que se compre con Robux: las
 			-- recompensas tienen que ser informales (títulos, emotes), sin oro.
-			Recompensas = "Solo cosméticos informales; sin apostar oro",
-			Requiere = "Minijuegos",
+			Recompensas = "Títulos y récord personal; no se apuesta ni se paga oro",
+			Futuro = { "Carreras en la taberna", "Tablero de récords del servidor" },
 		},
 	},
 
@@ -1125,5 +1141,6 @@ return {
 		{ Arquetipo = "ReclutadorArenas", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 92) },
 		{ Arquetipo = "Chef", Faccion = "Neutral", Posicion = Vector3.new(-30, 0, 92) },
 		{ Arquetipo = "MaestroPesca", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 92) },
+		{ Arquetipo = "Crupier", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 102) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

@@ -94,6 +94,10 @@ local DEFINICIONES: { [string]: Definicion } = {
 	-- Arenas clasificatorias (NPC-038)
 	ArenaEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
 	ArenaSalirCola = { Tipo = "Event", Critico = false }, -- ()
+	-- Juegos del Crupier (NPC-036)
+	JuegoEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	JuegoJugar = { Tipo = "Function", Critico = false, Timeout = 10 }, -- (runa|carta)
+	JuegoSalir = { Tipo = "Event", Critico = false }, -- ()
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})

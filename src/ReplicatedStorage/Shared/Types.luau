@@ -187,6 +187,8 @@ export type DatosJugador = {
 	Waypoints: { string }?,
 	-- Arenas clasificatorias: rating y récord por modo ("1v1", "2v2", "3v3")
 	-- y honor ya cobrado hoy (tope diario).
+	-- Juegos del Crupier: récord y partidas jugadas por juego.
+	Juegos: { [string]: { Mejor: number, Partidas: number } }?,
 	Pvp: {
 		Modos: { [string]: { Rating: number, Ganadas: number, Perdidas: number, Racha: number, Mejor: number } }?,
 		Dia: number?,
@@ -227,6 +229,7 @@ export type SeccionDatos =
 	| "Social"
 	| "Vault"
 	| "Pvp"
+	| "Juegos"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =

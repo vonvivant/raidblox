@@ -36,6 +36,7 @@ src/
 │   │   ├── PersonalizadorConfig.luau NPC personalizador: formato, validadores y precio (reglas puras)
 │   │   ├── ExploracionConfig.luau    Piedras de viaje rápido y puntos de interés
 │   │   ├── ArenasConfig.luau         Arenas clasificatorias: modos, emparejamiento, Elo y premios (reglas puras)
+│   │   ├── JuegosConfig.luau         Juegos del Crupier: récords, títulos y tiempos (reglas puras)
 │   │   ├── ProgresionSocialConfig.luau Descanso, contratos diarios y reputación de facción
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
@@ -80,6 +81,7 @@ src/
 │       ├── NpcManager.luau           NPCs por arquetipo: facciones, vendedores, servicios y Guardián de Portales
 │       ├── ExploracionManager.luau   Piedras de teletransporte y puntos de interés
 │       ├── ProgresionSocialManager.luau Descanso, rumores y reputación de facción
+│       ├── JuegosManager.luau       Minijuegos del Crupier (memoria de runas y pares)
 │       ├── MisionManager.luau        Misiones
 │       ├── GrupoManager.luau         Grupos (party) de hasta 5
 │       ├── HermandadManager.luau     Hermandades, rangos y banco
@@ -244,7 +246,7 @@ avisarle a uno de arriba, usa una señal (`Signal`) o un gancho (`CraftingManage
 6. **Economía:** inventario, crafteo, recolección, subastas y comercio.
 7. **Social, mazmorras, monetización y clases:** `GrupoManager`, `HermandadManager`, `VozManager`,
    `MazmorraManager`, `PasesManager`, `MonturaManager`, `ProductosManager`, `PaseBatallaManager`, `MascotaManager`,
-   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager`, `ForjaManager`, `ExploracionManager`, `ProgresionSocialManager`, `ArenaManager` y `MisionManager`.
+   `EquipoVisible`, `AdminManager`, `ChatarreroManager`, `BuffManager`, `NpcManager`, `VaultManager`, `ForjaManager`, `ExploracionManager`, `ProgresionSocialManager`, `ArenaManager`, `JuegosManager` y `MisionManager`.
 8. **Modo de juego del place:** `ArchitectWarManager.Init()` si corresponde.
 9. **Herramientas de prueba:** `DebugStudio` (solo Studio), `NpcsPrueba` y `EditorPiedra`.
 

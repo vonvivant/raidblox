@@ -137,6 +137,8 @@ activá **Permitir solicitudes HTTP** en Configuración del juego → Seguridad.
   Máximo 4 a la vez; un mensaje repetido se junta en uno con "×N". Escalan con
   el HUD.
 - **Barras de RaidBlox:** debajo del marco del objetivo.
+- **Juegos del Crupier** (`JuegosUI`): ventana con el tablero de runas o de
+  cartas; cerrarla termina la partida ([juegos](juegos.md)).
 - **Arena** (`ArenaUI`): cartel arriba al centro. En cola muestra el modo, el
   rango con el rating y cuánto llevás esperando, con un botón para salir. En
   partida muestra la ronda, el marcador de rondas, cuántos quedan en pie de
