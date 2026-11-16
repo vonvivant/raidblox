@@ -20,6 +20,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Configs.PersonalizadorConfig)
+local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 
@@ -404,7 +405,7 @@ function Personalizador.Normalizar(
 			if typeof(stencilId) ~= "string" or typeof(escala) ~= "number" or typeof(opacidad) ~= "number" then
 				return nil, "stencil inválido"
 			end
-			if not StencilsConfig.Permitido(stencilId, librosStencil or {}) then
+			if not StencilsConfig.Permitido(stencilId, librosStencil or {}, Pruebas.Activas()) then
 				return nil, "ese stencil no está desbloqueado"
 			end
 			if not StencilsConfig.EscalaValida(escala) or not StencilsConfig.OpacidadValida(opacidad) then
@@ -471,10 +472,11 @@ function Personalizador.Aplicar(entrada: Entrada, mapa: { [string]: BasePart }, 
 		end
 		local stencil = if cambio then cambio.Stencil else nil
 		local def = if stencil then StencilsConfig.Stencil(stencil.Id) else nil
-		if stencil and def and StencilsConfig.Disponible(def) then
+		local idTextura = if def then StencilsConfig.TexturaDe(def, Pruebas.Activas()) else 0
+		if stencil and def and idTextura > 0 then
 			local textura = Instance.new("Texture")
 			textura.Name = "Stencil"
-			textura.Texture = `rbxassetid://{def.Textura}`
+			textura.Texture = `rbxassetid://{idTextura}`
 			textura.Face = Enum.NormalId.Front
 			-- La escala es % del lado de la pieza: 100 = ocupa toda la cara.
 			local lado = math.max(parte.Size.X, parte.Size.Y)

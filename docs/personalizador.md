@@ -220,9 +220,23 @@ opacidad sean de las permitidas, y que no se pasen las tres piezas. El cliente n
 `Hoja=Metal,A0B1C2,RunaVida,50,80` (stencil, escala, opacidad). Lo guardado en versión 1 se sigue leyendo igual,
 y un texto de versión 1 que traiga stencils se rechaza, porque sería inventado.
 
-### Falta el arte
+### Poner el arte
 
-Las nueve texturas las tiene que **subir el usuario** a Roblox y poner su id en `Textura`. Mientras sean 0, el
-stencil aparece en la lista como "próximamente" y el servidor lo rechaza — el mismo criterio que los peinados
-del barbero. Hay una prueba que verifica justamente eso: sin textura, ni con el libro desbloqueado se puede
-usar.
+Son **imágenes planas** (color con transparencia), no mapas de normales. Cada stencil se dibuja como un
+`Texture` en la cara frontal de la pieza: la escala sale de `StudsPerTileU/V` y la opacidad de `Transparency`.
+
+Para poner una de verdad:
+
+1. Subí el PNG (cuadrado, 512 o 1024, con fondo transparente) desde Studio: **Asset Manager → Images → Add
+   Images**, o desde el Creator Hub en *Development Items → Images*.
+2. Copiá el id de la **imagen**, no el de la página de Decal (en el Asset Manager, clic derecho → *Copy Asset
+   ID*). Si subís desde la web como "Decal", el id que te muestra la página no siempre es el de la imagen.
+3. Pegalo en `Textura` del stencil que quieras, en `Configs/StencilsConfig.luau`.
+
+Mientras `Textura` sea 0, el stencil figura como "próximamente" y el servidor lo rechaza — el mismo criterio
+que los peinados del barbero.
+
+**Para probar sin subir nada:** en Studio (o con `GameConfig.ModoPruebas`) los stencils sin arte usan
+`Config.TexturaPrueba`, una imagen de relleno. Sirve para ver que la escala, la opacidad, el tope de tres por
+ítem y el cobro funcionan; en un servidor publicado sin modo pruebas no se habilita. El libro sigue haciendo
+falta igual.

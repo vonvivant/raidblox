@@ -36,6 +36,12 @@ Config.OpacidadMax = 100
 Config.OpacidadPaso = 10
 Config.CostoPorStencil = 75 -- oro, se suma al precio del ítem o del retoque
 
+-- Textura de relleno para poder probar el sistema ANTES de subir el arte.
+-- Solo se usa en Studio o con GameConfig.ModoPruebas, y solo para los stencils
+-- que todavía tienen Textura = 0. Es una imagen cualquiera de Roblox: alcanza
+-- para ver que la escala, la opacidad y el cobro funcionan.
+Config.TexturaPrueba = 6023426923
+
 Config.Libros = {
 	{
 		Id = "Runas",
@@ -107,15 +113,24 @@ function Config.DelLibro(libroId: string): { Stencil }
 	return lista
 end
 
--- ¿Hay arte subido para este stencil?
-function Config.Disponible(stencil: Stencil): boolean
-	return stencil.Textura > 0
+-- ¿Hay arte para este stencil? `enPruebas` lo da por disponible usando la
+-- textura de relleno, así se puede probar el flujo completo sin subir nada.
+function Config.Disponible(stencil: Stencil, enPruebas: boolean?): boolean
+	return stencil.Textura > 0 or enPruebas == true
+end
+
+-- El id de imagen que hay que dibujar (0 si no hay ninguno).
+function Config.TexturaDe(stencil: Stencil, enPruebas: boolean?): number
+	if stencil.Textura > 0 then
+		return stencil.Textura
+	end
+	return if enPruebas == true then Config.TexturaPrueba else 0
 end
 
 -- ¿El jugador puede usarlo? Hace falta el libro desbloqueado y que haya arte.
-function Config.Permitido(id: string, librosDesbloqueados: { string }): boolean
+function Config.Permitido(id: string, librosDesbloqueados: { string }, enPruebas: boolean?): boolean
 	local stencil = Config.Stencil(id)
-	if not stencil or not Config.Disponible(stencil) then
+	if not stencil or not Config.Disponible(stencil, enPruebas) then
 		return false
 	end
 	return table.find(librosDesbloqueados, stencil.Libro) ~= nil

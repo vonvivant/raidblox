@@ -30,6 +30,7 @@ local Avisos = require(ReplicatedStorage.Modules.Avisos)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Personalizador = require(ReplicatedStorage.Modules.Personalizador)
+local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
 
@@ -732,7 +733,7 @@ dibujarStencils = function()
 		encabezado.TextColor3 = UIKit.Colores.Oro
 		encabezado.TextXAlignment = Enum.TextXAlignment.Left
 		for _, stencil in StencilsConfig.DelLibro(libroId) do
-			local hay = StencilsConfig.Disponible(stencil)
+			local hay = StencilsConfig.Disponible(stencil, Pruebas.Activas())
 			local texto = if hay then stencil.Nombre else `{stencil.Nombre} (próximamente)`
 			local color = if puesto and puesto.Id == stencil.Id
 				then UIKit.Colores.BotonPrimario

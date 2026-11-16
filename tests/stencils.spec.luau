@@ -50,6 +50,22 @@ prueba("stencils: sin arte subida, no se pueden usar", function()
 	end
 end)
 
+prueba("stencils: en pruebas hay una textura de relleno para probar sin arte", function()
+	exigir(S.TexturaPrueba > 0, "hace falta una textura de relleno")
+	local stencil = S.Stencils[1]
+	if stencil.Textura == 0 then
+		exigir(not S.Disponible(stencil), "fuera de pruebas, sin arte no está disponible")
+		exigir(S.Disponible(stencil, true), "en pruebas, sí")
+		exigir(S.TexturaDe(stencil) == 0, "fuera de pruebas no hay textura")
+		exigir(S.TexturaDe(stencil, true) == S.TexturaPrueba, "en pruebas usa la de relleno")
+		exigir(S.Permitido(stencil.Id, { stencil.Libro }, true), "en pruebas se puede elegir con el libro")
+		exigir(not S.Permitido(stencil.Id, {}, true), "pero el libro sigue siendo obligatorio")
+	else
+		-- Ya hay arte subida: la de relleno no se usa más para este stencil.
+		exigir(S.TexturaDe(stencil, true) == stencil.Textura, "con arte propia, se usa la propia")
+	end
+end)
+
 prueba("stencils: hace falta el libro desbloqueado", function()
 	local stencil = S.Stencils[1]
 	exigir(not S.Permitido(stencil.Id, {}), "sin libros no se puede usar nada")
