@@ -89,6 +89,7 @@ classDiagram
         map? Juegos
         list? Parcelas
         string? Raza
+        list? Stencils
     }
 
     DatosJugador *-- Inventario

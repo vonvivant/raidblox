@@ -30,6 +30,7 @@ local Avisos = require(ReplicatedStorage.Modules.Avisos)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Personalizador = require(ReplicatedStorage.Modules.Personalizador)
+local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
 
 type Entrada = Personalizador.Entrada
@@ -149,6 +150,7 @@ local cajaHex = UIKit.Entrada(pEdicion, "#RRGGBB", UDim2.new(0.4, 0, 0, 26), UDi
 local botonReset = UIKit.Boton(pEdicion, "Restablecer pieza", UDim2.new(0.5, -3, 0, 28), UDim2.new(0, 0, 0.58, 148))
 local botonResetTodo =
 	UIKit.Boton(pEdicion, "Restablecer todo", UDim2.new(0.5, -3, 0, 28), UDim2.new(0.5, 3, 0.58, 148))
+local botonStencil = UIKit.Boton(pEdicion, "Stencil…", UDim2.new(1, 0, 0, 28), UDim2.new(0, 0, 0.58, 212))
 local botonATodas = UIKit.Boton(pEdicion, "Aplicar a todas", UDim2.new(0.4, -3, 0, 28), UDim2.new(0, 0, 0.58, 180))
 local botonCopiar = UIKit.Boton(pEdicion, "Copiar", UDim2.new(0.3, -3, 0, 28), UDim2.new(0.4, 3, 0.58, 180))
 local botonPegar = UIKit.Boton(pEdicion, "Pegar", UDim2.new(0.3, -3, 0, 28), UDim2.new(0.7, 3, 0.58, 180))
@@ -223,6 +225,9 @@ local persGuardada: { [string]: Pieza } = {}
 type Mio = { Uid: string, Entrada: Entrada, Pers: { [string]: Pieza } }
 local elegirMio: (Mio) -> ()
 local llenarCatalogo: () -> ()
+-- La ventana de stencils se arma más abajo, pero `elegirPieza` ya la necesita.
+local ventanaStencil: Frame
+local dibujarStencils: () -> ()
 
 local seleccion: Entrada? = nil
 local clon: Model? = nil
@@ -376,6 +381,9 @@ local function pintar(id: string)
 	if color then
 		parte.Color = color
 	end
+	-- El stencil se dibuja con el mismo código que usa el ítem de verdad, así
+	-- la vista previa no miente.
+	Personalizador.Aplicar(s, { [id] = parte }, { [id] = estado })
 end
 
 ------------------------------------------------------------------------
@@ -520,6 +528,10 @@ local function elegirPieza(id: string?)
 	piezaId = id
 	resaltar()
 	mostrarColor()
+	-- Si la ventana de stencils está abierta, pasa a mostrar la pieza nueva.
+	if ventanaStencil.Visible then
+		dibujarStencils()
+	end
 end
 
 local function llenarPiezas()
@@ -638,6 +650,156 @@ botonPegar.Activated:Connect(function()
 		fijar(piezaId, if soloColor then nil else copia.Material, copia.Color)
 		despuesDeEditar()
 	end
+end)
+
+------------------------------------------------------------------------
+-- Stencils
+------------------------------------------------------------------------
+
+-- Ventana aparte para no apretar más el panel de la derecha. Lo que se elige
+-- acá se guarda en la pieza seleccionada; el servidor revalida que el libro
+-- esté desbloqueado y que la escala y la opacidad sean de las permitidas.
+local contenidoStencil: Frame
+ventanaStencil, contenidoStencil = UIKit.Ventana(gui, "Stencil", UDim2.fromScale(0.26, 0.5))
+ventanaStencil.Visible = false
+
+local avisoStencil = UIKit.Texto(contenidoStencil, "", UDim2.new(1, 0, 0, 34), UDim2.fromOffset(0, 0))
+avisoStencil.TextWrapped = true
+avisoStencil.TextXAlignment = Enum.TextXAlignment.Left
+avisoStencil.TextColor3 = UIKit.Colores.TextoSuave
+local listaStencils = UIKit.Lista(contenidoStencil, UDim2.new(1, 0, 1, -140), UDim2.fromOffset(0, 38))
+local filaEscala = UIKit.Texto(contenidoStencil, "", UDim2.new(0.5, 0, 0, 26), UDim2.new(0, 0, 1, -98))
+filaEscala.TextXAlignment = Enum.TextXAlignment.Left
+local masEscala = UIKit.Boton(contenidoStencil, "+", UDim2.fromOffset(34, 26), UDim2.new(1, -34, 1, -98))
+local menosEscala = UIKit.Boton(contenidoStencil, "–", UDim2.fromOffset(34, 26), UDim2.new(1, -72, 1, -98))
+local filaOpacidad = UIKit.Texto(contenidoStencil, "", UDim2.new(0.5, 0, 0, 26), UDim2.new(0, 0, 1, -68))
+filaOpacidad.TextXAlignment = Enum.TextXAlignment.Left
+local masOpacidad = UIKit.Boton(contenidoStencil, "+", UDim2.fromOffset(34, 26), UDim2.new(1, -34, 1, -68))
+local menosOpacidad = UIKit.Boton(contenidoStencil, "–", UDim2.fromOffset(34, 26), UDim2.new(1, -72, 1, -68))
+local botonSinStencil = UIKit.Boton(
+	contenidoStencil,
+	"Sacar el stencil",
+	UDim2.new(1, 0, 0, 30),
+	UDim2.new(0, 0, 1, -32),
+	UIKit.Colores.BotonPeligro
+)
+
+local librosMios: { string } = {}
+local escalaElegida = StencilsConfig.AcomodarEscala(60)
+local opacidadElegida = StencilsConfig.AcomodarOpacidad(100)
+
+-- Guarda el stencil (o lo saca) en la pieza que esté seleccionada.
+local function ponerStencil(stencilId: string?)
+	local id = piezaId
+	local estado = if id then actual(id) else nil
+	if not id or not estado then
+		return
+	end
+	local nueva: Pieza = { Material = estado.Material, Color = estado.Color }
+	if stencilId then
+		nueva.Stencil = { Id = stencilId, Escala = escalaElegida, Opacidad = opacidadElegida }
+	end
+	cambios()[id] = nueva
+	pintar(id)
+	cotizar()
+	dibujarStencils()
+end
+
+dibujarStencils = function()
+	UIKit.Limpiar(listaStencils)
+	local id = piezaId
+	local estado = if id then actual(id) else nil
+	if not id or not estado then
+		avisoStencil.Text = "Elegí primero una pieza del objeto."
+		return
+	end
+	local puesto = estado.Stencil
+	filaEscala.Text = `Tamaño: {escalaElegida}%`
+	filaOpacidad.Text = `Opacidad: {opacidadElegida}%`
+	if #librosMios == 0 then
+		avisoStencil.Text = "No tenés ningún libro de stencils. Se aprenden leyendo los libros."
+		return
+	end
+	avisoStencil.Text = if puesto
+		then `Pieza "{id}" · ahora: {puesto.Id}. Cada stencil suma {StencilsConfig.CostoPorStencil} de oro.`
+		else `Pieza "{id}" · sin stencil. Cada uno suma {StencilsConfig.CostoPorStencil} de oro.`
+	for _, libroId in librosMios do
+		local libro = StencilsConfig.Libro(libroId)
+		if not libro then
+			continue
+		end
+		local encabezado = UIKit.Texto(listaStencils, libro.Nombre, UDim2.new(1, -8, 0, 22))
+		encabezado.TextColor3 = UIKit.Colores.Oro
+		encabezado.TextXAlignment = Enum.TextXAlignment.Left
+		for _, stencil in StencilsConfig.DelLibro(libroId) do
+			local hay = StencilsConfig.Disponible(stencil)
+			local texto = if hay then stencil.Nombre else `{stencil.Nombre} (próximamente)`
+			local color = if puesto and puesto.Id == stencil.Id
+				then UIKit.Colores.BotonPrimario
+				else UIKit.Colores.Boton
+			local boton = UIKit.Boton(listaStencils, texto, UDim2.new(1, -8, 0, 26), nil, color)
+			boton.AutoButtonColor = hay
+			boton.Activated:Connect(function()
+				if hay then
+					ponerStencil(stencil.Id)
+				end
+			end)
+		end
+	end
+end
+
+local function cambiarEscala(paso: number)
+	escalaElegida = StencilsConfig.AcomodarEscala(escalaElegida + paso)
+	local id = piezaId
+	local estado = if id then actual(id) else nil
+	if estado and estado.Stencil then
+		ponerStencil(estado.Stencil.Id)
+	else
+		dibujarStencils()
+	end
+end
+
+local function cambiarOpacidad(paso: number)
+	opacidadElegida = StencilsConfig.AcomodarOpacidad(opacidadElegida + paso)
+	local id = piezaId
+	local estado = if id then actual(id) else nil
+	if estado and estado.Stencil then
+		ponerStencil(estado.Stencil.Id)
+	else
+		dibujarStencils()
+	end
+end
+
+masEscala.Activated:Connect(function()
+	cambiarEscala(StencilsConfig.EscalaPaso)
+end)
+menosEscala.Activated:Connect(function()
+	cambiarEscala(-StencilsConfig.EscalaPaso)
+end)
+masOpacidad.Activated:Connect(function()
+	cambiarOpacidad(StencilsConfig.OpacidadPaso)
+end)
+menosOpacidad.Activated:Connect(function()
+	cambiarOpacidad(-StencilsConfig.OpacidadPaso)
+end)
+botonSinStencil.Activated:Connect(function()
+	ponerStencil(nil)
+end)
+
+botonStencil.Activated:Connect(function()
+	if ventanaStencil.Visible then
+		ventanaStencil.Visible = false
+		return
+	end
+	task.spawn(function()
+		local respuesta = NetworkBridge.Client.Invoke("StencilsMios")
+		if respuesta and respuesta.Success and typeof(respuesta.Data) == "table" then
+			local datos: { [string]: any } = respuesta.Data
+			librosMios = if typeof(datos.Libros) == "table" then datos.Libros else {}
+		end
+		dibujarStencils()
+		ventanaStencil.Visible = true
+	end)
 end)
 
 ------------------------------------------------------------------------
@@ -977,6 +1139,7 @@ local function cerrar()
 	modoRetoque, soloColor = false, false
 	table.clear(cambiosPorItem)
 	portapapeles = nil
+	ventanaStencil.Visible = false
 	pConfirmar.Visible = false
 	raiz.Visible = false
 

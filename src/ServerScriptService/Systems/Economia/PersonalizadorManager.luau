@@ -38,6 +38,7 @@ local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Personalizador = require(ReplicatedStorage.Modules.Personalizador)
 local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
+local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local NpcFactory = require(script.Parent.Parent.NpcFactory)
@@ -197,6 +198,16 @@ end
 -- ¿El jugador sigue en una sesión de tienda válida? (habló con un NPC que
 -- todavía existe y está a 15 studs o menos). No alcanza con haber tocado el
 -- cartel: se revisa de nuevo en cada pedido.
+-- Libros de stencils que el jugador tiene desbloqueados.
+local function librosDe(player: Player): { string }
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return {}
+	end
+	local lista: { string } = (datos :: any).Stencils or {}
+	return lista
+end
+
 local function enTienda(player: Player): boolean
 	local npc = sesiones[player]
 	local raiz = raizDe(player)
@@ -227,12 +238,12 @@ local function cotizar(player: Player, itemId: unknown, datos: unknown): (Cotiza
 	if not entrada then
 		return nil, "NOT_FOUND", "Ese objeto no está a la venta."
 	end
-	local pers, motivo = Personalizador.Normalizar(entrada, datos)
+	local pers, motivo = Personalizador.Normalizar(entrada, datos, librosDe(player))
 	if not pers then
 		return nil, "INVALID_ARGS", `Personalización inválida: {motivo or "?"}.`
 	end
 	local modificadas = Personalizador.Modificadas(pers)
-	local precio = Config.Precio(entrada.Precio, modificadas)
+	local precio = Config.Precio(entrada.Precio, modificadas) + StencilsConfig.Costo(Config.CuantosStencils(pers))
 	return { Entrada = entrada, Pers = pers, Base = entrada.Precio, Extra = precio - entrada.Precio, Precio = precio },
 		"INTERNAL_ERROR",
 		nil
@@ -419,7 +430,7 @@ local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown):
 		return nil, "NOT_FOUND", "Ese objeto no se puede personalizar."
 	end
 	local antes: Config.Personalizacion = Config.Decodificar(if item.Meta then item.Meta.Pers else nil) or {}
-	local pers, motivo = Personalizador.Normalizar(entrada, datosPers)
+	local pers, motivo = Personalizador.Normalizar(entrada, datosPers, librosDe(player))
 	if not pers then
 		return nil, "INVALID_ARGS", `Personalización inválida: {motivo or "?"}.`
 	end
@@ -451,7 +462,9 @@ local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown):
 		Antes = antes,
 		Pers = pers,
 		Cambiadas = cambiadas,
-		Precio = Config.PrecioRetoque(cambiadas),
+		-- Los stencils nuevos se pagan aparte de las piezas retocadas.
+		Precio = Config.PrecioRetoque(cambiadas)
+			+ StencilsConfig.Costo(math.max(0, Config.CuantosStencils(pers) - Config.CuantosStencils(antes))),
 	},
 		"INTERNAL_ERROR",
 		nil

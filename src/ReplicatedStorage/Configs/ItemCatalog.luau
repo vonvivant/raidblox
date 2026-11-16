@@ -219,6 +219,28 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		PrecioVenta = 1,
 		Descripcion = "Lo que el río te da cuando no es tu día.",
 	},
+	-- Libros de stencils (se usan una vez y desbloquean el libro entero)
+	LibroRunas = {
+		Nombre = "Libro de Runas",
+		Tipo = "Consumible",
+		Apilable = false,
+		PrecioVenta = 300,
+		Descripcion = "Al leerlo desbloqueás las runas para el personalizador.",
+	},
+	LibroHeraldica = {
+		Nombre = "Libro Heráldico",
+		Tipo = "Consumible",
+		Apilable = false,
+		PrecioVenta = 300,
+		Descripcion = "Al leerlo desbloqueás los blasones para el personalizador.",
+	},
+	LibroBestias = {
+		Nombre = "Libro de Bestias",
+		Tipo = "Consumible",
+		Apilable = false,
+		PrecioVenta = 300,
+		Descripcion = "Al leerlo desbloqueás las siluetas de bestias.",
+	},
 	-- Pergaminos (Inscriptor, NPC-005)
 	PergaminoRegreso = {
 		Nombre = "Pergamino de Regreso",

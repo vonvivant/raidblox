@@ -129,6 +129,7 @@ export type DatosJugador = {
 	Experiencia: number,
 	Clase: Clase,
 	Raza: string?, -- RazasConfig (Humano por defecto)
+	Stencils: { string }?, -- libros de stencils desbloqueados (StencilsConfig)
 	RazaCambio: number?, -- os.time() del último cambio de raza
 	Faccion: Bando,
 	Estadisticas: Estadisticas,
@@ -227,6 +228,7 @@ export type SeccionDatos =
 	| "Cosmeticos"
 	| "Clase"
 	| "Raza"
+	| "Stencils"
 	| "Profesiones"
 	| "Faccion"
 	| "Ajustes"

@@ -14,12 +14,16 @@
 --     "1|Hoja=Metal,A0B1C2|Guarda=Wood,7F5533"
 --      ^ versión del esquema    ^ id de pieza = Material,color RRGGBB
 
-export type Pieza = { Material: string, Color: string } -- Color: "RRGGBB"
+-- Un stencil puesto en una pieza: cuál, de qué tamaño y con cuánta opacidad
+-- (los dos en %, ver StencilsConfig).
+export type Stencil = { Id: string, Escala: number, Opacidad: number }
+
+export type Pieza = { Material: string, Color: string, Stencil: Stencil? } -- Color: "RRGGBB"
 export type Personalizacion = { [string]: Pieza } -- id de pieza -> material y color
 
 local Config = {}
 
-Config.Version = 1
+Config.Version = 2 -- 1 = material y color; 2 = agrega stencils
 Config.Carpeta = "CustomizableItems"
 -- Subcarpeta -> tipo de ítem
 Config.Subcarpetas = { Armas = "Arma", Armaduras = "Armadura" } :: { [string]: string }
@@ -129,7 +133,12 @@ function Config.Codificar(personalizacion: Personalizacion): string
 	local partes: { string } = { tostring(Config.Version) }
 	for _, id in ids do
 		local pieza = personalizacion[id]
-		table.insert(partes, `{id}={pieza.Material},{string.upper(pieza.Color)}`)
+		local texto = `{id}={pieza.Material},{string.upper(pieza.Color)}`
+		local stencil = pieza.Stencil
+		if stencil then
+			texto ..= `,{stencil.Id},{math.floor(stencil.Escala)},{math.floor(stencil.Opacidad)}`
+		end
+		table.insert(partes, texto)
 	end
 	return table.concat(partes, "|")
 end
@@ -141,12 +150,17 @@ function Config.Decodificar(texto: any): Personalizacion?
 		return nil
 	end
 	local partes = string.split(texto, "|")
-	if tonumber(partes[1]) ~= Config.Version or #partes - 1 > Config.MaxPiezas then
+	-- Se leen las versiones viejas: un ítem guardado antes de los stencils
+	-- tiene que seguir abriéndose igual.
+	local version = tonumber(partes[1])
+	if version == nil or version < 1 or version > Config.Version or #partes - 1 > Config.MaxPiezas then
 		return nil
 	end
 	local resultado: Personalizacion = {}
 	for i = 2, #partes do
-		local id, material, color = string.match(partes[i], "^(.-)=(%w+),(%x+)$")
+		local cuerpo = partes[i]
+		-- Formato: id=Material,RRGGBB[,StencilId,escala,opacidad]
+		local id, material, color, resto = string.match(cuerpo, "^(.-)=(%w+),(%x+),?(.*)$")
 		if
 			not id
 			or not Config.IdPiezaValido(id)
@@ -156,7 +170,19 @@ function Config.Decodificar(texto: any): Personalizacion?
 		then
 			return nil
 		end
-		resultado[id] = { Material = material :: string, Color = string.upper(color :: string) }
+		local pieza: Pieza = { Material = material :: string, Color = string.upper(color :: string) }
+		if resto ~= nil and resto ~= "" then
+			if version < 2 then
+				return nil -- una versión vieja no puede traer stencils
+			end
+			local stencilId, escala, opacidad = string.match(resto, "^(%w+),(%d+),(%d+)$")
+			local e, o = tonumber(escala), tonumber(opacidad)
+			if not stencilId or not e or not o then
+				return nil
+			end
+			pieza.Stencil = { Id = stencilId :: string, Escala = e, Opacidad = o }
+		end
+		resultado[id] = pieza
 	end
 	return resultado
 end
@@ -171,6 +197,28 @@ function Config.PrecioRetoque(cambiadas: number): number
 	return Config.CostoRetoque * math.max(0, math.floor(cambiadas))
 end
 
+-- Cuántas piezas de una personalización llevan stencil.
+function Config.CuantosStencils(personalizacion: Personalizacion): number
+	local cuantos = 0
+	for _, pieza in personalizacion do
+		if pieza.Stencil then
+			cuantos += 1
+		end
+	end
+	return cuantos
+end
+
+-- ¿Los dos stencils son el mismo (o los dos ninguno)?
+function Config.MismoStencil(a: Stencil?, b: Stencil?): boolean
+	if a == nil and b == nil then
+		return true
+	end
+	if a == nil or b == nil then
+		return false
+	end
+	return a.Id == b.Id and a.Escala == b.Escala and a.Opacidad == b.Opacidad
+end
+
 -- Cuántas piezas difieren entre dos personalizaciones (lo que se cobra al
 -- retocar). Una pieza que vuelve a su material y color original también cuenta.
 function Config.Diferencias(antes: Personalizacion, despues: Personalizacion): number
@@ -179,7 +227,13 @@ function Config.Diferencias(antes: Personalizacion, despues: Personalizacion): n
 	for id, pieza in despues do
 		vistas[id] = true
 		local previa = antes[id]
-		if not previa or previa.Material ~= pieza.Material or previa.Color ~= pieza.Color then
+		-- Cambiar solo el stencil también es un cambio, y se cobra igual.
+		if
+			not previa
+			or previa.Material ~= pieza.Material
+			or previa.Color ~= pieza.Color
+			or not Config.MismoStencil(previa.Stencil, pieza.Stencil)
+		then
 			total += 1
 		end
 	end

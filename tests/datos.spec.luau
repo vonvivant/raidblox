@@ -6,6 +6,7 @@ local Npcs = cargar("ReplicatedStorage/Configs/NpcArquetiposConfig")
 local Zonas = cargar("ReplicatedStorage/Configs/ZoneConfig")
 local Vault = cargar("ReplicatedStorage/Configs/VaultConfig")
 local Pergaminos = cargar("ReplicatedStorage/Configs/PergaminosConfig")
+local Stencils = cargar("ReplicatedStorage/Configs/StencilsConfig")
 
 local FACCIONES = { Rojo = true, Azul = true, Neutral = true }
 
@@ -17,7 +18,10 @@ prueba("ítems: los consumibles tienen efecto y los apilables un stack válido",
 			-- Un consumible hace algo de tres maneras: recupera (Consumo), tiene
 			-- definición de buff, o lo maneja un sistema propio (los pergaminos).
 			exigir(
-				def.Consumo ~= nil or Consumibles.Definiciones[id] ~= nil or Pergaminos.Es(id),
+				def.Consumo ~= nil
+					or Consumibles.Definiciones[id] ~= nil
+					or Pergaminos.Es(id)
+					or Stencils.LibroDeItem(id) ~= nil,
 				id .. " es consumible pero no hace nada"
 			)
 		end

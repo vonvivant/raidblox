@@ -39,19 +39,24 @@ prueba("personalizador: codificar y decodificar dan lo mismo, en orden estable",
 		["Guarda/Gema#2"] = { Material = "Neon", Color = "FF0000" },
 	}
 	local texto = P.Codificar(pers)
-	exigir(texto == "1|Guarda/Gema#2=Neon,FF0000|Hoja=Metal,A0B1C2", "texto: " .. texto)
+	exigir(texto == P.Version .. "|Guarda/Gema#2=Neon,FF0000|Hoja=Metal,A0B1C2", "texto: " .. texto)
 	local vuelta = P.Decodificar(texto)
 	exigir(vuelta and vuelta.Hoja.Material == "Metal" and vuelta.Hoja.Color == "A0B1C2", "Hoja")
 	exigir(vuelta["Guarda/Gema#2"].Material == "Neon", "pieza con ruta")
 	exigir(P.Codificar(vuelta) == texto, "ida y vuelta")
-	exigir(P.Codificar({}) == "1", "sin cambios")
-	local vacia = P.Decodificar("1")
+	exigir(P.Codificar({}) == tostring(P.Version), "sin cambios")
+	local vacia = P.Decodificar(tostring(P.Version))
 	exigir(vacia ~= nil and next(vacia) == nil, "decodificar sin cambios")
+	-- Lo guardado antes de los stencils (versión 1) se tiene que poder abrir.
+	local vieja = P.Decodificar("1|Hoja=Metal,A0B1C2")
+	exigir(vieja ~= nil and vieja.Hoja.Material == "Metal", "un ítem viejo sigue abriéndose")
+	exigir(vieja.Hoja.Stencil == nil, "y no inventa stencils")
+	exigir(P.Decodificar("1|Hoja=Metal,A0B1C2,RunaVida,50,80") == nil, "la versión vieja no puede traer stencils")
 end)
 
 prueba("personalizador: decodificar rechaza datos corruptos o demasiado grandes", function()
 	for _, malo in {
-		"", "2|Hoja=Metal,A0B1C2", "1|Hoja", "1|Hoja=Metal", "1|Hoja=Metal,ZZZZZZ", "1|=Metal,A0B1C2",
+		"", "99|Hoja=Metal,A0B1C2", "1|Hoja", "1|Hoja=Metal", "1|Hoja=Metal,ZZZZZZ", "1|=Metal,A0B1C2",
 		"1|Hoja=Me tal,A0B1C2", "1|Hoja=Metal,A0B1C2|Hoja=Wood,112233", 5, false,
 		string.rep("x", 5000),
 	} do

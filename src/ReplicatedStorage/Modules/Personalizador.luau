@@ -20,6 +20,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Configs.PersonalizadorConfig)
+local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 
 export type InfoPieza = {
@@ -344,7 +345,13 @@ end
 -- Valida una personalización que viene de afuera (el cliente o un ítem
 -- guardado) contra el modelo real. Devuelve solo las piezas que de verdad
 -- cambian respecto del original, o nil y el motivo si algo no es válido.
-function Personalizador.Normalizar(entrada: Entrada, datos: any): (Config.Personalizacion?, string?)
+-- `librosStencil` son los libros de stencils que el jugador tiene
+-- desbloqueados. Si no se pasa ninguno, no se acepta ningún stencil.
+function Personalizador.Normalizar(
+	entrada: Entrada,
+	datos: any,
+	librosStencil: { string }?
+): (Config.Personalizacion?, string?)
 	if typeof(datos) ~= "table" then
 		return nil, "formato inválido"
 	end
@@ -365,9 +372,9 @@ function Personalizador.Normalizar(entrada: Entrada, datos: any): (Config.Person
 		if typeof(valor) ~= "table" then
 			return nil, "formato inválido"
 		end
-		-- Solo se aceptan los dos campos esperados.
+		-- Solo se aceptan los campos esperados.
 		for campo in valor do
-			if campo ~= "Material" and campo ~= "Color" then
+			if campo ~= "Material" and campo ~= "Color" and campo ~= "Stencil" then
 				return nil, "propiedad no permitida"
 			end
 		end
@@ -379,9 +386,40 @@ function Personalizador.Normalizar(entrada: Entrada, datos: any): (Config.Person
 			return nil, "color inválido"
 		end
 		color = string.upper(color)
-		if material ~= pieza.Material or color ~= pieza.Color then
-			resultado[id] = { Material = material, Color = color }
+
+		-- Stencil de la pieza (opcional): tiene que estar desbloqueado, tener
+		-- arte subido y venir con escala y opacidad de la lista permitida.
+		local stencil: Config.Stencil? = nil
+		if valor.Stencil ~= nil then
+			local crudo = valor.Stencil
+			if typeof(crudo) ~= "table" then
+				return nil, "stencil inválido"
+			end
+			for campo in crudo do
+				if campo ~= "Id" and campo ~= "Escala" and campo ~= "Opacidad" then
+					return nil, "propiedad no permitida en el stencil"
+				end
+			end
+			local stencilId, escala, opacidad = crudo.Id, crudo.Escala, crudo.Opacidad
+			if typeof(stencilId) ~= "string" or typeof(escala) ~= "number" or typeof(opacidad) ~= "number" then
+				return nil, "stencil inválido"
+			end
+			if not StencilsConfig.Permitido(stencilId, librosStencil or {}) then
+				return nil, "ese stencil no está desbloqueado"
+			end
+			if not StencilsConfig.EscalaValida(escala) or not StencilsConfig.OpacidadValida(opacidad) then
+				return nil, "escala u opacidad fuera de lo permitido"
+			end
+			stencil = { Id = stencilId, Escala = escala, Opacidad = opacidad }
 		end
+
+		if material ~= pieza.Material or color ~= pieza.Color or stencil ~= nil then
+			resultado[id] = { Material = material, Color = color, Stencil = stencil }
+		end
+	end
+	local conStencil = Config.CuantosStencils(resultado)
+	if conStencil > StencilsConfig.MaxPorItem then
+		return nil, `como mucho {StencilsConfig.MaxPorItem} piezas con stencil`
 	end
 	return resultado, nil
 end
@@ -424,6 +462,27 @@ function Personalizador.Aplicar(entrada: Entrada, mapa: { [string]: BasePart }, 
 		end
 		if color then
 			parte.Color = color
+		end
+		-- Stencil: una textura por cara, escalada al tamaño de la pieza. Se
+		-- borra la anterior siempre, así sacar el stencil también se ve.
+		local viejo = parte:FindFirstChild("Stencil")
+		if viejo then
+			viejo:Destroy()
+		end
+		local stencil = if cambio then cambio.Stencil else nil
+		local def = if stencil then StencilsConfig.Stencil(stencil.Id) else nil
+		if stencil and def and StencilsConfig.Disponible(def) then
+			local textura = Instance.new("Texture")
+			textura.Name = "Stencil"
+			textura.Texture = `rbxassetid://{def.Textura}`
+			textura.Face = Enum.NormalId.Front
+			-- La escala es % del lado de la pieza: 100 = ocupa toda la cara.
+			local lado = math.max(parte.Size.X, parte.Size.Y)
+			local tamano = math.max(0.1, lado * stencil.Escala / 100)
+			textura.StudsPerTileU = tamano
+			textura.StudsPerTileV = tamano
+			textura.Transparency = 1 - math.clamp(stencil.Opacidad, 0, 100) / 100
+			textura.Parent = parte
 		end
 	end
 end

@@ -188,8 +188,41 @@ Cómo probar: `docs/instalacion.md`, sección "Probar el vendedor personalizador
   alejarse 15 studs el probador se cierra solo).
 - **Apariencias (transmog):** si el jugador tiene una apariencia puesta en ese slot, se ve la apariencia y no la
   personalización.
-- **Stencils, escala y opacidad** del pedido de forja estética: no están; este sistema cubre material y color.
+- **Stencils, escala y opacidad**: sí, ver abajo.
 - **Retocar un ítem ya comprado:** sí, con el Tintorero (NPC-031), que abre este mismo probador en modo retoque
   y cambia solo colores ([cosméticos](cosmeticos.md)).
 - **Stock y reputación:** todos los modelos del catálogo están siempre a la venta (solo se filtra por nivel).
 - El ítem comprado es de rareza Común, con las estadísticas del catálogo.
+
+## Stencils
+
+Calcomanías que se le ponen a una pieza, con su **escala** y su **opacidad**. Reglas en
+`Configs/StencilsConfig.luau`, desbloqueo en `Systems/Economia/StencilManager.luau`, y se eligen en el probador
+con el botón **Stencil…**.
+
+Vienen en **tres libros** (Runas, Heráldica, Bestias), con tres stencils cada uno. Un libro es un ítem
+consumible que vende el Inscriptor: al leerlo se desbloquea el libro entero **para siempre** y para todos tus
+ítems. Leer uno que ya conocés no hace nada y **no lo gasta**, así que no se pierde por un clic de más.
+
+| Límite | Valor |
+| --- | --- |
+| Piezas con stencil por ítem | 3 |
+| Escala | 20% a 100% del lado de la pieza, de 10 en 10 |
+| Opacidad | 20% a 100%, de 10 en 10 |
+| Costo | 75 de oro por stencil, además del precio del ítem o del retoque |
+
+El servidor revalida todo: que el libro esté desbloqueado, que el stencil tenga arte, que la escala y la
+opacidad sean de las permitidas, y que no se pasen las tres piezas. El cliente nunca decide el precio.
+
+### Formato guardado
+
+`Meta.Pers` pasó a **versión 2**: una pieza con stencil se escribe
+`Hoja=Metal,A0B1C2,RunaVida,50,80` (stencil, escala, opacidad). Lo guardado en versión 1 se sigue leyendo igual,
+y un texto de versión 1 que traiga stencils se rechaza, porque sería inventado.
+
+### Falta el arte
+
+Las nueve texturas las tiene que **subir el usuario** a Roblox y poner su id en `Textura`. Mientras sean 0, el
+stencil aparece en la lista como "próximamente" y el servidor lo rechaza — el mismo criterio que los peinados
+del barbero. Hay una prueba que verifica justamente eso: sin textura, ni con el libro desbloqueado se puede
+usar.

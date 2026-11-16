@@ -206,9 +206,13 @@ local Arquetipos: { [string]: Arquetipo } = {
 			{ ItemId = "PergaminoRegreso", Precio = 120 },
 			{ ItemId = "PergaminoReunion", Precio = 160 },
 			{ ItemId = "PergaminoFortaleza", Precio = 220 },
+			{ ItemId = "LibroRunas", Precio = 1500 },
+			{ ItemId = "LibroHeraldica", Precio = 1500 },
+			{ ItemId = "LibroBestias", Precio = 1500 },
 		} :: { Oferta },
 		Parametros = {
 			Pergaminos = { "Regreso a tu capital", "Fortaleza al grupo (10 min)", "Reunión con tu líder" },
+			Libros = "Los tres libros de stencils del personalizador",
 			Donde = "Se usan desde la mochila; no andan en combate, Guerra, arena ni mazmorra",
 			Fabricar = "También se hacen en el Telar con tela de lino y flor lunar",
 			Futuro = { "Ítems sin identificar y el mapa que los revela" },
