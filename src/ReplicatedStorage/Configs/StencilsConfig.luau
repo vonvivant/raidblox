@@ -15,6 +15,7 @@ export type Stencil = {
 	Id: string,
 	Nombre: string,
 	Libro: string,
+	Grupo: string, -- para la lista agrupada del NPC Cosméticos
 	Textura: number, -- rbxassetid; 0 = todavía no hay arte
 }
 
@@ -58,6 +59,15 @@ Config.TexturaPrueba = 6023426923
 Config.CostoPorRelieve = 200 -- más caro que una calcomanía: son dos texturas
 Config.MaxRelievesPorItem = 2
 
+-- Los decals se muestran agrupados por tipo, no por libro: el jugador busca
+-- "un rasguño" o "un adorno", no "algo del libro de runas".
+Config.Grupos = {
+	{ Id = "Rasgunos", Nombre = "Rasguños" },
+	{ Id = "Adornos", Nombre = "Adornos" },
+	{ Id = "Simbolos", Nombre = "Símbolos" },
+	{ Id = "Bestias", Nombre = "Bestias" },
+}
+
 Config.Libros = {
 	{
 		Id = "Runas",
@@ -80,15 +90,24 @@ Config.Libros = {
 } :: { Libro }
 
 Config.Stencils = {
-	{ Id = "RunaFuerza", Nombre = "Runa de Fuerza", Libro = "Runas", Textura = 0 },
-	{ Id = "RunaVida", Nombre = "Runa de Vida", Libro = "Runas", Textura = 0 },
-	{ Id = "RunaTormenta", Nombre = "Runa de Tormenta", Libro = "Runas", Textura = 0 },
-	{ Id = "EscudoPartido", Nombre = "Escudo Partido", Libro = "Heraldica", Textura = 0 },
-	{ Id = "TorreYSol", Nombre = "Torre y Sol", Libro = "Heraldica", Textura = 0 },
-	{ Id = "LirioDoble", Nombre = "Lirio Doble", Libro = "Heraldica", Textura = 0 },
-	{ Id = "GarraLobo", Nombre = "Garra de Lobo", Libro = "Bestias", Textura = 0 },
-	{ Id = "AlaCuervo", Nombre = "Ala de Cuervo", Libro = "Bestias", Textura = 0 },
-	{ Id = "OjoSerpiente", Nombre = "Ojo de Serpiente", Libro = "Bestias", Textura = 0 },
+	-- Rasguños y desgaste
+	{ Id = "RasgunoLargo", Nombre = "Rasguño Largo", Libro = "Runas", Grupo = "Rasgunos", Textura = 0 },
+	{ Id = "RasgunoCruzado", Nombre = "Rasguños Cruzados", Libro = "Bestias", Grupo = "Rasgunos", Textura = 0 },
+	{ Id = "Mellas", Nombre = "Mellas de Combate", Libro = "Heraldica", Grupo = "Rasgunos", Textura = 0 },
+	-- Adornos
+	{ Id = "FiligranaBorde", Nombre = "Filigrana de Borde", Libro = "Heraldica", Grupo = "Adornos", Textura = 0 },
+	{ Id = "LirioDoble", Nombre = "Lirio Doble", Libro = "Heraldica", Grupo = "Adornos", Textura = 0 },
+	{ Id = "CadenaFina", Nombre = "Cadena Fina", Libro = "Runas", Grupo = "Adornos", Textura = 0 },
+	-- Símbolos
+	{ Id = "RunaFuerza", Nombre = "Runa de Fuerza", Libro = "Runas", Grupo = "Simbolos", Textura = 0 },
+	{ Id = "RunaVida", Nombre = "Runa de Vida", Libro = "Runas", Grupo = "Simbolos", Textura = 0 },
+	{ Id = "RunaTormenta", Nombre = "Runa de Tormenta", Libro = "Runas", Grupo = "Simbolos", Textura = 0 },
+	{ Id = "EscudoPartido", Nombre = "Escudo Partido", Libro = "Heraldica", Grupo = "Simbolos", Textura = 0 },
+	{ Id = "TorreYSol", Nombre = "Torre y Sol", Libro = "Heraldica", Grupo = "Simbolos", Textura = 0 },
+	-- Bestias
+	{ Id = "GarraLobo", Nombre = "Garra de Lobo", Libro = "Bestias", Grupo = "Bestias", Textura = 0 },
+	{ Id = "AlaCuervo", Nombre = "Ala de Cuervo", Libro = "Bestias", Grupo = "Bestias", Textura = 0 },
+	{ Id = "OjoSerpiente", Nombre = "Ojo de Serpiente", Libro = "Bestias", Grupo = "Bestias", Textura = 0 },
 } :: { Stencil }
 
 -- Relieves (grabados con normal map). Van por los mismos libros que las
@@ -169,6 +188,27 @@ function Config.LibroDeItem(itemId: string): Libro?
 		end
 	end
 	return nil
+end
+
+function Config.Grupo(id: string): { Id: string, Nombre: string }?
+	for _, grupo in Config.Grupos do
+		if grupo.Id == id then
+			return grupo
+		end
+	end
+	return nil
+end
+
+-- Los decals de un grupo, con los que el jugador no desbloqueó marcados por
+-- quien llame (acá no se filtra: la interfaz muestra todo y aclara qué falta).
+function Config.DelGrupo(grupoId: string): { Stencil }
+	local lista: { Stencil } = {}
+	for _, stencil in Config.Stencils do
+		if stencil.Grupo == grupoId then
+			table.insert(lista, stencil)
+		end
+	end
+	return lista
 end
 
 function Config.DelLibro(libroId: string): { Stencil }

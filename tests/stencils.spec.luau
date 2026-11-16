@@ -211,3 +211,27 @@ prueba("relieves: viajan en la personalización y son un cambio aparte", functio
 	exigir(P.Decodificar("2|Hoja=Metal,A0B1C2;R=RelieveRunico") == nil, "la versión 2 no tiene relieves")
 	exigir(P.Decodificar(P.Version .. "|Hoja=Metal,A0B1C2;X=1") == nil, "basura con ; se rechaza")
 end)
+
+prueba("decals: están agrupados y cada grupo tiene contenido", function()
+	exigir(#S.Grupos >= 3, "hacen falta grupos para que la lista sirva")
+	local vistos: { [string]: boolean } = {}
+	for _, grupo in S.Grupos do
+		exigir(not vistos[grupo.Id], "grupo repetido: " .. grupo.Id)
+		vistos[grupo.Id] = true
+		exigir(grupo.Nombre ~= "", grupo.Id .. " sin nombre visible")
+		exigir(#S.DelGrupo(grupo.Id) >= 1, "el grupo " .. grupo.Id .. " quedó vacío")
+		exigir(S.Grupo(grupo.Id) ~= nil, "Grupo() tiene que encontrarlo")
+	end
+	exigir(S.Grupo("NoExiste") == nil, "no inventa grupos")
+	exigir(#S.DelGrupo("NoExiste") == 0, "un grupo inexistente no devuelve nada")
+
+	-- Todo decal pertenece a un grupo real, y cada uno sigue teniendo su libro.
+	for _, stencil in S.Stencils do
+		exigir(S.Grupo(stencil.Grupo) ~= nil, stencil.Id .. " está en un grupo que no existe: " .. stencil.Grupo)
+		exigir(S.Libro(stencil.Libro) ~= nil, stencil.Id .. " está en un libro que no existe")
+	end
+	-- Cada libro tiene que desbloquear algo, o comprarlo no serviría de nada.
+	for _, libro in S.Libros do
+		exigir(#S.DelLibro(libro.Id) >= 1, "el libro " .. libro.Id .. " no desbloquea nada")
+	end
+end)
