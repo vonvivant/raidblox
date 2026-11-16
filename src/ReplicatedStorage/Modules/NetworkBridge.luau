@@ -104,6 +104,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	ParcelaAccion = { Tipo = "Function", Critico = true, Timeout = 20 }, -- (accion, parcelaId, extra?)
 	ConstruirPanel = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (abrir)
 	ParcelaConstruir = { Tipo = "Function", Critico = true, Timeout = 20 }, -- (parcelaId, accion, datos)
+	RazaElegir = { Tipo = "Function", Critico = true, Timeout = 10 }, -- (razaId)
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})

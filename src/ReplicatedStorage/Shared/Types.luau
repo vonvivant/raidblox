@@ -128,6 +128,8 @@ export type DatosJugador = {
 	Nivel: number,
 	Experiencia: number,
 	Clase: Clase,
+	Raza: string?, -- RazasConfig (Humano por defecto)
+	RazaCambio: number?, -- os.time() del último cambio de raza
 	Faccion: Bando,
 	Estadisticas: Estadisticas,
 	Oro: number,
@@ -224,6 +226,7 @@ export type SeccionDatos =
 	| "Honor"
 	| "Cosmeticos"
 	| "Clase"
+	| "Raza"
 	| "Profesiones"
 	| "Faccion"
 	| "Ajustes"

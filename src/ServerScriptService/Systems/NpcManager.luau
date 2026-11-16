@@ -56,6 +56,13 @@ local MAX_NO_APILABLE = 10
 
 local NpcManager = {}
 
+-- Gancho de RazaManager: ajusta lo que un NPC paga por un ítem.
+local bonusVenta: ((Player, number) -> number)? = nil
+
+function NpcManager.RegistrarBonusVenta(fn: (Player, number) -> number)
+	bonusVenta = fn
+end
+
 local npcs: { [string]: Npc } = {}
 local acciones: { [string]: Accion } = {}
 local accionesItem: { [string]: AccionItem } = {}
@@ -334,6 +341,10 @@ local function vender(player: Player, npc: Npc, clave: string, cantidad: number)
 		return NetworkBridge.Fail("NOT_ALLOWED")
 	end
 	local pago = math.floor(def.PrecioVenta * compra.Factor) * cantidad
+	-- La raza puede mejorar lo que pagan (ver RazaManager).
+	if bonusVenta then
+		pago = bonusVenta(player, pago)
+	end
 	if pago < 1 then
 		return NetworkBridge.Fail("NOT_ALLOWED")
 	end

@@ -140,6 +140,8 @@ activá **Permitir solicitudes HTTP** en Configuración del juego → Seguridad.
 - **Construcción** (`ConstruccionUI`): lista de piezas, vista fantasma que
   sigue al mouse (R gira, Q/E suben y bajan), modo sacar y el menú de semillas
   de los canteros ([parcelas](parcelas.md)).
+- **Personaje**: además de clase, bando y género, ahí se elige la
+  [raza](razas.md) (la primera vez gratis).
 - **Parcelas** (`ParcelasUI`): pestañas por barrio, lista con el estado de cada
   parcela y panel para comprar, pagar el alquiler, dar permisos, renombrar,
   fusionar y abandonar ([parcelas](parcelas.md)).

@@ -85,6 +85,7 @@ flowchart LR
 - [Arenas clasificatorias](docs/arenas.md): 1v1, 2v2 y 3v3 con rating, del Reclutador de Arenas.
 - [Juegos del Crupier](docs/juegos.md): memoria de runas y pares, sin apuestas.
 - [Parcelas](docs/parcelas.md): terrenos con alquiler, permisos y fusión, del Arquitecto de Viviendas.
+- [Razas](docs/razas.md): Humano y Artesano, con firma de autoría en lo que fabrica.
 - [Vendedor y personalizador 3D](docs/personalizador.md): probador sobre el avatar, material y color por pieza.
 - [Forja](docs/forja.md): durabilidad y reparación, desencantar, reforjar y gemas.
 - [Consumibles y mejoras temporales](docs/consumibles.md): elixires, tónicos, infusiones y reglas de acumulación.

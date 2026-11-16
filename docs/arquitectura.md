@@ -40,6 +40,7 @@ src/
 │   │   ├── ParcelasConfig.luau       Parcelas: grilla, precios, alquiler, permisos y fusión (reglas puras)
 │   │   ├── ConstruccionConfig.luau   Piezas, encaje, superposición y cultivos de la huerta (reglas puras)
 │   │   ├── PergaminosConfig.luau     Pergaminos del Inscriptor: efectos, rezo y recargas (reglas puras)
+│   │   ├── RazasConfig.luau          Razas: bonos de oficio y firma de autoría (reglas puras)
 │   │   ├── ProgresionSocialConfig.luau Descanso, contratos diarios y reputación de facción
 │   │   ├── VaultConfig.luau          Bóveda global: pestañas, precios y puntos de acceso
 │   │   ├── VisualConfig.luau         Animación y efectos de cada habilidad
@@ -85,6 +86,7 @@ src/
 │       ├── ExploracionManager.luau   Piedras de teletransporte y puntos de interés
 │       ├── ProgresionSocialManager.luau Descanso, rumores y reputación de facción
 │       ├── JuegosManager.luau       Minijuegos del Crupier (memoria de runas y pares)
+│       ├── RazaManager.luau         Raza del jugador; se engancha en NPC, crafteo y forja
 │       ├── MisionManager.luau        Misiones
 │       ├── GrupoManager.luau         Grupos (party) de hasta 5
 │       ├── HermandadManager.luau     Hermandades, rangos y banco

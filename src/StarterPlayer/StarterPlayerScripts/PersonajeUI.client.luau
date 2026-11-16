@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Configs.GameConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local RazasConfig = require(ReplicatedStorage.Configs.RazasConfig)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
 local MenuLateral = require(ReplicatedStorage.Modules.MenuLateral)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
@@ -125,6 +126,36 @@ local function actualizarBando()
 end
 jugador:GetAttributeChangedSignal("Bando"):Connect(actualizarBando)
 actualizarBando()
+
+-- Raza: la primera elección es gratis; cambiarla después cuesta oro.
+local opcionesRaza: { { Texto: string, Valor: any } } = {}
+for _, raza in RazasConfig.Razas do
+	table.insert(opcionesRaza, { Texto = raza.Nombre, Valor = raza.Id })
+end
+local marcarRaza = opciones(seccion("Raza"), opcionesRaza, function(valor)
+	NetworkBridge.Client.Invoke("RazaElegir", valor)
+end)
+orden += 1
+local ayudaRaza = UIKit.Texto(contenido, "", UDim2.new(1, 0, 0, 44))
+ayudaRaza.Font = Enum.Font.Gotham
+ayudaRaza.TextColor3 = UIKit.Colores.TextoSuave
+ayudaRaza.TextWrapped = true
+ayudaRaza.LayoutOrder = orden
+
+local function actualizarRaza()
+	local raza = EstadoCliente.Get("Raza")
+	local id = if typeof(raza) == "string" then raza else RazasConfig.PorDefecto
+	marcarRaza(id)
+	local def = RazasConfig.Raza(id)
+	ayudaRaza.Text =
+		`{def.Descripcion} · {table.concat(def.Ventajas, " · ")}. Cambiarla cuesta {RazasConfig.CostoCambio} de oro.`
+end
+EstadoCliente.Cambio:Connect(function(campo: string)
+	if campo == "Raza" then
+		actualizarRaza()
+	end
+end)
+actualizarRaza()
 
 -- Género
 local marcarGenero = opciones(seccion("Género del personaje"), {

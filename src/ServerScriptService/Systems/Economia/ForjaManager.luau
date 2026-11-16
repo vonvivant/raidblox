@@ -154,12 +154,22 @@ local function aReparar(player: Player, conMochila: boolean): ({ ItemInstancia }
 	return lista, costo
 end
 
+-- Gancho de RazaManager: descuento en el costo de reparar.
+local descuentoReparacion: ((Player, number) -> number)? = nil
+
+function ForjaManager.RegistrarDescuentoReparacion(fn: (Player, number) -> number)
+	descuentoReparacion = fn
+end
+
 local function reparar(player: Player, conMochila: boolean): boolean
 	if CombatManager.EnCombate(player) then
 		avisar(player, "No se puede reparar en combate.")
 		return false
 	end
 	local piezas, costo = aReparar(player, conMochila)
+	if descuentoReparacion then
+		costo = descuentoReparacion(player, costo)
+	end
 	if #piezas == 0 then
 		avisar(player, "No tenés nada que reparar.", "Info")
 		return false

@@ -36,6 +36,17 @@ local AREA_PRUEBA = Vector3.new(70, 0, -40)
 type Trabajo = { RecetaId: string, Receta: Receta, Estacion: BasePart, Fin: number }
 local trabajos: { [Player]: Trabajo } = {}
 local duplicador: ((Player) -> boolean)? = nil
+-- Ganchos de RazaManager: más obras maestras y firma de autoría.
+local bonusMasterpiece: ((Player, number, number) -> number)? = nil
+local firma: ((Player) -> string?)? = nil
+
+function CraftingManager.RegistrarBonusMasterpiece(fn: (Player, number, number) -> number)
+	bonusMasterpiece = fn
+end
+
+function CraftingManager.RegistrarFirma(fn: (Player) -> string?)
+	firma = fn
+end
 
 -- Otro sistema decide si lo que fabrica un jugador sale duplicado.
 function CraftingManager.SetDuplicador(fn: (Player) -> boolean)
@@ -140,15 +151,25 @@ local function completar(player: Player, trabajo: Trabajo)
 		ProfesionesConfig.MasterpieceBase
 			+ math.max(0, nivel - receta.NivelRequerido) * ProfesionesConfig.MasterpiecePorNivel
 	)
+	if bonusMasterpiece then
+		probabilidad = bonusMasterpiece(player, probabilidad, ProfesionesConfig.MasterpieceMaximo)
+	end
 	local masterpiece = math.random() < probabilidad
 
 	local resultado = receta.Resultado
 	local def = ItemCatalog[resultado.ItemId]
 	local cantidad = resultado.Cantidad
 	local meta: Types.ItemMeta? = nil
+	-- Firma de autoría (raza Artesano): el equipo que fabrica lleva su nombre,
+	-- y la bóveda ya sabe buscar por `Meta.Autor`.
+	local autor = if firma and def and def.Tipo == "Equipo" then firma(player) else nil
+	if autor then
+		local firmado: Types.ItemMeta = { Autor = autor }
+		meta = firmado
+	end
 	if masterpiece then
 		if def and def.Tipo == "Equipo" then
-			local m: Types.ItemMeta = {}
+			local m: Types.ItemMeta = meta or {}
 			m.Mult = ProfesionesConfig.MasterpieceBonus
 			m.Masterpiece = true
 			meta = m

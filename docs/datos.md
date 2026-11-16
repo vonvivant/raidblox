@@ -88,6 +88,7 @@ classDiagram
         map? Pvp
         map? Juegos
         list? Parcelas
+        string? Raza
     }
 
     DatosJugador *-- Inventario
