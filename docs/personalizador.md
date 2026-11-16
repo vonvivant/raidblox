@@ -82,9 +82,24 @@ Otras cosas que importan acá:
   sale estirado o no se ve.
 - Los **relieves** (normal map) solo funcionan sobre `MeshPart`, que es lo que produce importar `.fbx`/`.glb`.
   Una `Part` común no acepta `SurfaceAppearance`.
-- Las **texturas** van como imágenes subidas aparte, con su id en `StencilsConfig`. El importador también puede
-  armar un `SurfaceAppearance` de base si el archivo trae mapas PBR; el relieve del grabador reemplaza ese
-  aspecto mientras está puesto.
+- Las **texturas de los stencils** van como imágenes subidas aparte, con su id en `StencilsConfig`.
+
+### PBR: qué entra y qué conviene
+
+Roblox usa cuatro mapas, en un `SurfaceAppearance`: **ColorMap, NormalMap, RoughnessMap y MetalnessMap**. No
+usa oclusión ambiental ni altura o desplazamiento (la AO se hornea en el color), y el máximo de resolución es
+**1024×1024**. Tanto `.fbx` como `.glb` traen los materiales y las referencias a esos mapas, y el importador
+arma el `SurfaceAppearance` cuando los encuentra; la diferencia práctica es que en `.glb` las imágenes van
+adentro del archivo y en `.fbx` van al lado (las "embedded textures" del FBX muchas veces no llegan).
+
+**Ojo con un choque de este sistema:** un `SurfaceAppearance` **reemplaza el aspecto del material** de la pieza.
+O sea:
+
+- Las piezas que el jugador va a poder cambiar de **material y color** (hoja, guarda, mango) conviene que
+  **no** traigan `SurfaceAppearance` de base: que usen material y color comunes, o el cambio casi no se nota.
+- Las piezas pensadas para **relieve** sí van con mallas y UV buenas, porque ahí el grabado es la superficie.
+- Si una pieza trae PBR de base y se le pone un relieve, el relieve manda mientras está puesto (el aspecto base
+  vuelve al sacarlo, porque la vista se rearma desde la plantilla).
 
 ### Pasos
 
