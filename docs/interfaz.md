@@ -137,6 +137,10 @@ activá **Permitir solicitudes HTTP** en Configuración del juego → Seguridad.
   Máximo 4 a la vez; un mensaje repetido se junta en uno con "×N". Escalan con
   el HUD.
 - **Barras de RaidBlox:** debajo del marco del objetivo.
+- **Arena** (`ArenaUI`): cartel arriba al centro. En cola muestra el modo, el
+  rango con el rating y cuánto llevás esperando, con un botón para salir. En
+  partida muestra la ronda, el marcador de rondas, cuántos quedan en pie de
+  cada lado y el tiempo de la fase. Detalles en [arenas](arenas.md).
 - **Guerra de Arquitectos** (`GuerraUI`): panel debajo del minimapa (mismo
   lado) con la fase y el reloj (rojo en el último minuto) y una tarjeta por
   reino: etapa, barra, lo que falta de cada recurso (🪵 🪨 ⛓) y el almacén.

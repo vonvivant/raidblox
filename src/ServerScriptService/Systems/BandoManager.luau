@@ -39,6 +39,29 @@ end
 local iniciado = false
 local ultimoCambio: { [Player]: number } = {} -- os.clock() del último cambio elegido
 
+-- Gancho de ArenaManager: en un arena manda la partida y no el bando, así
+-- dos del mismo color (o dos violetas) pueden pelear ahí y en ningún otro lado.
+local enArena: ((Player) -> boolean)? = nil
+local rivalDeArena: ((Player, Player) -> boolean)? = nil
+
+function BandoManager.SetArena(esta: (Player) -> boolean, rival: (Player, Player) -> boolean)
+	enArena = esta
+	rivalDeArena = rival
+end
+
+-- (está en arena, es su rival en esa partida)
+local function arena(a: Player, b: Player): (boolean, boolean)
+	local esta = enArena
+	local rival = rivalDeArena
+	if not esta or not rival then
+		return false, false
+	end
+	if not esta(a) and not esta(b) then
+		return false, false
+	end
+	return true, rival(a, b)
+end
+
 function BandoManager.SetEnCombate(fn: (Player) -> boolean)
 	enCombate = fn
 end
@@ -88,6 +111,10 @@ end
 
 -- Rivales y ambos en contexto PvP: se pueden dañar (lo usan las áreas).
 function BandoManager.SonHostiles(a: Player, b: Player): boolean
+	local hayArena, esRival = arena(a, b)
+	if hayArena then
+		return esRival
+	end
 	return BandoManager.SonRivales(a, b) and BandoManager.EnZonaPvP(a) and BandoManager.EnZonaPvP(b)
 end
 
@@ -96,6 +123,10 @@ end
 function BandoManager.PuedeAtacar(atacante: Player, objetivo: Player): boolean
 	if atacante == objetivo then
 		return false
+	end
+	local hayArena, esRival = arena(atacante, objetivo)
+	if hayArena then
+		return esRival
 	end
 	local bo = BandoManager.De(objetivo)
 	if bo == "Violeta" then

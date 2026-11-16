@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (32 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (38 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **28** implementados sin verificar, **2** en desarrollo y **9** pendientes (total 39).
+Hoy: **29** implementados sin verificar, **2** en desarrollo y **8** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -106,7 +106,7 @@ Hoy: **28** implementados sin verificar, **2** en desarrollo y **9** pendientes 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
 | NPC-037 | Intendente de Guerra (`IntendenteGuerra`) | Rojo, Azul | vende 3 ítems | Set de armadura PvP por bando | Implementado sin verificar |
-| NPC-038 | Reclutador de Arenas (`ReclutadorArenas`) | Rojo, Azul, Neutral | — | Arenas con emparejamiento | Pendiente |
+| NPC-038 | Reclutador de Arenas (`ReclutadorArenas`) | Rojo, Azul, Neutral | Anotarme en 1v1, Anotarme en 2v2, Anotarme en 3v3, Sacarme de la cola | — | Implementado sin verificar |
 | NPC-039 | Estratega de Asedio (`EstrategaAsedio`) | Rojo, Azul | — | Asedios de castillos entre hermandades | Pendiente |
 <!-- MATRIZ:FIN -->
 
@@ -130,4 +130,4 @@ Hoy: **28** implementados sin verificar, **2** en desarrollo y **9** pendientes 
 6. ~~Grupo E: descanso y rumores (025), diarias (026), reputación (027)~~ (hecho, ver [progresión social](progresion-social.md)). Queda 028 (entrenador): **falta decidir** si vende habilidades por oro o si se hace un sistema de talentos.
 7. ~~Grupo F completo: barbero (029), transfigurador (030), tintorero (031, retoca lo que ya tenés) y mascotas por oro (032)~~ (hecho, ver [cosméticos](cosmeticos.md)).
 8. Grupo G: vivienda (033, con las parcelas), cocina (034), pesca (035), minijuegos sin apuestas (036).
-9. Grupo H: equipo PvP (037), arenas (038), asedio (039).
+9. Grupo H: ~~equipo PvP (037) y arenas clasificatorias (038, ver [arenas](arenas.md))~~ (hecho). Queda 039 (asedio), que depende de los castillos de hermandad.

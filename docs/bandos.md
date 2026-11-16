@@ -39,6 +39,8 @@ stateDiagram-v2
   potenciar a un jugador que está en contexto PvP (sería intocable y decisivo a la vez).
 - El daño en el tiempo entre jugadores se corta si dejan de poder pelear (por ejemplo, si la víctima sale de la zona).
 - En la Guerra no se puede atacar ni convertir a un compañero de equipo.
+- Dentro de una [arena clasificatoria](arenas.md) manda la partida y no el bando: ahí pelean hasta dos del mismo
+  color o dos Violeta, y solo contra el lado rival de esa partida. Fuera de la arena, nada cambia.
 
 Módulos: `Systems/BandoManager` (reglas, arena de prueba, remote `BandoElegir`) y `CombatManager`
 (`puedeAtacar`, `enemigosEnRadio`, `aliadosEnRadio`; convierte al Violeta al concretar el ataque).

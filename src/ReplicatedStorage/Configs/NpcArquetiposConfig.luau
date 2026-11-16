@@ -968,10 +968,43 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Descripcion = "Inscribe jugadores o grupos en partidas clasificatorias.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = BORDO,
-		Servicios = { { Id = "Inscribir", Nombre = "Inscribirse", Descripcion = "Arena 1v1, 2v2 o 3v3.", Costo = 0 } },
-		Parametros = { Modos = { "1v1", "2v2", "3v3" }, Requiere = "Arenas con emparejamiento" },
+		Servicios = {
+			{
+				Id = "Arena1v1",
+				Nombre = "Anotarme en 1v1",
+				Descripcion = "Duelo a tres rondas. Gana el que gane dos.",
+				Costo = 0,
+				Accion = "Arena1v1",
+			},
+			{
+				Id = "Arena2v2",
+				Nombre = "Anotarme en 2v2",
+				Descripcion = "De a dos. Con grupo de 2, entra el grupo entero.",
+				Costo = 0,
+				Accion = "Arena2v2",
+			},
+			{
+				Id = "Arena3v3",
+				Nombre = "Anotarme en 3v3",
+				Descripcion = "De a tres. Con grupo de 3, entra el grupo entero.",
+				Costo = 0,
+				Accion = "Arena3v3",
+			},
+			{
+				Id = "ArenaCancelar",
+				Nombre = "Sacarme de la cola",
+				Descripcion = "Deja de buscar rivales.",
+				Costo = 0,
+				Accion = "ArenaCancelar",
+			},
+		} :: { Servicio },
+		Parametros = {
+			Modos = { "1v1", "2v2", "3v3" },
+			Rating = "Elo por modo, arranca en 1000",
+			Premio = "Honor por partida con tope diario",
+		},
 	},
 	EstrategaAsedio = {
 		Numero = 39,
@@ -1067,5 +1100,6 @@ return {
 		{ Arquetipo = "Transfigurador", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 82) },
 		{ Arquetipo = "VendedorMascotas", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 82) },
 		{ Arquetipo = "Tintorero", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 82) },
+		{ Arquetipo = "ReclutadorArenas", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 92) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

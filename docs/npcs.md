@@ -89,6 +89,11 @@ Flujo: el servidor valida distancia, bando, destino permitido y oro; cobra; y ll
 Se agregaron dos zonas para que la regla tenga sentido: `CapitalRoja` (Bastión Carmesí) y `CapitalAzul`
 (Ciudadela Azur), con `PlaceId = 0` hasta que existan los places.
 
+## Reclutador de Arenas
+
+Anota al jugador (o a su grupo, si tiene el tamaño justo) en arenas clasificatorias de 1v1, 2v2 y 3v3. El
+emparejamiento, el rating Elo y los premios en honor están en [arenas](arenas.md).
+
 ## Estados
 
 - **Listo**: funciona hablando con el NPC.

@@ -185,6 +185,13 @@ export type DatosJugador = {
 	MonturaAlquiler: { Id: string, Hasta: number }?,
 	MonturaVelocidad: number?,
 	Waypoints: { string }?,
+	-- Arenas clasificatorias: rating y récord por modo ("1v1", "2v2", "3v3")
+	-- y honor ya cobrado hoy (tope diario).
+	Pvp: {
+		Modos: { [string]: { Rating: number, Ganadas: number, Perdidas: number, Racha: number, Mejor: number } }?,
+		Dia: number?,
+		HonorHoy: number?,
+	}?,
 	Interes: { string }?,
 	ComprasRotativas: { [string]: { Ciclo: number, Items: { [string]: number } } }?,
 	SkinsEstructura: { SkinEstructura }, -- desbloqueadas
@@ -219,6 +226,7 @@ export type SeccionDatos =
 	| "Exploracion"
 	| "Social"
 	| "Vault"
+	| "Pvp"
 
 -- Respuesta estándar de todas las RemoteFunctions.
 export type CodigoError =

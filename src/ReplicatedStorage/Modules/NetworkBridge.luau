@@ -91,6 +91,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	AdminInfo = { Tipo = "Function", Critico = false },
 	-- Fase 5: mazmorras
 	MazmorraEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	-- Arenas clasificatorias (NPC-038)
+	ArenaEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado|nil)
+	ArenaSalirCola = { Tipo = "Event", Critico = false }, -- ()
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})
