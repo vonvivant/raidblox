@@ -19,8 +19,13 @@
 --   * Oro e inventario están en el mismo perfil y se modifican juntos, sin
 --     ceder el hilo en el medio: o pasa todo o no pasa nada.
 --
+-- Retoque: el Tintorero y el propio Maestro Personalizador también dejan
+-- cambiar un ítem que ya es tuyo, cobrando por pieza que cambia. El Tintorero
+-- solo permite colores (el material queda como está).
+--
 -- NPCs: un Model con el tag "NpcPersonalizador" (atributo opcional `Categoria`
--- = "Armas" | "Armaduras"). En la zona de pruebas se crea uno.
+-- = "Armas" | "Armaduras", y `Solo` = "Color" para el Tintorero). En la zona de
+-- pruebas se crea uno.
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -36,6 +41,7 @@ local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
 local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local NpcFactory = require(script.Parent.Parent.NpcFactory)
+local NpcManager = require(script.Parent.Parent.NpcManager)
 
 type Respuesta = Types.Respuesta
 type Entrada = Personalizador.Entrada
@@ -61,6 +67,8 @@ local iniciado = false
 -- Sesión de tienda: con qué NPC está hablando cada jugador.
 local sesiones: { [Player]: BasePart } = {}
 local enCurso: { [Player]: boolean } = {}
+-- Qué permite el NPC con el que está hablando (el Tintorero, solo color).
+local soloColor: { [Player]: boolean } = {}
 local auditoria: { Auditoria } = {}
 local avisados: { [Model]: string } = {}
 
@@ -380,10 +388,160 @@ local function comprar(
 end
 
 ------------------------------------------------------------------------
+-- Retoque de un ítem que ya es del jugador
+------------------------------------------------------------------------
+
+type Retoque = {
+	Clave: string, -- ranura del inventario
+	Item: Types.ItemInstancia,
+	Entrada: Entrada,
+	Antes: Config.Personalizacion,
+	Pers: Config.Personalizacion,
+	Cambiadas: number,
+	Precio: number,
+}
+
+-- Valida el ítem y la personalización nueva, y calcula qué cambia y cuánto sale.
+local function cotizarRetoque(player: Player, uid: unknown, datosPers: unknown): (Retoque?, Types.CodigoError, string?)
+	local id = NetworkBridge.Guard.String(uid, 64)
+	if not id then
+		return nil, "INVALID_ARGS", nil
+	end
+	if not enTienda(player) then
+		return nil, "NOT_ALLOWED", "Tenés que estar junto al vendedor."
+	end
+	local clave, item = DataManager.BuscarPorUid(player, id)
+	if not clave or not item then
+		return nil, "NOT_FOUND", "Ese objeto ya no está en tu mochila."
+	end
+	local entrada = catalogo()[item.ItemId]
+	if not entrada then
+		return nil, "NOT_FOUND", "Ese objeto no se puede personalizar."
+	end
+	local antes: Config.Personalizacion = Config.Decodificar(if item.Meta then item.Meta.Pers else nil) or {}
+	local pers, motivo = Personalizador.Normalizar(entrada, datosPers)
+	if not pers then
+		return nil, "INVALID_ARGS", `Personalización inválida: {motivo or "?"}.`
+	end
+	-- El Tintorero solo cambia colores: cada pieza tiene que conservar el
+	-- material que tiene hoy.
+	if soloColor[player] then
+		for piezaId, pieza in pers do
+			local original = entrada.PorId[piezaId]
+			local actual = antes[piezaId]
+			local material = if actual then actual.Material else (if original then original.Material else nil)
+			if material and pieza.Material ~= material then
+				return nil, "NOT_ALLOWED", "El tintorero solo cambia colores, no materiales."
+			end
+		end
+		local nueva: Config.Personalizacion = pers
+		for piezaId, pieza in antes do
+			local original = entrada.PorId[piezaId]
+			-- Quitar una pieza que tenía otro material también es cambiarlo.
+			if nueva[piezaId] == nil and original and pieza.Material ~= original.Material then
+				return nil, "NOT_ALLOWED", "El tintorero solo cambia colores, no materiales."
+			end
+		end
+	end
+	local cambiadas = Config.Diferencias(antes, pers)
+	return {
+		Clave = clave,
+		Item = item,
+		Entrada = entrada,
+		Antes = antes,
+		Pers = pers,
+		Cambiadas = cambiadas,
+		Precio = Config.PrecioRetoque(cambiadas),
+	},
+		"INTERNAL_ERROR",
+		nil
+end
+
+local function retocar(
+	player: Player,
+	uid: unknown,
+	requestId: unknown,
+	datosPers: unknown,
+	precioVisto: unknown
+): Respuesta
+	if not Config.RequestIdValido(requestId) then
+		return NetworkBridge.Fail("INVALID_ARGS")
+	end
+	local pedido = requestId :: string
+	local visto = NetworkBridge.Guard.Integer(precioVisto, 0, 100_000_000)
+	local datos = DataManager.GetData(player)
+	if not visto then
+		return NetworkBridge.Fail("INVALID_ARGS")
+	end
+	if not datos then
+		return NetworkBridge.Fail("DATA_NOT_LOADED")
+	end
+	local cotizacion, codigo, texto = cotizarRetoque(player, uid, datosPers)
+	if not cotizacion then
+		if texto then
+			avisar(player, texto)
+		end
+		return NetworkBridge.Fail(codigo :: any)
+	end
+	local codificada = Config.Codificar(cotizacion.Pers)
+	local firma = `retoque|{cotizacion.Item.Uid}|{codificada}`
+
+	-- Reintento del mismo pedido: no se cobra ni se aplica otra vez.
+	local previa = datos.ComprasPersonalizador and datos.ComprasPersonalizador[pedido]
+	if previa then
+		if previa.Firma ~= firma then
+			anotar(player, pedido, cotizacion.Item.ItemId, cotizacion.Precio, "ID_REUSADO")
+			return NetworkBridge.Fail("INVALID_ARGS")
+		end
+		anotar(player, pedido, previa.ItemId, previa.Precio, "REPETIDA", previa.Uid)
+		return NetworkBridge.Ok({ Estado = "Retocado", Uid = previa.Uid, Precio = previa.Precio, Repetida = true })
+	end
+
+	if cotizacion.Cambiadas == 0 then
+		avisar(player, "No cambiaste nada.", "Info")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if visto ~= cotizacion.Precio then
+		return NetworkBridge.Ok({ Estado = "PrecioCambio", Precio = cotizacion.Precio })
+	end
+	if datos.Oro < cotizacion.Precio then
+		avisar(player, "No te alcanza el oro.")
+		anotar(player, pedido, cotizacion.Item.ItemId, cotizacion.Precio, "INSUFFICIENT_FUNDS")
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+
+	-- Desde acá no se cede el hilo: cobro, cambio del ítem y registro juntos.
+	if not DataManager.SpendGold(player, cotizacion.Precio) then
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+	local meta: Types.ItemMeta = if cotizacion.Item.Meta then table.clone(cotizacion.Item.Meta) else {}
+	if codificada == tostring(Config.Version) then
+		(meta :: any).Pers = nil -- volvió a ser igual al modelo original
+	else
+		meta.Pers = codificada
+	end
+	if not DataManager.SetMetaRanura(player, cotizacion.Clave, if next(meta) == nil then nil else meta) then
+		DataManager.AddGold(player, cotizacion.Precio)
+		anotar(player, pedido, cotizacion.Item.ItemId, cotizacion.Precio, "INTERNAL_ERROR")
+		return NetworkBridge.Fail("INTERNAL_ERROR")
+	end
+	recordar(datos, pedido, {
+		Uid = cotizacion.Item.Uid,
+		ItemId = cotizacion.Item.ItemId,
+		Precio = cotizacion.Precio,
+		Firma = firma,
+		T = os.time(),
+	})
+	anotar(player, pedido, cotizacion.Item.ItemId, cotizacion.Precio, "RETOQUE", cotizacion.Item.Uid)
+	avisar(player, `{cotizacion.Entrada.Nombre}: {cotizacion.Cambiadas} pieza(s) cambiada(s).`, "Oro")
+	return NetworkBridge.Ok({ Estado = "Retocado", Uid = cotizacion.Item.Uid, Precio = cotizacion.Precio })
+end
+
+------------------------------------------------------------------------
 -- NPCs
 ------------------------------------------------------------------------
 
-local function abrir(player: Player, raizNpc: BasePart, categoria: string?)
+local function abrir(player: Player, raizNpc: BasePart, categoria: string?, solo: string?)
 	local raiz = raizDe(player)
 	if
 		not raiz
@@ -394,7 +552,8 @@ local function abrir(player: Player, raizNpc: BasePart, categoria: string?)
 		return
 	end
 	sesiones[player] = raizNpc
-	NetworkBridge.Server.FireClient("PersonalizadorAbrir", player, raizNpc.Position, categoria)
+	soloColor[player] = solo == "Color"
+	NetworkBridge.Server.FireClient("PersonalizadorAbrir", player, raizNpc.Position, categoria, solo)
 end
 
 local function prepararNpc(instancia: Instance)
@@ -412,6 +571,7 @@ local function prepararNpc(instancia: Instance)
 		humanoide.NameDisplayDistance = 250
 	end
 	local categoria = instancia:GetAttribute("Categoria")
+	local solo = instancia:GetAttribute("Solo")
 	local prompt = raiz:FindFirstChildOfClass("ProximityPrompt") or Instance.new("ProximityPrompt")
 	prompt.ActionText = "Probar y comprar"
 	prompt.ObjectText = "Vendedor"
@@ -420,7 +580,12 @@ local function prepararNpc(instancia: Instance)
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = raiz
 	prompt.Triggered:Connect(function(player: Player)
-		abrir(player, raiz, if categoria == "Armas" or categoria == "Armaduras" then categoria else nil)
+		abrir(
+			player,
+			raiz,
+			if categoria == "Armas" or categoria == "Armaduras" then categoria else nil,
+			if solo == "Color" then "Color" else nil
+		)
 	end)
 end
 
@@ -455,8 +620,19 @@ function PersonalizadorManager.Init()
 		)
 	end
 
+	-- Tintorero (NPC-031): abre el probador en modo retoque (solo colores).
+	NpcManager.RegistrarAccion("Tintar", function(player: Player, npc: any): boolean
+		local raiz = if typeof(npc) == "table" then npc.Raiz else nil
+		if not raiz or not raiz:IsA("BasePart") then
+			return false
+		end
+		abrir(player, raiz, nil, "Color")
+		return true -- abrir() ya valida distancia y estado; si no abre, no cobra nada
+	end)
+
 	NetworkBridge.Server.OnEvent("PersonalizadorCerrar", function(player: Player)
 		sesiones[player] = nil
+		soloColor[player] = nil
 	end)
 
 	NetworkBridge.Server.OnInvoke(
@@ -472,6 +648,23 @@ function PersonalizadorManager.Init()
 				Precio = cotizacion.Precio,
 				Piezas = Personalizador.Modificadas(cotizacion.Pers),
 			})
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke(
+		"PersonalizadorRetocar",
+		function(player: Player, uid: unknown, requestId: unknown, datos: unknown, precioVisto: unknown): Respuesta
+			if enCurso[player] then
+				return NetworkBridge.Fail("RATE_LIMITED")
+			end
+			enCurso[player] = true
+			local ok, resultado = pcall(retocar, player, uid, requestId, datos, precioVisto)
+			enCurso[player] = nil
+			if not ok then
+				warn(`[Personalizador] Error en el retoque de {player.UserId}: {resultado}`)
+				return NetworkBridge.Fail("INTERNAL_ERROR")
+			end
+			return resultado
 		end
 	)
 
@@ -496,6 +689,7 @@ function PersonalizadorManager.Init()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		sesiones[player] = nil
 		enCurso[player] = nil
+		soloColor[player] = nil
 	end)
 end
 

@@ -149,6 +149,7 @@ local DEFINICIONES: { [string]: Definicion } = {
 	PersonalizadorCerrar = { Tipo = "Event", Critico = false }, -- el cliente cerró el probador
 	PersonalizadorPresupuesto = { Tipo = "Function", Critico = false }, -- (itemId, personalizacion)
 	PersonalizadorComprar = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (itemId, requestId, personalizacion, precioVisto)
+	PersonalizadorRetocar = { Tipo = "Function", Critico = false, Timeout = 15 }, -- (uid, requestId, personalizacion, precioVisto)
 
 	-- Bóveda global (VaultManager)
 	VaultAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (pestañas disponibles)

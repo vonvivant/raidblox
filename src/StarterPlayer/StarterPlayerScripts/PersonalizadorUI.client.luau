@@ -7,6 +7,11 @@
 --   Derecha:   piezas, materiales y color (paleta, RGB y hexadecimal).
 --   Abajo:     precio (lo calcula el servidor), saldo, COMPRAR y CANCELAR.
 --
+-- Tiene dos modos. "Comprar": el catálogo son los modelos a la venta y al
+-- confirmar llega un ítem nuevo. "Retocar" (Tintorero): el catálogo son TUS
+-- ítems personalizables y al confirmar se cambia el que elegiste, cobrando por
+-- pieza que cambia. El Tintorero además solo deja cambiar colores.
+--
 -- Todo lo que se ve acá es local: el modelo de prueba es un clon que no existe
 -- para el servidor, no es un ítem y no da estadísticas. La compra la decide el
 -- servidor con el id del modelo y la personalización; el precio que se muestra
@@ -209,6 +214,16 @@ local posicionNpc: Vector3? = nil
 local categoria = "Armas"
 local conexiones: { any } = {} -- conexiones de Roblox y de señales propias
 
+local modoRetoque = false
+local soloColor = false
+-- En modo retoque: el ítem elegido de la mochila y lo que ya tenía guardado.
+local uidElegido: string? = nil
+local persGuardada: { [string]: Pieza } = {}
+
+type Mio = { Uid: string, Entrada: Entrada, Pers: { [string]: Pieza } }
+local elegirMio: (Mio) -> ()
+local llenarCatalogo: () -> ()
+
 local seleccion: Entrada? = nil
 local clon: Model? = nil
 local mapa: { [string]: BasePart } = {}
@@ -387,10 +402,20 @@ local function actualizarCompra()
 	end
 	local n = cantidadCambios()
 	textoItem.Text = s.Nombre
+	local p = presupuesto
+	if modoRetoque then
+		local cambiadas = Config.Diferencias(persGuardada, cambios())
+		textoEstado.Text = if cambiadas > 0
+			then `{cambiadas} pieza(s) a cambiar · se paga por pieza`
+			else "Sin cambios respecto de cómo está hoy"
+		textoPrecio.Text = if p then `Retoque: {p.Precio} de oro` else "—"
+		local puede = p ~= nil and cambiadas > 0 and oro() >= p.Precio and not comprando
+		botonComprar.BackgroundColor3 = if puede then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
+		return
+	end
 	textoEstado.Text = if n > 0
 		then `{n} pieza(s) modificada(s) · cambios sin comprar`
 		else "Sin cambios · los cambios son solo estéticos"
-	local p = presupuesto
 	if p then
 		textoPrecio.Text = if p.Extra > 0
 			then `Base {p.Base} + personalización {p.Extra} = {p.Precio} de oro`
@@ -419,6 +444,14 @@ local function cotizar()
 	presupuesto = nil
 	cotizacion += 1
 	local numero, miSesion = cotizacion, sesion
+	if modoRetoque then
+		-- Mismas reglas que el servidor, que de todos modos revalida el precio.
+		local cambiadas = Config.Diferencias(persGuardada, cambios())
+		local precio = Config.PrecioRetoque(cambiadas)
+		presupuesto = { Base = 0, Extra = precio, Precio = precio }
+		actualizarCompra()
+		return
+	end
 	actualizarCompra()
 	if not s then
 		return
@@ -507,6 +540,16 @@ end
 
 local function llenarMateriales()
 	UIKit.Limpiar(listaMateriales)
+	if soloColor then
+		local aviso = UIKit.Texto(
+			listaMateriales,
+			"El tintorero solo cambia colores. Para cambiar el material, hablá con el Maestro Personalizador.",
+			UDim2.new(1, 0, 0, 56)
+		)
+		aviso.TextColor3 = UIKit.Colores.TextoSuave
+		aviso.TextWrapped = true
+		return
+	end
 	local filtro = string.lower(cajaMaterial.Text)
 	for i, nombre in Personalizador.Materiales() do
 		if filtro ~= "" and not string.find(string.lower(nombre), filtro, 1, true) then
@@ -577,7 +620,7 @@ botonATodas.Activated:Connect(function()
 	local estado = if piezaId then actual(piezaId) else nil
 	if s and estado then
 		for _, pieza in s.Piezas do
-			fijar(pieza.Id, estado.Material, estado.Color)
+			fijar(pieza.Id, if soloColor then nil else estado.Material, estado.Color)
 		end
 		despuesDeEditar()
 	end
@@ -592,7 +635,7 @@ end)
 botonPegar.Activated:Connect(function()
 	local copia = portapapeles
 	if piezaId and copia then
-		fijar(piezaId, copia.Material, copia.Color)
+		fijar(piezaId, if soloColor then nil else copia.Material, copia.Color)
 		despuesDeEditar()
 	end
 end)
@@ -603,6 +646,8 @@ end)
 
 local function elegirItem(entrada: Entrada?)
 	seleccion = entrada
+	uidElegido = nil
+	persGuardada = {}
 	pedidoId = nil
 	ponerClon()
 	llenarPiezas()
@@ -610,7 +655,40 @@ local function elegirItem(entrada: Entrada?)
 	cotizar()
 end
 
-local function llenarCatalogo()
+-- Modo retoque: se arranca desde lo que el ítem ya tiene puesto.
+elegirMio = function(mio: Mio)
+	seleccion = mio.Entrada
+	uidElegido = mio.Uid
+	persGuardada = mio.Pers
+	pedidoId = nil
+	cambiosPorItem[mio.Entrada.ItemId] = table.clone(mio.Pers)
+	ponerClon()
+	llenarPiezas()
+	elegirPieza(mio.Entrada.Piezas[1].Id)
+	cotizar()
+	llenarCatalogo()
+end
+
+-- Ítems de la mochila que tienen modelo para personalizar.
+local function misItems(): { Mio }
+	local inv = EstadoCliente.Get("Inventario")
+	local slots: { [string]: any } = if typeof(inv) == "table" and typeof(inv.Slots) == "table" then inv.Slots else {}
+	local catalogo = Personalizador.Catalogo()
+	local lista: { Mio } = {}
+	for _, item in slots do
+		local entrada = catalogo[item.ItemId]
+		if entrada and typeof(item.Uid) == "string" then
+			local guardada = Config.Decodificar(if item.Meta then item.Meta.Pers else nil) or {}
+			table.insert(lista, { Uid = item.Uid, Entrada = entrada, Pers = guardada })
+		end
+	end
+	table.sort(lista, function(a: Mio, b: Mio): boolean
+		return if a.Entrada.Nombre ~= b.Entrada.Nombre then a.Entrada.Nombre < b.Entrada.Nombre else a.Uid < b.Uid
+	end)
+	return lista
+end
+
+llenarCatalogo = function()
 	UIKit.Limpiar(listaCatalogo)
 	botonArmas.BackgroundColor3 = if categoria == "Armas" then UIKit.Colores.BotonPrimario else UIKit.Colores.Boton
 	botonArmaduras.BackgroundColor3 = if categoria == "Armaduras"
@@ -618,6 +696,46 @@ local function llenarCatalogo()
 		else UIKit.Colores.Boton
 	local tipo = Config.Subcarpetas[categoria]
 	local filtro = string.lower(cajaBuscar.Text)
+
+	if modoRetoque then
+		-- Tus ítems, no el catálogo de venta.
+		local mios = misItems()
+		local mostrados = 0
+		for i, mio in mios do
+			if mio.Entrada.Tipo ~= tipo then
+				continue
+			end
+			if filtro ~= "" and not string.find(string.lower(mio.Entrada.Nombre), filtro, 1, true) then
+				continue
+			end
+			mostrados += 1
+			local piezas = 0
+			for _ in mio.Pers do
+				piezas += 1
+			end
+			local b = fila(
+				listaCatalogo,
+				if piezas > 0 then `{mio.Entrada.Nombre} · {piezas} pieza(s)` else mio.Entrada.Nombre,
+				i
+			)
+			if mio.Uid == uidElegido then
+				b.BackgroundColor3 = UIKit.Colores.BotonPrimario
+			end
+			b.Activated:Connect(function()
+				elegirMio(mio)
+			end)
+		end
+		if mostrados == 0 then
+			local vacio = UIKit.Texto(
+				listaCatalogo,
+				"No tenés en la mochila ningún objeto de esta categoría que se pueda personalizar.",
+				UDim2.new(1, 0, 0, 50)
+			)
+			vacio.TextColor3 = UIKit.Colores.TextoSuave
+			vacio.TextWrapped = true
+		end
+		return
+	end
 	local entradas: { Entrada } = {}
 	for _, entrada in Personalizador.Catalogo() do
 		if entrada.Tipo == tipo and (filtro == "" or string.find(string.lower(entrada.Nombre), filtro, 1, true)) then
@@ -712,7 +830,7 @@ local function mostrarConfirmacion(aviso: string?)
 	if aviso then
 		agregar(aviso, UIKit.Colores.Oro)
 	end
-	agregar(`Objeto: {s.Nombre}`)
+	agregar(if modoRetoque then `Retocar: {s.Nombre}` else `Objeto: {s.Nombre}`)
 	local ids: { string } = {}
 	for id in cambios() do
 		table.insert(ids, id)
@@ -725,6 +843,9 @@ local function mostrarConfirmacion(aviso: string?)
 		local pieza = cambios()[id]
 		local original = s.PorId[id]
 		agregar(`  · {if original then original.Nombre else id}: {pieza.Material}, #{pieza.Color}`)
+	end
+	if modoRetoque then
+		agregar(`Piezas a cambiar: {Config.Diferencias(persGuardada, cambios())}`)
 	end
 	agregar(`Precio final: {p.Precio} de oro`, UIKit.Colores.Oro)
 	agregar(`Tu oro: {oro()}   ·   te quedan: {oro() - p.Precio}`)
@@ -742,31 +863,45 @@ local function enviarCompra()
 	end
 	comprando = true
 	pConfirmar.Visible = false
-	textoPrecio.Text = "Comprando…"
+	textoPrecio.Text = if modoRetoque then "Aplicando…" else "Comprando…"
 	-- El mismo id mientras el pedido no tenga una respuesta definitiva: si la
 	-- respuesta se pierde, reintentar no compra dos veces.
 	local id = pedidoId or HttpService:GenerateGUID(false)
 	pedidoId = id
 	local miSesion = sesion
-	local r = NetworkBridge.Client.Invoke("PersonalizadorComprar", s.ItemId, id, paraEnviar(), p.Precio)
+	local uid = uidElegido
+	local r = if modoRetoque and uid
+		then NetworkBridge.Client.Invoke("PersonalizadorRetocar", uid, id, paraEnviar(), p.Precio)
+		else NetworkBridge.Client.Invoke("PersonalizadorComprar", s.ItemId, id, paraEnviar(), p.Precio)
 	comprando = false
 	if miSesion ~= sesion then
 		return -- se cerró el probador: si la compra se hizo, el ítem ya está en la mochila
 	end
 	local datos = r.Data
-	if r.Success and typeof(datos) == "table" and datos.Estado == "Comprado" then
+	if r.Success and typeof(datos) == "table" and datos.Estado == "Retocado" then
+		pedidoId = nil
+		persGuardada = table.clone(cambios())
+		Avisos.Mostrar(`{s.Nombre}: cambios aplicados.`, "Oro")
+		llenarCatalogo()
+		cotizar()
+	elseif r.Success and typeof(datos) == "table" and datos.Estado == "Comprado" then
 		pedidoId = nil
 		Avisos.Mostrar(`¡{s.Nombre} comprada! Está en tu mochila.`, "Oro")
 	elseif r.Success and typeof(datos) == "table" and datos.Estado == "PrecioCambio" then
 		-- El servidor no cobró: hay que confirmar de nuevo con el precio real.
 		pedidoId = nil
-		presupuesto = { Base = s.Precio, Extra = datos.Precio - s.Precio, Precio = datos.Precio }
+		presupuesto = if modoRetoque
+			then { Base = 0, Extra = datos.Precio, Precio = datos.Precio }
+			else { Base = s.Precio, Extra = datos.Precio - s.Precio, Precio = datos.Precio }
 		mostrarConfirmacion(`El precio cambió: ahora cuesta {datos.Precio} de oro.`)
 	elseif r.ErrorCode == "TIMEOUT" or r.ErrorCode == "RATE_LIMITED" then
 		Avisos.Mostrar("No hubo respuesta del servidor. Tocá COMPRAR de nuevo: no se cobra dos veces.", "Error")
 	else
 		pedidoId = nil
-		Avisos.Mostrar("No se pudo completar la compra.", "Error")
+		Avisos.Mostrar(
+			if modoRetoque then "No se pudo aplicar el cambio." else "No se pudo completar la compra.",
+			"Error"
+		)
 	end
 	actualizarCompra()
 end
@@ -774,6 +909,18 @@ end
 botonComprar.Activated:Connect(function()
 	local s, p = seleccion, presupuesto
 	if not s or comprando then
+		return
+	end
+	if modoRetoque then
+		if not uidElegido then
+			Avisos.Mostrar("Elegí uno de tus objetos.", "Info")
+		elseif Config.Diferencias(persGuardada, cambios()) == 0 then
+			Avisos.Mostrar("No cambiaste nada.", "Info")
+		elseif p and oro() < p.Precio then
+			Avisos.Mostrar("No te alcanza el oro.", "Error")
+		else
+			mostrarConfirmacion(nil)
+		end
 		return
 	end
 	if not p then
@@ -826,6 +973,8 @@ local function cerrar()
 	end
 	quitarClon()
 	seleccion, piezaId, presupuesto, pedidoId = nil, nil, nil, nil
+	uidElegido, persGuardada = nil, {}
+	modoRetoque, soloColor = false, false
 	table.clear(cambiosPorItem)
 	portapapeles = nil
 	pConfirmar.Visible = false
@@ -870,7 +1019,7 @@ local function elegirConClic(posicion: Vector3)
 	end
 end
 
-local function abrir(posicion: Vector3, categoriaNpc: string?)
+local function abrir(posicion: Vector3, categoriaNpc: string?, solo: string?)
 	if abierta then
 		cerrar()
 	end
@@ -884,6 +1033,11 @@ local function abrir(posicion: Vector3, categoriaNpc: string?)
 	abierta = true
 	sesion += 1
 	posicionNpc = posicion
+	soloColor = solo == "Color"
+	modoRetoque = soloColor -- hoy el único que retoca es el Tintorero
+	tituloConfirmar.Text = if modoRetoque then "Confirmar el cambio" else "Confirmar compra"
+	botonComprar.Text = if modoRetoque then "APLICAR" else "COMPRAR"
+	cartel.Text = if modoRetoque then "RETOQUE" else "VISTA PREVIA"
 	if categoriaNpc == "Armas" or categoriaNpc == "Armaduras" then
 		categoria = categoriaNpc
 	end
@@ -998,6 +1152,10 @@ local function abrir(posicion: Vector3, categoriaNpc: string?)
 	llenarCatalogo()
 	llenarMateriales()
 	elegirItem(nil)
+	if modoRetoque then
+		-- En retoque, el catálogo son tus ítems: nada elegido hasta que toques uno.
+		textoItem.Text = "Elegí uno de tus objetos"
+	end
 	raiz.Visible = true
 	UIKit.EnfocarPrimero(pCatalogo)
 end
@@ -1016,12 +1174,16 @@ botonMenos.Activated:Connect(function()
 end)
 botonCancelar.Activated:Connect(cerrar)
 
-NetworkBridge.Client.OnEvent("PersonalizadorAbrir", function(posicion: any, categoriaNpc: any)
+NetworkBridge.Client.OnEvent("PersonalizadorAbrir", function(posicion: any, categoriaNpc: any, solo: any)
 	if typeof(posicion) ~= "Vector3" then
 		return
 	end
 	local ok, err = pcall(function(): nil
-		abrir(posicion, if typeof(categoriaNpc) == "string" then categoriaNpc else nil)
+		abrir(
+			posicion,
+			if typeof(categoriaNpc) == "string" then categoriaNpc else nil,
+			if typeof(solo) == "string" then solo else nil
+		)
 		return nil
 	end)
 	if not ok then

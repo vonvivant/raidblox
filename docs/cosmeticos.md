@@ -42,8 +42,20 @@ la abre). Van en `MascotasConfig.Mascotas` con el campo `Precio`.
 
 ## Tintorero (NPC-031)
 
-**Pendiente.** Lo que pedía el diseño (tintes para el equipo) hoy lo cubre en parte el
-[vendedor personalizador](personalizador.md), que deja elegir material y color de cada pieza **al comprar**. Lo
-que falta es poder **retocar un ítem que ya tenés**: elegirlo de la mochila, cambiarle los colores y pagar por
-pieza modificada. Eso es la próxima etapa y también cierra el pedido de "re-personalizar" y los NPC Maestro de
-Armas y de Armaduras de la forja estética.
+Vuelve a pintar el equipo **que ya tenés**. Al hablarle y elegir "Volver a pintar mi equipo" se abre el mismo
+probador del [vendedor personalizador](personalizador.md), pero en **modo retoque**:
+
+- El panel izquierdo lista **tus objetos** (los de la mochila que tengan modelo), no el catálogo de venta.
+- La vista previa arranca con la personalización que el objeto ya tiene.
+- Se cambia el **color** de cada pieza; el material queda como está (para cambiarlo, el Maestro Personalizador).
+- Se paga **40 de oro por pieza que cambia** respecto de cómo está hoy. Volver una pieza a su color original
+  también cuenta como cambio.
+- Al confirmar no llega un objeto nuevo: se actualiza el que elegiste (su `Meta.Pers`), así que conserva su Uid,
+  su durabilidad y sus gemas.
+
+El servidor valida que el objeto siga en tu mochila, que la personalización sea válida y que el material no
+cambie; el precio lo calcula él y, si no coincide con el que viste, no cobra y te pide confirmar de nuevo. Los
+reintentos usan el mismo id de pedido, así que no se cobra dos veces.
+
+Esto también cierra el pedido de **re-personalizar un ítem ya comprado**. Un NPC "Maestro de Armas" o "Maestro de
+Armaduras" se arma poniendo el tag `NpcPersonalizador` con el atributo `Categoria`.

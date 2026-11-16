@@ -820,16 +820,24 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Numero = 31,
 		Nombre = "Tintorero",
 		Categoria = "Cosmeticos",
-		Descripcion = "Maestro de colores: tintes para armaduras y telas.",
-		Interfaces = { "IVendor", "ICrafter" },
+		Descripcion = "Maestro de colores: vuelve a pintar, pieza por pieza, el equipo que ya tenés.",
+		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
-		Estado = "Pendiente",
+		Estado = "Listo",
 		Color = ROSA,
-		Estacion = "Telar",
+		Servicios = {
+			{
+				Id = "Tintar",
+				Nombre = "Volver a pintar mi equipo",
+				Descripcion = "Elegís un objeto de tu mochila y le cambiás el color de cada pieza.",
+				Costo = 0,
+				Accion = "Tintar",
+			},
+		},
 		Parametros = {
-			Tintes = { "Negro", "Blanco", "Verde", "Dorado" },
-			Exclusivos = { Rojo = "Carmesí del Reino", Azul = "Azul Real" },
-			Requiere = "Personalización de color por partes",
+			Como = "Abre el probador en modo retoque: solo colores, se paga por pieza que cambia",
+			Precio = "PersonalizadorConfig.CostoRetoque por pieza que cambia",
+			Nota = "Para cambiar materiales, el Maestro Personalizador",
 		},
 	},
 	VendedorMascotas = {
@@ -1058,5 +1066,6 @@ return {
 		{ Arquetipo = "Barbero", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 82) },
 		{ Arquetipo = "Transfigurador", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 82) },
 		{ Arquetipo = "VendedorMascotas", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 82) },
+		{ Arquetipo = "Tintorero", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 82) },
 	} :: { { Arquetipo: string, Faccion: Faccion, Posicion: Vector3 } },
 }

@@ -189,5 +189,7 @@ Cómo probar: `docs/instalacion.md`, sección "Probar el vendedor personalizador
 - **Apariencias (transmog):** si el jugador tiene una apariencia puesta en ese slot, se ve la apariencia y no la
   personalización.
 - **Stencils, escala y opacidad** del pedido de forja estética: no están; este sistema cubre material y color.
+- **Retocar un ítem ya comprado:** sí, con el Tintorero (NPC-031), que abre este mismo probador en modo retoque
+  y cambia solo colores ([cosméticos](cosmeticos.md)).
 - **Stock y reputación:** todos los modelos del catálogo están siempre a la venta (solo se filtra por nivel).
 - El ítem comprado es de rareza Común, con las estadísticas del catálogo.

@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (31 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (32 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **27** implementados sin verificar, **2** en desarrollo y **10** pendientes (total 39).
+Hoy: **28** implementados sin verificar, **2** en desarrollo y **9** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -89,7 +89,7 @@ Hoy: **27** implementados sin verificar, **2** en desarrollo y **10** pendientes
 |---|---|---|---|---|---|
 | NPC-029 | Barbero (`Barbero`) | Rojo, Azul, Neutral | Cambiar de estilo | — | Implementado sin verificar |
 | NPC-030 | Transfigurador (`Transfigurador`) | Rojo, Azul, Neutral | Transfigurar equipo | — | Implementado sin verificar |
-| NPC-031 | Tintorero (`Tintorero`) | Rojo, Azul, Neutral | — | Personalización de color por partes | Pendiente |
+| NPC-031 | Tintorero (`Tintorero`) | Rojo, Azul, Neutral | Volver a pintar mi equipo | — | Implementado sin verificar |
 | NPC-032 | Vendedor de Mascotas (`VendedorMascotas`) | Rojo, Azul, Neutral | Comprar a Hojita, Comprar a Piedrín, Comprar a Lucero, Ver mis mascotas | — | Implementado sin verificar |
 
 ### Grupo G — Vida social, vivienda y minijuegos
@@ -128,6 +128,6 @@ Hoy: **27** implementados sin verificar, **2** en desarrollo y **10** pendientes
 4. ~~Grupo C: banco de clan desde el NPC (015), filtros de subastas (016), cambista (018), stock rotativo del mercado negro (019)~~ (hecho). **Falta decidir** las pujas y la separación de subastas por bando.
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
 6. ~~Grupo E: descanso y rumores (025), diarias (026), reputación (027)~~ (hecho, ver [progresión social](progresion-social.md)). Queda 028 (entrenador): **falta decidir** si vende habilidades por oro o si se hace un sistema de talentos.
-7. ~~Grupo F: barbero (029), transfigurador (030), mascotas por oro (032)~~ (hecho, ver [cosméticos](cosmeticos.md)). Queda 031 (Tintorero): retocar un ítem ya comprado.
+7. ~~Grupo F completo: barbero (029), transfigurador (030), tintorero (031, retoca lo que ya tenés) y mascotas por oro (032)~~ (hecho, ver [cosméticos](cosmeticos.md)).
 8. Grupo G: vivienda (033, con las parcelas), cocina (034), pesca (035), minijuegos sin apuestas (036).
 9. Grupo H: equipo PvP (037), arenas (038), asedio (039).

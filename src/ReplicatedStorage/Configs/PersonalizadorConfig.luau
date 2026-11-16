@@ -33,6 +33,9 @@ Config.ComprasRecordadas = 20 -- últimas compras guardadas en el perfil (reinte
 
 -- Precio = BasePrice del modelo + CostoPorPieza por cada pieza modificada.
 Config.CostoPorPieza = 25
+-- Retoque de un ítem que ya es tuyo (Tintorero y Maestro Personalizador): se
+-- paga por pieza que cambia respecto de cómo está hoy.
+Config.CostoRetoque = 40
 
 -- Cámara del probador
 Config.Camara = {
@@ -161,6 +164,31 @@ end
 -- Precio final de un modelo con `modificadas` piezas cambiadas.
 function Config.Precio(base: number, modificadas: number): number
 	return math.floor(base) + Config.CostoPorPieza * math.max(0, math.floor(modificadas))
+end
+
+-- Precio de retocar un ítem que ya tenés: solo las piezas que cambian.
+function Config.PrecioRetoque(cambiadas: number): number
+	return Config.CostoRetoque * math.max(0, math.floor(cambiadas))
+end
+
+-- Cuántas piezas difieren entre dos personalizaciones (lo que se cobra al
+-- retocar). Una pieza que vuelve a su material y color original también cuenta.
+function Config.Diferencias(antes: Personalizacion, despues: Personalizacion): number
+	local vistas: { [string]: boolean } = {}
+	local total = 0
+	for id, pieza in despues do
+		vistas[id] = true
+		local previa = antes[id]
+		if not previa or previa.Material ~= pieza.Material or previa.Color ~= pieza.Color then
+			total += 1
+		end
+	end
+	for id in antes do
+		if not vistas[id] then
+			total += 1
+		end
+	end
+	return total
 end
 
 -- Componentes 0..255 de un color "RRGGBB" (o nil si no es válido).

@@ -69,3 +69,22 @@ prueba("personalizador: el precio es la base más un extra por pieza modificada"
 	exigir(P.Precio(100, 3) == 100 + 3 * P.CostoPorPieza, "con 3 piezas")
 	exigir(P.Precio(100.9, -2) == 100, "no acepta cantidades negativas ni decimales")
 end)
+
+prueba("retoque: se cobra por pieza que cambia respecto de cómo está hoy", function()
+	exigir(P.PrecioRetoque(0) == 0, "sin cambios no se paga")
+	exigir(P.PrecioRetoque(3) == 3 * P.CostoRetoque, "tres piezas")
+	exigir(P.PrecioRetoque(-2) == 0, "no acepta cantidades negativas")
+	local antes = { Hoja = { Material = "Metal", Color = "FF0000" } }
+	exigir(P.Diferencias(antes, antes) == 0, "lo mismo no cuesta nada")
+	exigir(P.Diferencias(antes, { Hoja = { Material = "Metal", Color = "00FF00" } }) == 1, "cambiar el color")
+	exigir(P.Diferencias(antes, { Hoja = { Material = "Wood", Color = "FF0000" } }) == 1, "cambiar el material")
+	exigir(P.Diferencias(antes, {}) == 1, "volver una pieza a su original también se cobra")
+	exigir(
+		P.Diferencias(antes, {
+			Hoja = { Material = "Metal", Color = "FF0000" },
+			Mango = { Material = "Wood", Color = "000000" },
+		}) == 1,
+		"agregar una pieza"
+	)
+	exigir(P.Diferencias({}, {}) == 0, "nada contra nada")
+end)
