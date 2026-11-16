@@ -159,6 +159,10 @@ export type DatosJugador = {
 	Mascotas: { string }?, -- mascotas obtenidas
 	MascotaEquipada: string?,
 	Apariencias: { string }?, -- apariencias (transmog) obtenidas
+	-- NPC Cosméticos: cuántas veces deshizo (el precio sube con cada uno) y
+	-- qué tenía puesto antes en cada slot, para poder volver atrás.
+	CosmeticosDeshechos: number?,
+	CosmeticosAnterior: { [string]: { Pers: string?, Transmog: string? } }?,
 	Transmog: { [string]: string }?, -- slot de equipo -> apariencia que se muestra
 	-- Chatarrero: ids de las habilidades equipadas en sus barras (hasta 16) y
 	-- recargas largas en curso (id -> hora del servidor en que quedan listas).

@@ -72,7 +72,10 @@ export type Arquetipo = {
 	Interfaces: { Interfaz },
 	Facciones: { Faccion },
 	Estado: "Listo" | "Parcial" | "Pendiente",
-	Sistema: string?, -- módulo o lugar del juego donde ya existe (Parcial)
+	Sistema: string?,
+	-- Arquetipo que absorbió a este: su oficio se atiende allá y este no
+	-- aparece en el mundo. Sirve para que la matriz no mienta.
+	Absorbido: string?, -- módulo o lugar del juego donde ya existe (Parcial)
 	Color: Color3,
 	Vende: { Oferta }?,
 	Compra: { Factor: number, Tipos: { string } }?, -- paga PrecioVenta × Factor por esos tipos de ítem
@@ -210,19 +213,11 @@ local Arquetipos: { [string]: Arquetipo } = {
 			{ ItemId = "LibroHeraldica", Precio = 1500 },
 			{ ItemId = "LibroBestias", Precio = 1500 },
 		} :: { Oferta },
-		Servicios = {
-			{
-				Id = "Grabar",
-				Nombre = "Grabar un objeto mío",
-				Descripcion = "Elegís algo de tu mochila y le aplicás calcomanías de los libros que sepas.",
-				Costo = 0,
-				Accion = "Grabar",
-			},
-		} :: { Servicio },
+		Servicios = {} :: { Servicio },
 		Parametros = {
 			Pergaminos = { "Regreso a tu capital", "Fortaleza al grupo (10 min)", "Reunión con tu líder" },
 			Libros = "Los tres libros de stencils del personalizador",
-			Graba = "Aplica calcomanías sobre lo que ya tenés, sin tocar material ni color",
+			Graba = "Las calcomanías se aplican en el NPC Cosméticos (#30); acá se compran los libros",
 			Donde = "Se usan desde la mochila; no andan en combate, Guerra, arena ni mazmorra",
 			Fabricar = "También se hacen en el Telar con tela de lino y flor lunar",
 			Futuro = { "Ítems sin identificar y el mapa que los revela" },
@@ -810,42 +805,49 @@ local Arquetipos: { [string]: Arquetipo } = {
 	},
 	Transfigurador = {
 		Numero = 30,
-		Nombre = "Transfigurador",
+		Nombre = "Cosméticos",
 		Categoria = "Cosmeticos",
-		Descripcion = "Maestro del disfraz: cambia el aspecto del equipo sin tocar sus estadísticas.",
+		Descripcion = "Todo el aspecto de lo que tenés puesto: visual, colores, decals y marcas.",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
 		Estado = "Listo",
+		Sistema = "CosmeticosManager (absorbió al Tintorero #31 y el grabado del Inscriptor #5)",
 		Color = ROSA,
 		Servicios = {
 			{
-				Id = "Transmog",
-				Nombre = "Transfigurar equipo",
-				Descripcion = "Elegí qué apariencia usa cada pieza, de las que tengas desbloqueadas.",
+				Id = "Cosmeticos",
+				Nombre = "Cambiar el aspecto de mi equipo",
+				Descripcion = "Visual, colores, decals y marcas, con vista previa de tu personaje.",
+				Costo = 0,
+				Accion = "Cosmeticos",
+			},
+			{
+				Id = "Coleccion",
+				Nombre = "Ver mi colección",
+				Descripcion = "Apariencias, mascotas y títulos que tenés desbloqueados.",
 				Costo = 0,
 				Accion = "Coleccion",
 			},
+		} :: { Servicio },
+		Parametros = {
+			Pestanas = { "Visual", "Colores", "Decals", "Marcas" },
+			Cobro = "Aplicar es gratis; deshacer sube en potencias de dos (CosmeticosConfig)",
+			Alcance = "Los ítems equipados en los slots visibles",
 		},
-		Parametros = { Sistema = "Apariencias de equipo (Tienda, pestaña Colección)" },
 	},
 	Tintorero = {
 		Numero = 31,
 		Nombre = "Tintorero",
 		Categoria = "Cosmeticos",
-		Descripcion = "Maestro de colores: vuelve a pintar, pieza por pieza, el equipo que ya tenés.",
+		Descripcion = "Maestro de colores. Su oficio ahora lo atiende el NPC Cosméticos (#30).",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
 		Estado = "Listo",
 		Color = ROSA,
-		Servicios = {
-			{
-				Id = "Tintar",
-				Nombre = "Volver a pintar mi equipo",
-				Descripcion = "Elegís un objeto de tu mochila y le cambiás el color de cada pieza.",
-				Costo = 0,
-				Accion = "Tintar",
-			},
-		},
+		-- Absorbido por el NPC Cosméticos (#30): su oficio vive ahí, en la
+		-- pestaña de colores, junto con el resto de la estética.
+		Absorbido = "Transfigurador",
+		Servicios = {} :: { Servicio },
 		Parametros = {
 			Como = "Abre el probador en modo retoque: solo colores, se paga por pieza que cambia",
 			Precio = "PersonalizadorConfig.CostoRetoque por pieza que cambia",
@@ -1177,7 +1179,7 @@ return {
 		{ Arquetipo = "Barbero", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 82) },
 		{ Arquetipo = "Transfigurador", Faccion = "Neutral", Posicion = Vector3.new(-25, 0, 82) },
 		{ Arquetipo = "VendedorMascotas", Faccion = "Neutral", Posicion = Vector3.new(-35, 0, 82) },
-		{ Arquetipo = "Tintorero", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 82) },
+		{ Arquetipo = "Transfigurador", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 82) },
 		{ Arquetipo = "ReclutadorArenas", Faccion = "Neutral", Posicion = Vector3.new(-15, 0, 92) },
 		{ Arquetipo = "Chef", Faccion = "Neutral", Posicion = Vector3.new(-30, 0, 92) },
 		{ Arquetipo = "MaestroPesca", Faccion = "Neutral", Posicion = Vector3.new(-45, 0, 92) },

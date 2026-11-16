@@ -270,6 +270,8 @@ local function valorSeccion(datos: DatosJugador, seccion: SeccionDatos): any
 			Mascotas = datos.Mascotas or {},
 			MascotaEquipada = datos.MascotaEquipada or false,
 			Apariencias = datos.Apariencias or {},
+			CosmeticosDeshechos = datos.CosmeticosDeshechos or 0,
+			CosmeticosAnterior = datos.CosmeticosAnterior or {},
 			Transmog = datos.Transmog or {},
 			Barras = DataManager.Barras(datos),
 			Apariencia = datos.Apariencia or {},
@@ -1591,6 +1593,23 @@ function DataManager.SetMaxSlots(player: Player, maxSlots: number): boolean
 end
 
 -- Reemplaza los metadatos de un equipo de la mochila (re-roll).
+-- Cambia el Meta de un ítem **equipado** (lo usa el NPC Cosméticos: la
+-- estética se aplica sobre lo que tenés puesto, sin desequiparlo).
+function DataManager.SetMetaEquipo(player: Player, slot: string, meta: Types.ItemMeta?): boolean
+	local perfil = perfilActivo(player)
+	if not perfil then
+		return false
+	end
+	local equipamiento = perfil.Data.Equipamiento :: { [string]: Types.ItemInstancia? }
+	local item = equipamiento[slot]
+	if not item then
+		return false
+	end
+	item.Meta = meta
+	notificarCambio(player, perfil.Data, "Equipamiento")
+	return true
+end
+
 function DataManager.SetMetaRanura(player: Player, clave: string, meta: Types.ItemMeta?): boolean
 	local perfil = perfilActivo(player)
 	if not perfil or not claveValida(perfil.Data.Inventario, clave) then

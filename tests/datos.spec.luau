@@ -118,6 +118,15 @@ end)
 prueba("NPCs: un arquetipo Listo ofrece al menos un servicio que funciona", function()
 	for id, a in Npcs.Arquetipos do
 		if a.Estado == "Listo" then
+			-- Un arquetipo absorbido no ofrece nada por sí mismo: su oficio lo
+			-- atiende otro, que sí tiene que existir y ofrecer algo.
+			if a.Absorbido then
+				local dueno = Npcs.Arquetipos[a.Absorbido]
+				exigir(dueno ~= nil, id .. " dice estar absorbido por un arquetipo que no existe: " .. a.Absorbido)
+				exigir(dueno.Estado == "Listo", id .. " fue absorbido por " .. a.Absorbido .. ", que no está listo")
+				exigir(#(dueno.Servicios or {}) > 0, a.Absorbido .. " absorbió a " .. id .. " pero no ofrece servicios")
+				continue
+			end
 			local sirve = a.Viajes or a.Estacion ~= nil or (a.Vende and #a.Vende > 0) or a.Compra ~= nil or (a.SobreItem and #a.SobreItem > 0)
 			for _, s in a.Servicios or {} do
 				sirve = sirve or s.Accion ~= nil

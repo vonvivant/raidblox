@@ -46,3 +46,29 @@ prueba("cosméticos: la cámara del preview tiene límites sanos", function()
 	exigir(cam.Altura > 0, "mira desde arriba del piso")
 	exigir(C.Distancia > 0, "hay que poder estar cerca del NPC")
 end)
+
+prueba("cosméticos: el NPC atiende lo que absorbió y nadie lo duplica", function()
+	local NPC = cargar("ReplicatedStorage/Configs/NpcArquetiposConfig")
+	local cosmeticos = NPC.Arquetipos.Transfigurador
+	exigir(cosmeticos.Numero == 30, "es el 030")
+	exigir(cosmeticos.Estado == "Listo", "está listo")
+	exigir(cosmeticos.Sistema ~= nil, "tiene que decir qué sistema lo atiende")
+
+	-- Nadie más puede ofrecer tintar ni grabar: era el punto de unificarlo.
+	for id, a in NPC.Arquetipos do
+		for _, servicio in a.Servicios or {} do
+			exigir(servicio.Accion ~= "Tintar", id .. " todavía ofrece tintar")
+			exigir(servicio.Accion ~= "Grabar", id .. " todavía ofrece grabar")
+		end
+	end
+
+	-- Los absorbidos apuntan a un arquetipo real y no aparecen en la plaza.
+	for id, a in NPC.Arquetipos do
+		if a.Absorbido then
+			exigir(NPC.Arquetipos[a.Absorbido] ~= nil, id .. " apunta a un arquetipo inexistente")
+			for _, prueba_ in NPC.DePrueba do
+				exigir(prueba_.Arquetipo ~= id, id .. " está absorbido pero igual aparece en la plaza de prueba")
+			end
+		end
+	end
+end)

@@ -1,6 +1,14 @@
-# Cosméticos: barbero, transfigurador y mascotas
+# Cosméticos
 
-Grupo F de los 39 NPC: Barbero (029), Transfigurador (030), Tintorero (031) y Vendedor de Mascotas (032).
+> **El NPC Cosméticos (#30)** es desde ahora el único lugar donde se cambia el aspecto del equipo que tenés
+> **puesto**: visual, colores, decals y marcas, con vista previa de tu personaje. Absorbió al Transfigurador
+> (su número y su puesto son los mismos) y al **Tintorero (#31)**, que ya no atiende por su cuenta; el
+> **Inscriptor (#5)** se quedó con los pergaminos y con la venta de los libros que desbloquean los decals.
+> Detalle de las pestañas y del costo de deshacer: [personalizador](personalizador.md) y la config
+> `CosmeticosConfig`.
+
+Grupo F de los 39 NPC: Barbero (029), Cosméticos (030, antes Transfigurador), Tintorero (031, absorbido por el
+anterior) y Vendedor de Mascotas (032).
 
 **Sin probar en Studio.** Pasa el chequeo de tipos, el lint y las pruebas de datos.
 

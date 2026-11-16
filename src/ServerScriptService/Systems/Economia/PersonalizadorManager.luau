@@ -655,6 +655,12 @@ end
 -- Init
 ------------------------------------------------------------------------
 
+-- El catálogo de modelos personalizables, para los sistemas que trabajan
+-- sobre ítems ya comprados (el NPC Cosméticos).
+function PersonalizadorManager.Catalogo(): { [string]: Personalizador.Entrada }
+	return catalogo()
+end
+
 function PersonalizadorManager.Init()
 	assert(not iniciado, "PersonalizadorManager.Init() se llamó dos veces")
 	iniciado = true

@@ -301,7 +301,7 @@ function RecoleccionManager.Init()
 	-- cortaba el Init y ningún nodo quedaba con su cartel: nada era
 	-- recolectable, ni en Studio ni en el servidor publicado.
 	local function crear(id: string, offset: Vector3)
-		local ok, err = pcall(crearNodoPrueba, id, offset)
+		local ok, err = pcall(crearNodoPrueba :: any, id, offset)
 		if not ok then
 			warn(`[Recoleccion] no se pudo crear el nodo de prueba {id}: {err}`)
 		end

@@ -106,6 +106,12 @@ local DEFINICIONES: { [string]: Definicion } = {
 	ParcelaConstruir = { Tipo = "Function", Critico = true, Timeout = 20 }, -- (parcelaId, accion, datos)
 	RazaElegir = { Tipo = "Function", Critico = true, Timeout = 10 }, -- (razaId)
 	StencilsMios = { Tipo = "Function", Critico = false, Timeout = 10 }, -- ()
+	-- NPC Cosméticos
+	CosmeticosAbrir = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- (estado)
+	CosmeticosEstado = { Tipo = "Function", Critico = false, Timeout = 10 }, -- ()
+	CosmeticosAplicar = { Tipo = "Function", Critico = true, Timeout = 15 }, -- (pestaña, slot, datos)
+	CosmeticosDeshacer = { Tipo = "Function", Critico = true, Timeout = 15 }, -- (slot)
+	CosmeticosCerrar = { Tipo = "Event", Critico = false }, -- ()
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})

@@ -252,6 +252,12 @@ local function elegir(player: Player, slot: string, id: string): Respuesta
 	return NetworkBridge.Ok(nil)
 end
 
+-- Para el NPC Cosméticos (pestaña Visual): elegir o quitar ("") la apariencia
+-- de un slot, con las mismas validaciones que el remote.
+function EquipoVisible.ElegirTransmog(player: Player, slot: string, id: string): Respuesta
+	return elegir(player, slot, id)
+end
+
 function EquipoVisible.Init()
 	assert(not iniciado, "EquipoVisible.Init() se llamó dos veces")
 	iniciado = true

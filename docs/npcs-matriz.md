@@ -38,7 +38,7 @@ Hoy: **33** implementados sin verificar, **3** en desarrollo y **3** pendientes 
 | NPC-002 | Boticario Espiritual (`BoticarioEspiritual`) | Rojo, Azul, Neutral | vende 4 ítems, fabrica en MesaAlquimia | — | Implementado sin verificar |
 | NPC-003 | Alquimista Experimental (`AlquimistaExperimental`) | Rojo, Azul, Neutral | vende 5 ítems, fabrica en MesaAlquimia | — | Implementado sin verificar |
 | NPC-004 | Borrador de Recuerdos (`BorradorRecuerdos`) | Rojo, Azul, Neutral | — | Sistema de talentos (hoy la clase define todas las habilidades) | Pendiente |
-| NPC-005 | Inscriptor (`Inscriptor`) | Rojo, Azul, Neutral | vende 6 ítems, fabrica en Telar, Grabar un objeto mío | Ítems sin identificar y el mapa que los revela | Implementado sin verificar |
+| NPC-005 | Inscriptor (`Inscriptor`) | Rojo, Azul, Neutral | vende 6 ítems, fabrica en Telar | Ítems sin identificar y el mapa que los revela | Implementado sin verificar |
 | NPC-006 | Barista de Tés (`BaristaTes`) | Rojo, Azul, Neutral | vende 4 ítems, fabrica en MesaAlquimia | Recetas raras por bioma; Resistencia a estados negativos (hoy: +defensa) | Implementado sin verificar |
 
 ### Grupo B — Herrería, equipamiento y forja
@@ -88,8 +88,8 @@ Hoy: **33** implementados sin verificar, **3** en desarrollo y **3** pendientes 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
 | NPC-029 | Barbero (`Barbero`) | Rojo, Azul, Neutral | Cambiar de estilo | — | Implementado sin verificar |
-| NPC-030 | Transfigurador (`Transfigurador`) | Rojo, Azul, Neutral | Transfigurar equipo | — | Implementado sin verificar |
-| NPC-031 | Tintorero (`Tintorero`) | Rojo, Azul, Neutral | Volver a pintar mi equipo | — | Implementado sin verificar |
+| NPC-030 | Cosméticos (`Transfigurador`) | Rojo, Azul, Neutral | Cambiar el aspecto de mi equipo, Ver mi colección | — | Implementado sin verificar |
+| NPC-031 | Tintorero (`Tintorero`) | Rojo, Azul, Neutral | — | — | Implementado sin verificar |
 | NPC-032 | Vendedor de Mascotas (`VendedorMascotas`) | Rojo, Azul, Neutral | Comprar a Hojita, Comprar a Piedrín, Comprar a Lucero, Ver mis mascotas | — | Implementado sin verificar |
 
 ### Grupo G — Vida social, vivienda y minijuegos

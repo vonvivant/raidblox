@@ -124,25 +124,36 @@ prueba("stencils: viajan en la personalización y se cuentan como cambio", funct
 	exigir(not P.MismoStencil(nil, stencil), "uno con y uno sin, distintos")
 end)
 
-prueba("stencils: el Inscriptor graba sobre lo que ya tenés", function()
+prueba("stencils: el NPC Cosméticos aplica, el Inscriptor vende los libros", function()
+	-- Los decals se aplican en un solo lugar: el NPC Cosméticos (#30).
+	local cosmeticos = NPC.Arquetipos.Transfigurador
+	exigir(cosmeticos.Numero == 30 and cosmeticos.Nombre == "Cosméticos", "el 030 es el NPC de cosméticos")
+	local abre = false
+	for _, servicio in cosmeticos.Servicios or {} do
+		if servicio.Accion == "Cosmeticos" then
+			abre = true
+			exigir(servicio.Costo == 0, "abrir el panel no cobra: aplicar es gratis")
+		end
+	end
+	exigir(abre, "el NPC Cosméticos tiene que abrir su panel")
+
+	-- El Inscriptor conserva los libros (el desbloqueo) y los pergaminos.
 	local inscriptor = NPC.Arquetipos.Inscriptor
-	local graba = false
+	local libros = 0
+	for _, oferta in inscriptor.Vende or {} do
+		if S.LibroDeItem(oferta.ItemId) then
+			libros += 1
+		end
+	end
+	exigir(libros == #S.Libros, "el Inscriptor tiene que seguir vendiendo los tres libros")
 	for _, servicio in inscriptor.Servicios or {} do
-		if servicio.Accion == "Grabar" then
-			graba = true
-			exigir(servicio.Costo == 0, "abrir el grabado no cobra: se paga al aplicar")
-		end
+		exigir(servicio.Accion ~= "Grabar", "grabar ya no es del Inscriptor: es del NPC Cosméticos")
 	end
-	exigir(graba, "el Inscriptor tiene que poder grabar un ítem de tu mochila")
-	-- El Tintorero sigue siendo el de los colores: son dos oficios distintos.
+
+	-- El Tintorero quedó absorbido y no atiende por su cuenta.
 	local tintorero = NPC.Arquetipos.Tintorero
-	local tinta = false
-	for _, servicio in tintorero.Servicios or {} do
-		if servicio.Accion == "Tintar" then
-			tinta = true
-		end
-	end
-	exigir(tinta, "el Tintorero sigue pintando")
+	exigir(tintorero.Absorbido == "Transfigurador", "el Tintorero tiene que figurar absorbido")
+	exigir(#(tintorero.Servicios or {}) == 0, "y no puede seguir ofreciendo lo mismo por su cuenta")
 end)
 
 prueba("relieves: son otra cosa que las calcomanías y piden las dos texturas", function()
