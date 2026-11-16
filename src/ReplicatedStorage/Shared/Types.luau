@@ -27,7 +27,7 @@ export type SlotEquipo =
 	| "Accesorio2"
 	| "Herramienta"
 
-export type Profesion = "Herreria" | "Alquimia" | "Sastreria" | "Mineria" | "Herboristeria"
+export type Profesion = "Herreria" | "Alquimia" | "Sastreria" | "Cocina" | "Mineria" | "Herboristeria" | "Pesca"
 
 export type ProgresoProfesion = { Nivel: number, Xp: number }
 

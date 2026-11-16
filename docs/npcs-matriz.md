@@ -21,14 +21,14 @@ Lo que comparten todos los NPC (ya implementado, sin verificar en Studio):
 | UI | Una sola ventana (`NpcUI`) que arma secciones según lo que ofrece el NPC; bóveda, crafteo y subastas abren sus propias ventanas |
 | Seguridad | Remotes con `Guard` y límite de frecuencia; precios, ofertas y destinos solo del servidor; operaciones de todo o nada |
 | Persistencia | Perfil del jugador con ProfileStore (sesión única, guardado periódico y al salir) |
-| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (38 pruebas, pasan). Pruebas en Studio: **pendientes** |
+| Pruebas | `python3 tests/run.py`: coherencia de datos y reglas puras de la forja, el personalizador, la exploración y la progresión social (44 pruebas, pasan). Pruebas en Studio: **pendientes** |
 
 ## Por NPC
 
 Esta tabla se genera con `python3 tests/matriz.py` a partir de `NpcArquetiposConfig`.
 
 <!-- MATRIZ:INICIO -->
-Hoy: **29** implementados sin verificar, **2** en desarrollo y **8** pendientes (total 39).
+Hoy: **31** implementados sin verificar, **2** en desarrollo y **6** pendientes (total 39).
 
 ### Grupo A — Alquimia, magia y consumibles
 
@@ -97,8 +97,8 @@ Hoy: **29** implementados sin verificar, **2** en desarrollo y **8** pendientes 
 | ID | NPC (clave) | Versiones | Funciona hoy | Falta | Estado |
 |---|---|---|---|---|---|
 | NPC-033 | Arquitecto (`Arquitecto`) | Rojo, Azul, Neutral | — | Parcelas | Pendiente |
-| NPC-034 | Chef (`Chef`) | Rojo, Azul, Neutral | — | Profesión de cocina y buffs por consumible | Pendiente |
-| NPC-035 | Maestro de Pesca (`MaestroPesca`) | Rojo, Azul, Neutral | — | Pesca | Pendiente |
+| NPC-034 | Chef (`Chef`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Fogon | — | Implementado sin verificar |
+| NPC-035 | Maestro de Pesca (`MaestroPesca`) | Rojo, Azul, Neutral | vende 1 ítems, compra excedentes, ¿Dónde pican hoy? | Cebos por bioma; Peces raros por temporada | Implementado sin verificar |
 | NPC-036 | Crupier (`Crupier`) | Neutral | — | Minijuegos | Pendiente |
 
 ### Grupo H — PvP, arenas y guerra
@@ -129,5 +129,5 @@ Hoy: **29** implementados sin verificar, **2** en desarrollo y **8** pendientes 
 5. Grupo D: waypoints (024), cartógrafo (023), establo (021), rutas con vehículo (022), pergaminos de viaje (005).
 6. ~~Grupo E: descanso y rumores (025), diarias (026), reputación (027)~~ (hecho, ver [progresión social](progresion-social.md)). Queda 028 (entrenador): **falta decidir** si vende habilidades por oro o si se hace un sistema de talentos.
 7. ~~Grupo F completo: barbero (029), transfigurador (030), tintorero (031, retoca lo que ya tenés) y mascotas por oro (032)~~ (hecho, ver [cosméticos](cosmeticos.md)).
-8. Grupo G: vivienda (033, con las parcelas), cocina (034), pesca (035), minijuegos sin apuestas (036).
+8. Grupo G: ~~cocina (034) y pesca (035)~~ (hecho, ver [economía](economia.md)). Quedan vivienda (033, con las parcelas) y minijuegos sin apuestas (036).
 9. Grupo H: ~~equipo PvP (037) y arenas clasificatorias (038, ver [arenas](arenas.md))~~ (hecho). Queda 039 (asedio), que depende de los castillos de hermandad.

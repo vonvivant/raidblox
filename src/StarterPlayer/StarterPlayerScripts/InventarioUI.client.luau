@@ -510,7 +510,7 @@ end
 local function textoProfesionesActual(): string
 	local profesiones = EstadoCliente.Get("Profesiones")
 	local lineas = { "Profesiones:" }
-	for _, id in { "Mineria", "Herboristeria", "Herreria", "Alquimia", "Sastreria" } do
+	for _, id in { "Mineria", "Herboristeria", "Pesca", "Herreria", "Alquimia", "Sastreria", "Cocina" } do
 		local p = if typeof(profesiones) == "table" then profesiones[id] else nil
 		local nivel = if typeof(p) == "table" then p.Nivel else 1
 		table.insert(lineas, `{ProfesionesConfig.Profesiones[id].Nombre}: nivel {nivel}`)

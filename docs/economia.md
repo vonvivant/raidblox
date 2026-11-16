@@ -38,7 +38,8 @@ servidores (subastas) usan `UpdateAsync` como árbitro y el buzón de ProfileSto
 | Ver detalles | Pasar el mouse | Tocar | Seleccionar |
 
 Los equipos y herramientas llevan sus metadatos en `Meta` (multiplicador, efectos, pasiva, Masterpiece). Los slots
-de equipo son Casco, Pechera, Arma, Secundaria, Accesorio 1 y 2, y **Herramienta** (pico u hoz, sin stats de combate).
+de equipo son Casco, Pechera, Arma, Secundaria, Accesorio 1 y 2, y **Herramienta** (pico, hoz o caña, sin stats de
+combate).
 
 ## Profesiones
 
@@ -46,11 +47,37 @@ de equipo son Casco, Pechera, Arma, Secundaria, Accesorio 1 y 2, y **Herramienta
 | --- | --- | --- | --- |
 | Minería | Recolección | Pico | Mineral de hierro y de plata |
 | Herboristería | Recolección | Hoz | Hierba sanadora, flor lunar, lino |
+| Pesca | Recolección | Caña | Carpa, trucha, anguila, salmón plateado, pez lunar |
 | Herrería | Producción | Yunque | Lingotes, pico, hoz, espada, casco, anillo |
 | Alquimia | Producción | Mesa de Alquimia | Pociones de vida y maná |
 | Sastrería | Producción | Telar | Tela de lino, túnica, capa de seda |
+| Cocina | Producción | Fogón | Comidas con mejoras de 20 minutos |
 
-Niveles 1–50, XP para subir `50 × nivel^1.4`. Cada jugador nuevo recibe un pico y una hoz (kit inicial, una sola vez).
+Niveles 1–50, XP para subir `50 × nivel^1.4`. Cada jugador nuevo recibe un pico y una hoz (kit inicial, una sola
+vez); la caña la vende el Maestro de Pesca por 30 de oro.
+
+### Pesca (NPC-035) y cocina (NPC-034)
+
+Las orillas son nodos como las vetas, con tag `NodoRecoleccion` y atributo `Nodo`, pero piden **caña** equipada y
+tienen **botín variable**: el campo `Botin` de la definición lista capturas con un `Peso` (cuanto más alto, más
+seguido sale) y un `NivelMinimo` opcional de profesión. La Orilla del Río (nivel 1) da carpa, trucha, anguila desde
+nivel 3 y alguna bota vieja; el Lago Profundo (nivel 5) da salmón plateado y, desde nivel 12, el pez lunar. El nivel
+de profesión también suma cantidad, igual que en minería.
+
+El **Chef** atiende en un **fogón** (`EstacionCrafteo` con `Estacion = "Fogon"`) y vende lo que no se pesca: sal,
+hierbas de cocina y agua de manantial. Sus cinco recetas convierten pescado en **comidas** de 20 minutos:
+
+| Comida | Nivel | Efecto |
+| --- | --- | --- |
+| Pescado Asado | 1 | +8% de defensa |
+| Sopa de Pescado | 3 | +10% de defensa y 2% de vida cada 5 s |
+| Brocheta de Especias | 6 | +12% de ataque |
+| Guiso del Pescador | 10 | +8% de ataque, +8% de poder y 2% de vida cada 5 s |
+| Tarta Lunar | 16 | +15% de poder y 4% del maná cada 5 s |
+
+"Comida" es una **categoría nueva** de [consumibles](consumibles.md): hay una comida activa a la vez y conviven con
+elixires, tónicos, infusiones y filos. El Maestro de Pesca paga un 20% más que el Comerciante por los materiales
+(ahí se venden los peces) y su servicio "¿Dónde pican hoy?" dice qué orillas hay cerca y qué nivel piden.
 
 ### Crafteo
 
@@ -254,8 +281,9 @@ stateDiagram-v2
 
 Al darle Play se crean, cerca del spawn:
 
-- **Estaciones** (70, −40): Yunque, Mesa de Alquimia y Telar.
-- **Nodos de recolección** (100, −60): vetas de hierro y plata, hierbas, flor lunar y lino.
+- **Estaciones** (70, −40): Yunque, Mesa de Alquimia, Telar y Fogón.
+- **Nodos de recolección** (100, −60): vetas de hierro y plata, hierbas, flor lunar, lino y, al oeste, dos orillas
+  de río y un lago profundo (placas de agua).
 - **Casa de Subastas** (40, −30).
 
 Pasos:

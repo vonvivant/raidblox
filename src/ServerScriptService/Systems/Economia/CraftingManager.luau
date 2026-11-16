@@ -2,7 +2,7 @@
 -- CraftingManager: profesiones de producción (Herrería, Alquimia, Sastrería).
 --
 -- Flujo:
---   1. El jugador activa una estación (Yunque, Mesa de Alquimia, Telar) y se le
+--   1. El jugador activa una estación (Yunque, Mesa de Alquimia, Telar, Fogón) y se le
 --      abre la lista de recetas de esa estación.
 --   2. CraftearIniciar(recetaId): el servidor valida la receta, el nivel de
 --      profesión, que esté a 12 studs o menos de una estación del tipo correcto
@@ -47,6 +47,7 @@ local NOMBRES_ESTACION: { [string]: string } = {
 	Yunque = "Yunque",
 	MesaAlquimia = "Mesa de Alquimia",
 	Telar = "Telar",
+	Fogon = "Fogón",
 }
 
 function CraftingManager.XpPorNivel(nivel: number): number
@@ -302,6 +303,7 @@ function CraftingManager.Init()
 		crearEstacionPrueba("Yunque", Vector3.new(0, 0, 0), Color3.fromRGB(60, 60, 65), Enum.Material.Metal)
 		crearEstacionPrueba("MesaAlquimia", Vector3.new(10, 0, 0), Color3.fromRGB(110, 60, 140), Enum.Material.Wood)
 		crearEstacionPrueba("Telar", Vector3.new(20, 0, 0), Color3.fromRGB(150, 110, 70), Enum.Material.WoodPlanks)
+		crearEstacionPrueba("Fogon", Vector3.new(30, 0, 0), Color3.fromRGB(190, 90, 40), Enum.Material.Slate)
 	end
 	for _, estacion in CollectionService:GetTagged(TAG_ESTACION) do
 		prepararEstacion(estacion)

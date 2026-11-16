@@ -22,6 +22,7 @@ local ProfesionesConfig = require(ReplicatedStorage.Configs.ProfesionesConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
 local CraftingManager = require(script.Parent.CraftingManager)
+local NpcManager = require(script.Parent.Parent.NpcManager)
 
 type DefinicionNodo = ProfesionesConfig.DefinicionNodo
 
@@ -86,6 +87,36 @@ local function agotar(nodo: BasePart, segundos: number)
 	end)
 end
 
+-- Qué sale del nodo: lo de siempre, o una captura sorteada por peso entre las
+-- que el nivel de profesión del jugador habilita (pesca).
+-- Devuelve (itemId, cantidadMinima, cantidadMaxima).
+local function sortearCaptura(def: DefinicionNodo, nivel: number): (string, number, number)
+	local botin = def.Botin
+	if not botin then
+		return def.ItemId, def.CantidadMin, def.CantidadMax
+	end
+	local total = 0
+	for _, captura in botin do
+		if nivel >= (captura.NivelMinimo or 0) then
+			total += math.max(0, captura.Peso)
+		end
+	end
+	if total <= 0 then
+		return def.ItemId, def.CantidadMin, def.CantidadMax
+	end
+	local tirada = azar:NextNumber() * total
+	for _, captura in botin do
+		if nivel < (captura.NivelMinimo or 0) then
+			continue
+		end
+		tirada -= math.max(0, captura.Peso)
+		if tirada <= 0 then
+			return captura.ItemId, captura.Min or 1, captura.Max or captura.Min or 1
+		end
+	end
+	return def.ItemId, def.CantidadMin, def.CantidadMax
+end
+
 local function iniciarMinijuego(player: Player, nodo: BasePart, def: DefinicionNodo)
 	if intentos[player] then
 		return -- ya está en un minijuego
@@ -95,12 +126,11 @@ local function iniciarMinijuego(player: Player, nodo: BasePart, def: DefinicionN
 	end
 	local herramienta = herramientaEquipada(player)
 	if herramienta ~= def.Herramienta then
-		avisar(
-			player,
-			`Necesitás tener equipada una {if def.Herramienta == "Pico"
-				then "herramienta de minería (pico)"
-				else "hoz"}.`
-		)
+		local falta = if def.Herramienta == "Pico"
+			then "herramienta de minería (pico)"
+			elseif def.Herramienta == "Cana" then "caña de pescar"
+			else "hoz"
+		avisar(player, `Necesitás tener equipada una {falta}.`)
 		return
 	end
 	if DataManager.NivelProfesion(player, def.Profesion) < def.NivelRequerido then
@@ -175,8 +205,9 @@ local function golpe(player: Player, token: string, tiempoCliente: number?)
 		return
 	end
 	local nivel = DataManager.NivelProfesion(player, def.Profesion)
-	local cantidad = azar:NextInteger(def.CantidadMin, def.CantidadMax) + math.floor(nivel / 10)
-	if not DataManager.AddItem(player, def.ItemId, cantidad, "Comun", nil) then
+	local itemId, minimo, maximo = sortearCaptura(def, nivel)
+	local cantidad = azar:NextInteger(minimo, maximo) + math.floor(nivel / 10)
+	if not DataManager.AddItem(player, itemId, cantidad, "Comun", nil) then
 		avisar(player, "Inventario lleno.")
 		return
 	end
@@ -188,7 +219,7 @@ local function golpe(player: Player, token: string, tiempoCliente: number?)
 		ProfesionesConfig.NivelMaximo,
 		CraftingManager.XpPorNivel
 	)
-	avisar(player, `+{ItemCatalog[def.ItemId].Nombre} x{cantidad}`, "Info")
+	avisar(player, `+{ItemCatalog[itemId].Nombre} x{cantidad}`, "Info")
 	if niveles > 0 then
 		avisar(
 			player,
@@ -234,9 +265,16 @@ local function crearNodoPrueba(id: string, offset: Vector3)
 	parte.Name = def.Nombre
 	parte.Anchored = true
 	local esMineral = def.Herramienta == "Pico"
-	parte.Size = if esMineral then Vector3.new(4, 3, 4) else Vector3.new(2, 2.5, 2)
-	parte.Shape = if esMineral then Enum.PartType.Block else Enum.PartType.Ball
-	parte.Material = if esMineral then Enum.Material.Rock else Enum.Material.Grass
+	local esAgua = def.Herramienta == "Cana"
+	parte.Size = if esMineral
+		then Vector3.new(4, 3, 4)
+		elseif esAgua then Vector3.new(10, 1, 10)
+		else Vector3.new(2, 2.5, 2)
+	parte.Shape = if esMineral or esAgua then Enum.PartType.Block else Enum.PartType.Ball
+	parte.Material = if esMineral then Enum.Material.Rock elseif esAgua then Enum.Material.Water else Enum.Material.Grass
+	if esAgua then
+		parte.Transparency = 0.3
+	end
 	parte.Color = def.Color
 	parte.Position = AREA_PRUEBA + offset + Vector3.new(0, parte.Size.Y / 2, 0)
 	parte:SetAttribute("Nodo", id)
@@ -257,6 +295,9 @@ function RecoleccionManager.Init()
 		crearNodoPrueba("FlorLunar", Vector3.new(12, 0, -18))
 		crearNodoPrueba("Lino", Vector3.new(-6, 0, -12))
 		crearNodoPrueba("Lino", Vector3.new(-10, 0, -18))
+		crearNodoPrueba("OrillaRio", Vector3.new(-22, 0, 0))
+		crearNodoPrueba("OrillaRio", Vector3.new(-22, 0, 14))
+		crearNodoPrueba("LagoProfundo", Vector3.new(-36, 0, 7))
 	end
 	for _, nodo in CollectionService:GetTagged(TAG_NODO) do
 		prepararNodo(nodo)
@@ -272,6 +313,44 @@ function RecoleccionManager.Init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		intentos[player] = nil
+	end)
+
+	-- Maestro de Pesca (NPC-035): dice qué orillas hay cerca y qué piden.
+	NpcManager.RegistrarAccion("DondePescar", function(player: Player): boolean
+		local personaje = player.Character
+		local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+		if not raiz or not raiz:IsA("BasePart") then
+			return false
+		end
+		local nivel = DataManager.NivelProfesion(player, "Pesca")
+		-- Agrupa por tipo de orilla: la más cercana de cada una.
+		local cercanas: { [string]: number } = {}
+		for _, nodo in CollectionService:GetTagged(TAG_NODO) do
+			if not nodo:IsA("BasePart") then
+				continue
+			end
+			local id = nodo:GetAttribute("Nodo")
+			local def = if typeof(id) == "string" then ProfesionesConfig.Nodos[id] else nil
+			if not def or def.Profesion ~= "Pesca" then
+				continue
+			end
+			local distancia = math.floor((nodo.Position - raiz.Position).Magnitude)
+			local clave = id :: string
+			if cercanas[clave] == nil or distancia < cercanas[clave] then
+				cercanas[clave] = distancia
+			end
+		end
+		if next(cercanas) == nil then
+			avisar(player, "Por acá no hay dónde tirar la caña. Probá en otra zona.", "Aviso")
+			return true
+		end
+		avisar(player, `Pesca nivel {nivel}. Esto es lo que hay cerca:`, "Info")
+		for id, distancia in cercanas do
+			local def = ProfesionesConfig.Nodos[id]
+			local falta = if nivel < def.NivelRequerido then ` (te falta nivel {def.NivelRequerido})` else ""
+			avisar(player, `{def.Nombre}: a {distancia} studs{falta}`, "Info")
+		end
+		return true
 	end)
 end
 

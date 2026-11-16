@@ -34,7 +34,7 @@ export type EfectoInstantaneo = {
 	Intervalo: number?,
 }
 
--- Categorías: "Elixir" | "Tonico" | "Infusion" | "Filo" (NombresCategoria).
+-- Categorías: "Elixir" | "Tonico" | "Infusion" | "Filo" | "Comida" (NombresCategoria).
 
 export type Definicion = {
 	Nombre: string,
@@ -143,6 +143,48 @@ local Definiciones: { [string]: Definicion } = {
 		Efectos = { { Tipo = "Prisa", Porcentaje = 6 } },
 	},
 
+	-- Cocina (Chef, NPC-034): una comida activa a la vez ------------------
+	PescadoAsado = {
+		Nombre = "Pescado Asado",
+		Categoria = "Comida",
+		Duracion = 1200,
+		Efectos = { { Tipo = "Aura", Stat = "Defensa", Porcentaje = 8 } },
+	},
+	SopaDePescado = {
+		Nombre = "Sopa de Pescado",
+		Categoria = "Comida",
+		Duracion = 1200,
+		Efectos = {
+			{ Tipo = "Aura", Stat = "Defensa", Porcentaje = 10 },
+			{ Tipo = "RegenVida", Porcentaje = 2 },
+		} :: { EfectoTemporal },
+	},
+	BrochetaEspecias = {
+		Nombre = "Brocheta de Especias",
+		Categoria = "Comida",
+		Duracion = 1200,
+		Efectos = { { Tipo = "Aura", Stat = "Ataque", Porcentaje = 12 } },
+	},
+	GuisoDelPescador = {
+		Nombre = "Guiso del Pescador",
+		Categoria = "Comida",
+		Duracion = 1200,
+		Efectos = {
+			{ Tipo = "Aura", Stat = "Ataque", Porcentaje = 8 },
+			{ Tipo = "Aura", Stat = "Poder", Porcentaje = 8 },
+			{ Tipo = "RegenVida", Porcentaje = 2 },
+		} :: { EfectoTemporal },
+	},
+	TartaLunar = {
+		Nombre = "Tarta Lunar",
+		Categoria = "Comida",
+		Duracion = 1200,
+		Efectos = {
+			{ Tipo = "Aura", Stat = "Poder", Porcentaje = 15 },
+			{ Tipo = "RegenMana", Porcentaje = 4 },
+		} :: { EfectoTemporal },
+	},
+
 	-- Servicios de NPC (no son ítems) -------------------------------------
 	ServicioAfilar = {
 		Nombre = "Arma afilada",
@@ -154,7 +196,13 @@ local Definiciones: { [string]: Definicion } = {
 
 return {
 	Definiciones = Definiciones,
-	NombresCategoria = { Elixir = "Elixir", Tonico = "Tónico", Infusion = "Infusión", Filo = "Filo" } :: { [string]: string },
+	NombresCategoria = {
+		Elixir = "Elixir",
+		Tonico = "Tónico",
+		Infusion = "Infusión",
+		Filo = "Filo",
+		Comida = "Comida",
+	} :: { [string]: string },
 	PrisaMaxima = 30, -- % de reducción de recargas sumando todo
 	IntervaloRegen = 5, -- segundos entre pulsos de RegenMana / RegenVida
 }

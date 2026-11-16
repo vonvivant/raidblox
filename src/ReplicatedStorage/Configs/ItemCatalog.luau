@@ -7,7 +7,7 @@ local Types = require(script.Parent.Parent.Shared.Types)
 
 export type TipoItem = "Material" | "Consumible" | "Equipo" | "Herramienta" | "Cosmetico"
 
-export type TipoHerramienta = "Pico" | "Hoz"
+export type TipoHerramienta = "Pico" | "Hoz" | "Cana"
 
 export type DefinicionItem = {
 	Nombre: string,
@@ -151,6 +151,47 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 		Descripcion = "Infusión: -6% a las recargas de habilidades durante 15 min.",
 	},
 	AguaManantial = { Nombre = "Agua de Manantial", Tipo = "Material", Apilable = true, PrecioVenta = 1 },
+	-- Comidas (Cocina): una comida activa a la vez, 20 min
+	PescadoAsado = {
+		Nombre = "Pescado Asado",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 6,
+		Descripcion = "Comida de 20 min: +8% de defensa.",
+	},
+	SopaDePescado = {
+		Nombre = "Sopa de Pescado",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 14,
+		Descripcion = "Comida de 20 min: +10% de defensa y recupera 2% de la vida cada 5 s.",
+	},
+	BrochetaEspecias = {
+		Nombre = "Brocheta de Especias",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 20,
+		Descripcion = "Comida de 20 min: +12% de ataque.",
+	},
+	GuisoDelPescador = {
+		Nombre = "Guiso del Pescador",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 45,
+		Descripcion = "Comida de 20 min: +8% de ataque, +8% de poder y 2% de vida cada 5 s.",
+	},
+	TartaLunar = {
+		Nombre = "Tarta Lunar",
+		Tipo = "Consumible",
+		Apilable = true,
+		MaxStack = 20,
+		PrecioVenta = 60,
+		Descripcion = "Comida de 20 min: +15% de poder y 4% del maná cada 5 s.",
+	},
 	-- Esencias (Desencantador): se usan para reforjar y engarzar
 	PolvoEncantamiento = { Nombre = "Polvo de Encantamiento", Tipo = "Material", Apilable = true, PrecioVenta = 8 },
 	EsenciaMagica = { Nombre = "Esencia Mágica", Tipo = "Material", Apilable = true, PrecioVenta = 25 },
@@ -165,7 +206,32 @@ local ItemCatalog: { [string]: DefinicionItem } = {
 	-- Producción
 	LingotePlata = { Nombre = "Lingote de Plata", Tipo = "Material", Apilable = true, PrecioVenta = 15 },
 	TelaLino = { Nombre = "Tela de Lino", Tipo = "Material", Apilable = true, PrecioVenta = 4 },
+	-- Pesca (Maestro de Pesca, NPC-035)
+	Trucha = { Nombre = "Trucha", Tipo = "Material", Apilable = true, PrecioVenta = 3 },
+	Carpa = { Nombre = "Carpa", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
+	Anguila = { Nombre = "Anguila", Tipo = "Material", Apilable = true, PrecioVenta = 7 },
+	SalmonPlateado = { Nombre = "Salmón Plateado", Tipo = "Material", Apilable = true, PrecioVenta = 12 },
+	PezLunar = { Nombre = "Pez Lunar", Tipo = "Material", Apilable = true, PrecioVenta = 30 },
+	BotaVieja = {
+		Nombre = "Bota Vieja",
+		Tipo = "Material",
+		Apilable = true,
+		PrecioVenta = 1,
+		Descripcion = "Lo que el río te da cuando no es tu día.",
+	},
+	-- Cocina (Chef, NPC-034)
+	Sal = { Nombre = "Sal", Tipo = "Material", Apilable = true, PrecioVenta = 1 },
+	HierbasCocina = { Nombre = "Hierbas de Cocina", Tipo = "Material", Apilable = true, PrecioVenta = 2 },
 	-- Herramientas
+	CanaPescar = {
+		Nombre = "Caña de Pescar",
+		Tipo = "Herramienta",
+		Apilable = false,
+		SlotEquipo = "Herramienta",
+		Herramienta = "Cana",
+		PrecioVenta = 8,
+		Descripcion = "Equipala para pescar en las orillas.",
+	},
 	PicoHierro = {
 		Nombre = "Pico de Hierro",
 		Tipo = "Herramienta",

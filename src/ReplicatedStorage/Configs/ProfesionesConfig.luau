@@ -12,7 +12,7 @@ local Types = require(script.Parent.Parent.Shared.Types)
 
 type Profesion = Types.Profesion
 
-export type Estacion = "Yunque" | "MesaAlquimia" | "Telar"
+export type Estacion = "Yunque" | "MesaAlquimia" | "Telar" | "Fogon"
 
 export type DefinicionProfesion = {
 	Nombre: string,
@@ -31,17 +31,29 @@ export type Receta = {
 	Xp: number, -- XP de profesión al terminar
 }
 
+-- Una posibilidad de lo que sale de un nodo. Se sortea por `Peso` (cuanto más
+-- alto, más seguido sale). `NivelMinimo` es nivel de profesión, no de personaje.
+export type Captura = {
+	ItemId: string,
+	Peso: number,
+	Min: number?,
+	Max: number?,
+	NivelMinimo: number?,
+}
+
 export type DefinicionNodo = {
 	Nombre: string,
 	Profesion: Profesion,
-	Herramienta: "Pico" | "Hoz",
+	Herramienta: "Pico" | "Hoz" | "Cana",
 	NivelRequerido: number,
-	ItemId: string,
+	ItemId: string, -- lo que sale siempre, o lo más común si hay `Botin`
 	CantidadMin: number,
 	CantidadMax: number,
 	Respawn: number, -- segundos
 	Xp: number,
 	Color: Color3,
+	-- Nodos con botín variable (pesca): se sortea una captura de la lista.
+	Botin: { Captura }?,
 }
 
 local ProfesionesConfig = {
@@ -52,12 +64,22 @@ local ProfesionesConfig = {
 			Descripcion = "Armas, armaduras, lingotes y herramientas.",
 		},
 		Alquimia = { Nombre = "Alquimia", Tipo = "Produccion", Descripcion = "Pociones de vida y maná." },
+		Cocina = {
+			Nombre = "Cocina",
+			Tipo = "Produccion",
+			Descripcion = "Comidas que dan mejoras largas (requiere fogón).",
+		},
 		Sastreria = { Nombre = "Sastrería", Tipo = "Produccion", Descripcion = "Telas, túnicas y capas." },
 		Mineria = { Nombre = "Minería", Tipo = "Recoleccion", Descripcion = "Minerales de las vetas (requiere pico)." },
 		Herboristeria = {
 			Nombre = "Herboristería",
 			Tipo = "Recoleccion",
 			Descripcion = "Hierbas, flores y lino (requiere hoz).",
+		},
+		Pesca = {
+			Nombre = "Pesca",
+			Tipo = "Recoleccion",
+			Descripcion = "Peces de orillas y lagos (requiere caña).",
 		},
 	} :: { [string]: DefinicionProfesion },
 
@@ -86,6 +108,57 @@ local ProfesionesConfig = {
 	},
 
 	Recetas = {
+		-- Cocina (Chef, NPC-034): el fogón convierte pescado en comidas largas.
+		PescadoAsado = {
+			Nombre = "Pescado Asado",
+			Profesion = "Cocina",
+			NivelRequerido = 1,
+			Estacion = "Fogon",
+			Materiales = { Carpa = 1, Sal = 1 },
+			Resultado = { ItemId = "PescadoAsado", Cantidad = 1 },
+			Tiempo = 3,
+			Xp = 10,
+		},
+		SopaDePescado = {
+			Nombre = "Sopa de Pescado",
+			Profesion = "Cocina",
+			NivelRequerido = 3,
+			Estacion = "Fogon",
+			Materiales = { Trucha = 2, AguaManantial = 1, HierbasCocina = 1 },
+			Resultado = { ItemId = "SopaDePescado", Cantidad = 1 },
+			Tiempo = 5,
+			Xp = 18,
+		},
+		BrochetaEspecias = {
+			Nombre = "Brocheta de Especias",
+			Profesion = "Cocina",
+			NivelRequerido = 6,
+			Estacion = "Fogon",
+			Materiales = { Anguila = 1, HierbasCocina = 2, Sal = 1 },
+			Resultado = { ItemId = "BrochetaEspecias", Cantidad = 1 },
+			Tiempo = 6,
+			Xp = 28,
+		},
+		GuisoDelPescador = {
+			Nombre = "Guiso del Pescador",
+			Profesion = "Cocina",
+			NivelRequerido = 10,
+			Estacion = "Fogon",
+			Materiales = { SalmonPlateado = 2, HierbasCocina = 2, Sal = 2, AguaManantial = 1 },
+			Resultado = { ItemId = "GuisoDelPescador", Cantidad = 1 },
+			Tiempo = 8,
+			Xp = 45,
+		},
+		TartaLunar = {
+			Nombre = "Tarta Lunar",
+			Profesion = "Cocina",
+			NivelRequerido = 16,
+			Estacion = "Fogon",
+			Materiales = { PezLunar = 1, FlorLunar = 2, HierbasCocina = 2, AguaManantial = 1 },
+			Resultado = { ItemId = "TartaLunar", Cantidad = 1 },
+			Tiempo = 10,
+			Xp = 90,
+		},
 		FundirPlata = {
 			Nombre = "Lingote de Plata",
 			Profesion = "Herreria",
@@ -408,6 +481,45 @@ local ProfesionesConfig = {
 			Respawn = 15,
 			Xp = 6,
 			Color = Color3.fromRGB(220, 210, 150),
+		},
+		-- Pesca: cada orilla tiene su botín. `ItemId` es lo más común y lo que se
+		-- muestra como nombre del nodo; `Botin` decide lo que sale de verdad.
+		OrillaRio = {
+			Nombre = "Orilla del Río",
+			Profesion = "Pesca",
+			Herramienta = "Cana",
+			NivelRequerido = 1,
+			ItemId = "Trucha",
+			CantidadMin = 1,
+			CantidadMax = 2,
+			Respawn = 12,
+			Xp = 7,
+			Color = Color3.fromRGB(90, 150, 210),
+			Botin = {
+				{ ItemId = "Carpa", Peso = 35, Min = 1, Max = 2 },
+				{ ItemId = "Trucha", Peso = 40, Min = 1, Max = 2 },
+				{ ItemId = "Anguila", Peso = 12, NivelMinimo = 3 },
+				{ ItemId = "BotaVieja", Peso = 13 },
+			} :: { Captura },
+		},
+		LagoProfundo = {
+			Nombre = "Lago Profundo",
+			Profesion = "Pesca",
+			Herramienta = "Cana",
+			NivelRequerido = 5,
+			ItemId = "SalmonPlateado",
+			CantidadMin = 1,
+			CantidadMax = 2,
+			Respawn = 25,
+			Xp = 16,
+			Color = Color3.fromRGB(60, 110, 180),
+			Botin = {
+				{ ItemId = "Trucha", Peso = 25, Min = 1, Max = 2 },
+				{ ItemId = "Anguila", Peso = 25 },
+				{ ItemId = "SalmonPlateado", Peso = 40, Min = 1, Max = 2 },
+				{ ItemId = "PezLunar", Peso = 5, NivelMinimo = 12 },
+				{ ItemId = "BotaVieja", Peso = 5 },
+			} :: { Captura },
 		},
 	} :: { [string]: DefinicionNodo },
 

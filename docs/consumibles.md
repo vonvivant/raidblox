@@ -9,12 +9,13 @@ con efecto propio y las mejoras temporales que dan los NPC. Módulos: `Configs/C
 | Clase | Ejemplos | Regla |
 |---|---|---|
 | **Instantáneos** | Poción de Regeneración, Poción de Vitalidad, Antídoto | Hacen su efecto en el momento y comparten la recarga de las pociones (10 s) |
-| **Temporales** | Elixires, tónicos, infusiones, arma afilada | Quedan activos por su duración |
+| **Temporales** | Elixires, tónicos, infusiones, comidas, arma afilada | Quedan activos por su duración |
 
 ## Reglas de acumulación (temporales)
 
 - **Uno solo activo por categoría.** Tomar otro de la misma categoría lo reemplaza (el juego avisa cuál reemplazó).
-- **Categorías distintas se suman**: se puede tener a la vez un elixir, un tónico, una infusión y el arma afilada.
+- **Categorías distintas se suman**: se puede tener a la vez un elixir, un tónico, una infusión, una comida y el arma
+  afilada.
 - La reducción de recargas sumada nunca pasa de 30% (`PrisaMaxima`).
 - **No se pierden** al morir, cambiar de zona o desconectarse: se guardan en el perfil (`Buffs`) con su hora de
   vencimiento y se vuelven a aplicar al reaparecer con el tiempo que les queda. El tiempo corre aunque el jugador
@@ -38,9 +39,17 @@ con efecto propio y las mejoras temporales que dan los NPC. Módulos: `Configs/C
 | Té de Manantial | Infusión | +2% de maná o stamina cada 5 s, 15 min | Barista de Tés | Nivel 1 |
 | Té de Raíces | Infusión | +10% de defensa, 15 min | Barista de Tés | Nivel 2 |
 | Té de Jazmín Lunar | Infusión | -6% a las recargas, 15 min | Barista de Tés | Nivel 4 |
+| Pescado Asado | Comida | +8% de defensa, 20 min | — (lo cocinás) | Cocina nivel 1 |
+| Sopa de Pescado | Comida | +10% de defensa y 2% de vida cada 5 s, 20 min | — | Cocina nivel 3 |
+| Brocheta de Especias | Comida | +12% de ataque, 20 min | — | Cocina nivel 6 |
+| Guiso del Pescador | Comida | +8% de ataque, +8% de poder y 2% de vida cada 5 s, 20 min | — | Cocina nivel 10 |
+| Tarta Lunar | Comida | +15% de poder y 4% del maná cada 5 s, 20 min | — | Cocina nivel 16 |
 | (Afilar el arma) | Filo | +10% de ataque, 10 min | Servicio del Afilador | — |
 
-Material nuevo: **Agua de Manantial** (lo vende el Barista; va en tés y tónicos).
+Material nuevo: **Agua de Manantial** (lo vende el Barista; va en tés, tónicos y comidas).
+
+Las comidas se cocinan en el **fogón** del Chef con lo que pesques; los números y las recetas están en
+[economía](economia.md).
 
 ## Riesgo
 
