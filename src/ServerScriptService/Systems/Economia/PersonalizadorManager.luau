@@ -604,9 +604,23 @@ local function abrir(player: Player, raizNpc: BasePart, categoria: string?, solo
 	NetworkBridge.Server.FireClient("PersonalizadorAbrir", player, raizNpc.Position, categoria, solo)
 end
 
+-- El Maestro Personalizador no es uno de los 39 del catálogo (salió del pedido
+-- del vendedor 3D), así que no le toca número: lleva la etiqueta "A MEDIDA"
+-- con el mismo cartel que usan los demás, para que se vea igual de lejos.
+local function etiquetar(modelo: Model)
+	local raiz = modelo.PrimaryPart or modelo:FindFirstChild("HumanoidRootPart")
+	if raiz and raiz:IsA("BasePart") and not modelo:FindFirstChild("NumeroNpc") then
+		NpcManager.PonerEtiqueta(modelo, raiz, "A MEDIDA", Color3.fromRGB(240, 190, 90))
+	end
+end
+
 local function prepararNpc(instancia: Instance)
 	if not instancia:IsA("Model") then
 		return
+	end
+	-- Los del catálogo ya traen su número; a los demás se les pone la etiqueta.
+	if instancia:GetAttribute("Arquetipo") == nil then
+		etiquetar(instancia)
 	end
 	local raiz = instancia:FindFirstChild("HumanoidRootPart") or instancia.PrimaryPart
 	if not raiz or not raiz:IsA("BasePart") then

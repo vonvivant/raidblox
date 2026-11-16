@@ -525,7 +525,9 @@ local function abrir(player: Player, npc: Npc)
 end
 
 -- Cartel con el número del NPC (1 a 39) flotando sobre su cabeza.
-local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, faccion: Faccion)
+-- Cartel sobre la cabeza con el número (o una etiqueta corta, para los NPC que
+-- no son de los 39 del catálogo: ver NpcManager.PonerEtiqueta).
+local function ponerCartel(modelo: Model, raiz: BasePart, texto: string, color: Color3)
 	local cabeza = modelo:FindFirstChild("Head")
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "NumeroNpc"
@@ -535,23 +537,36 @@ local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, 
 	cartel.MaxDistance = 250
 	cartel.LightInfluence = 0
 	cartel.ResetOnSpawn = false
-	local texto = Instance.new("TextLabel")
-	texto.Size = UDim2.fromScale(1, 1)
-	texto.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
-	texto.BackgroundTransparency = 0.25
-	texto.Font = Enum.Font.GothamBlack
-	texto.TextScaled = true
-	texto.Text = `#{arquetipo.Numero}`
-	texto.TextColor3 = NpcArquetiposConfig.ColoresFaccion[faccion]
-	texto.Parent = cartel
+	local etiqueta = Instance.new("TextLabel")
+	etiqueta.Size = UDim2.fromScale(1, 1)
+	etiqueta.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+	etiqueta.BackgroundTransparency = 0.25
+	etiqueta.Font = Enum.Font.GothamBlack
+	etiqueta.TextScaled = true
+	etiqueta.Text = texto
+	etiqueta.TextColor3 = color
+	etiqueta.Parent = cartel
 	local esquinas = Instance.new("UICorner")
 	esquinas.CornerRadius = UDim.new(0, 8)
-	esquinas.Parent = texto
+	esquinas.Parent = etiqueta
 	local margen = Instance.new("UIPadding")
 	margen.PaddingTop = UDim.new(0, 3)
 	margen.PaddingBottom = UDim.new(0, 3)
-	margen.Parent = texto
+	margen.Parent = etiqueta
 	cartel.Parent = modelo
+end
+
+local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, faccion: Faccion)
+	ponerCartel(modelo, raiz, `#{arquetipo.Numero}`, NpcArquetiposConfig.ColoresFaccion[faccion])
+end
+
+-- Para los NPC que no vienen del catálogo de 39 (el Maestro Personalizador, por
+-- ejemplo, que salió del otro pedido): mismo cartel, con una etiqueta corta en
+-- vez de un número, para que no se confunda con la numeración de la matriz.
+function NpcManager.PonerEtiqueta(modelo: Model, raiz: BasePart, etiqueta: string, color: Color3?)
+	ponerCartel(modelo, raiz, etiqueta, color or Color3.fromRGB(235, 225, 200))
+	modelo:SetAttribute("Etiqueta", etiqueta)
+	raiz:SetAttribute("Etiqueta", etiqueta)
 end
 
 local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt, arquetipoId: string, faccion: Faccion)
