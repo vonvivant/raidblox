@@ -1,0 +1,838 @@
+--!strict
+-- NpcManager: NPCs de servicio por arquetipo (NpcArquetiposConfig).
+--
+-- Cada NPC tiene un arquetipo (qué ofrece) y una facción (a quién atiende).
+-- Regla de interacción (PuedeInteractuar):
+--   * Jugador Rojo:    NPCs Rojos y Neutrales.
+--   * Jugador Azul:    NPCs Azules y Neutrales.
+--   * Jugador Neutral (Violeta): todos.
+-- Al bando contrario el NPC lo rechaza con un mensaje hostil.
+--
+-- Los servicios se acoplan según lo que declare el arquetipo:
+--   Vende / Compra  -> remotes NpcComprar / NpcVender
+--   Estacion        -> NpcFabricar (abre las recetas; el NPC cuenta como estación)
+--   Servicios       -> NpcServicio (acciones registradas con RegistrarAccion)
+--   Viajes          -> NpcViajar (Guardián de Portales)
+--
+-- En los mapas: un Model con el tag "NpcArquetipo" y los atributos `Arquetipo`
+-- y `Faccion`. En la zona de pruebas se crean los de NpcArquetiposConfig.DePrueba.
+--
+-- Todo se valida en el servidor en cada pedido: que el NPC exista, que el
+-- jugador esté cerca, que su bando pueda hablarle, y precios del catálogo.
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
+local NpcArquetiposConfig = require(ReplicatedStorage.Configs.NpcArquetiposConfig)
+local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
+local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Pruebas = require(ReplicatedStorage.Modules.Pruebas)
+local Types = require(ReplicatedStorage.Shared.Types)
+local BandoManager = require(script.Parent.BandoManager)
+local DataManager = require(script.Parent.DataManager)
+local HermandadManager = require(script.Parent.HermandadManager)
+local NpcFactory = require(script.Parent.NpcFactory)
+local ZoneManager = require(script.Parent.ZoneManager)
+local BuffManager = require(script.Parent.Combate.BuffManager)
+
+type Faccion = NpcArquetiposConfig.Faccion
+type Arquetipo = NpcArquetiposConfig.Arquetipo
+type Servicio = NpcArquetiposConfig.Servicio
+
+type Npc = { Id: string, ArquetipoId: string, Arquetipo: Arquetipo, Faccion: Faccion, Raiz: BasePart }
+
+-- Una acción devuelve true si se hizo (recién ahí se cobra el servicio).
+export type Accion = (player: Player, npc: Npc, servicio: Servicio) -> boolean
+-- Acción sobre un ítem de la mochila. Valida, cobra y avisa por su cuenta.
+export type AccionItem = (player: Player, npc: Npc, ranura: string, extra: string?) -> boolean
+
+local TAG_NPC = "NpcArquetipo"
+local TAG_RADAR = "NpcServicio" -- lo dibuja el minimapa y el mapa del mundo
+local TAG_ESTACION = "EstacionCrafteo"
+local MAX_POR_COMPRA = 99
+local MAX_NO_APILABLE = 10
+
+local NpcManager = {}
+
+local npcs: { [string]: Npc } = {}
+local acciones: { [string]: Accion } = {}
+local accionesItem: { [string]: AccionItem } = {}
+local cotizaciones: { [string]: (Player) -> number } = {}
+local viajesPagados: { [Player]: number } = {} -- oro cobrado por un viaje en curso
+local contador = 0
+local iniciado = false
+
+local function avisar(player: Player, texto: string, tipo: string?)
+	NetworkBridge.Server.FireClient("Notificacion", player, texto, tipo or "Error")
+end
+
+-- `codigo` siempre es un CodigoError; llega como string porque el analizador
+-- ensancha los literales de los retornos múltiples.
+local function fallo(codigo: string?): Types.Respuesta
+	return NetworkBridge.Fail((codigo or "NOT_FOUND") :: any)
+end
+
+local function raizDe(player: Player): BasePart?
+	local personaje = player.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	return if raiz and raiz:IsA("BasePart") then raiz else nil
+end
+
+------------------------------------------------------------------------
+-- Facciones
+------------------------------------------------------------------------
+
+function NpcManager.FaccionDe(player: Player): Faccion
+	local bando = BandoManager.De(player)
+	return if bando == "Rojo" then "Rojo" elseif bando == "Azul" then "Azul" else "Neutral"
+end
+
+-- ¿Un jugador de `faccionJugador` puede hablar con un NPC de `faccionNpc`?
+function NpcManager.Compatibles(faccionJugador: Faccion, faccionNpc: Faccion): boolean
+	return faccionJugador == "Neutral" or faccionNpc == "Neutral" or faccionJugador == faccionNpc
+end
+
+function NpcManager.PuedeInteractuar(player: Player, faccionNpc: Faccion): boolean
+	return NpcManager.Compatibles(NpcManager.FaccionDe(player), faccionNpc)
+end
+
+local function rechazar(player: Player, npc: Npc)
+	local frases = NpcArquetiposConfig.Rechazos
+	avisar(player, `{npc.Arquetipo.Nombre}: "{frases[math.random(#frases)]}"`)
+end
+
+-- Validación común de todos los pedidos: NPC existente, cerca y del bando
+-- correcto. Devuelve el NPC o el código de error.
+local function validar(player: Player, npcId: unknown): (Npc?, Types.CodigoError?)
+	local id = NetworkBridge.Guard.String(npcId, 16)
+	local npc = if id then npcs[id] else nil
+	if not npc then
+		return nil, "NOT_FOUND"
+	end
+	local raiz = raizDe(player)
+	if not raiz or (raiz.Position - npc.Raiz.Position).Magnitude > NpcArquetiposConfig.DistanciaInteraccion then
+		return nil, "NOT_ALLOWED"
+	end
+	if not NpcManager.PuedeInteractuar(player, npc.Faccion) then
+		rechazar(player, npc)
+		return nil, "NOT_ALLOWED"
+	end
+	if not DataManager.GetData(player) then
+		return nil, "DATA_NOT_LOADED"
+	end
+	return npc, nil
+end
+
+-- ¿El jugador está junto a ese NPC y puede hablarle? `arquetipo` exige además
+-- que sea de ese tipo. Lo usan otros sistemas que atienden sus propios remotes.
+function NpcManager.Cerca(player: Player, npcId: unknown, arquetipo: string?): boolean
+	local npc = validar(player, npcId)
+	return npc ~= nil and (arquetipo == nil or npc.ArquetipoId == arquetipo)
+end
+
+------------------------------------------------------------------------
+-- Guardián de Portales
+------------------------------------------------------------------------
+
+local function costoViaje(zona: ZoneConfig.Zona, faccionNpc: Faccion): number
+	local viajes = NpcArquetiposConfig.Viajes
+	local costo = viajes.CostoBase + viajes.CostoPorNivel * zona.NivelMinimo
+	if faccionNpc == "Neutral" then
+		costo *= viajes.FactorNeutral
+	end
+	return math.floor(costo)
+end
+
+-- ¿El Guardián de `faccionNpc` lleva a esa zona? Rojo: Rojas y Neutrales.
+-- Azul: Azules y Neutrales. Neutral: cualquiera.
+local function llevaA(faccionNpc: Faccion, zona: ZoneConfig.Zona): boolean
+	return faccionNpc == "Neutral" or zona.Territorio == "Neutral" or zona.Territorio == faccionNpc
+end
+
+type Destino = { Id: string, Nombre: string, Costo: number, NivelMinimo: number, Territorio: string }
+
+local function destinos(faccionNpc: Faccion): { Destino }
+	local actual = ZoneManager.ZonaActual()
+	local lista: { Destino } = {}
+	for id, zona in ZoneConfig.Zonas do
+		if id ~= actual and llevaA(faccionNpc, zona) then
+			table.insert(lista, {
+				Id = id,
+				Nombre = zona.Nombre,
+				Costo = costoViaje(zona, faccionNpc),
+				NivelMinimo = zona.NivelMinimo,
+				Territorio = zona.Territorio :: string,
+			})
+		end
+	end
+	table.sort(lista, function(a, b)
+		return if a.NivelMinimo ~= b.NivelMinimo then a.NivelMinimo < b.NivelMinimo else a.Nombre < b.Nombre
+	end)
+	return lista
+end
+
+local function viajar(player: Player, npc: Npc, zonaId: string): Types.Respuesta
+	local zona = ZoneConfig.Zonas[zonaId]
+	if not npc.Arquetipo.Viajes or zonaId == ZoneManager.ZonaActual() or not llevaA(npc.Faccion, zona) then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if ZoneManager.Viajando(player) then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	viajesPagados[player] = nil -- un viaje anterior que ya terminó
+	local costo = costoViaje(zona, npc.Faccion)
+	if not DataManager.SpendGold(player, costo) then
+		avisar(player, `El viaje a {zona.Nombre} cuesta {costo} de oro.`)
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+	-- Se cobra antes de viajar. Si el viaje no arranca o falla después
+	-- (ZoneManager.Cancelado), el oro vuelve.
+	viajesPagados[player] = costo
+	if not ZoneManager.Teleportar(player, zonaId) then
+		if viajesPagados[player] == costo then
+			viajesPagados[player] = nil
+			DataManager.AddGold(player, costo)
+		end
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	return NetworkBridge.Ok({ Costo = costo })
+end
+
+------------------------------------------------------------------------
+-- Vendedor
+------------------------------------------------------------------------
+
+-- Stock rotativo -------------------------------------------------------
+-- El ciclo sale de la hora (igual en todos los servidores) y las ofertas del
+-- ciclo se sortean con una semilla fija: todos ven lo mismo sin coordinarse.
+
+local function cicloDe(arquetipo: Arquetipo): number
+	local rotacion = arquetipo.Rotacion
+	return if rotacion then os.time() // rotacion.Cada else 0
+end
+
+-- Índices (dentro de `Vende`) de las ofertas rotativas a la venta en este ciclo.
+local function rotativasActivas(npc: Npc): { [number]: boolean }
+	local activas: { [number]: boolean } = {}
+	local rotacion = npc.Arquetipo.Rotacion
+	local vende = npc.Arquetipo.Vende
+	if not rotacion or not vende then
+		return activas
+	end
+	local candidatas: { number } = {}
+	for indice, oferta in vende do
+		if oferta.Rotativa then
+			table.insert(candidatas, indice)
+		end
+	end
+	local azar = Random.new(cicloDe(npc.Arquetipo) * 7919 + npc.Arquetipo.Numero)
+	for i = #candidatas, 2, -1 do
+		local j = azar:NextInteger(1, i)
+		candidatas[i], candidatas[j] = candidatas[j], candidatas[i]
+	end
+	for i = 1, math.min(rotacion.Cantidad, #candidatas) do
+		activas[candidatas[i]] = true
+	end
+	return activas
+end
+
+-- Cuánto compró el jugador de cada ítem rotativo en el ciclo actual.
+local function compradoEnCiclo(player: Player, npc: Npc): { [string]: number }
+	local datos = DataManager.GetData(player)
+	local registro = datos and datos.ComprasRotativas and datos.ComprasRotativas[npc.ArquetipoId]
+	if not registro or registro.Ciclo ~= cicloDe(npc.Arquetipo) then
+		return {}
+	end
+	return registro.Items
+end
+
+local function anotarCompra(player: Player, npc: Npc, itemId: string, cantidad: number)
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return
+	end
+	local mapa: { [string]: { Ciclo: number, Items: { [string]: number } } } = datos.ComprasRotativas or {}
+	datos.ComprasRotativas = mapa
+	local ciclo = cicloDe(npc.Arquetipo)
+	local actual = mapa[npc.ArquetipoId]
+	local items: { [string]: number } = if actual and actual.Ciclo == ciclo then actual.Items else {}
+	items[itemId] = (items[itemId] or 0) + cantidad
+	mapa[npc.ArquetipoId] = { Ciclo = ciclo, Items = items }
+end
+
+local function comprar(player: Player, npc: Npc, indice: number, cantidad: number): Types.Respuesta
+	local vende = npc.Arquetipo.Vende
+	local oferta = if vende then vende[indice] else nil
+	if not oferta or (oferta.Solo and oferta.Solo ~= npc.Faccion) then
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	if oferta.Rotativa then
+		if not rotativasActivas(npc)[indice] then
+			avisar(player, "Eso ya no está a la venta.")
+			return NetworkBridge.Fail("NOT_FOUND")
+		end
+		local limite = oferta.Limite or 1
+		if (compradoEnCiclo(player, npc)[oferta.ItemId] or 0) + cantidad > limite then
+			avisar(player, `Solo te vendo {limite} hasta el próximo cambio de mercadería.`)
+			return NetworkBridge.Fail("NOT_ALLOWED")
+		end
+	end
+	local def = ItemCatalog[oferta.ItemId]
+	if not def then
+		warn(`[Npc] {npc.ArquetipoId} vende un ítem que no existe: {oferta.ItemId}`)
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	if not def.Apilable and cantidad > MAX_NO_APILABLE then
+		return NetworkBridge.Fail("INVALID_ARGS")
+	end
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return NetworkBridge.Fail("DATA_NOT_LOADED")
+	end
+	local total = oferta.Precio * cantidad
+	local conHonor = oferta.Moneda == "Honor"
+	local saldo = if conHonor then datos.PuntosHonor else datos.Oro
+	if saldo < total then
+		avisar(player, if conHonor then "No te alcanzan los puntos de honor." else "No te alcanza el oro.")
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+	-- AddItem es todo o nada; el cobro que sigue no puede fallar (no hay
+	-- yields entre la verificación del saldo y el descuento).
+	local ok, codigo = DataManager.AddItem(player, oferta.ItemId, cantidad, "Comun")
+	if not ok then
+		if codigo == "INVENTORY_FULL" then
+			avisar(player, "No tenés lugar en la mochila.")
+		end
+		return fallo(codigo)
+	end
+	local cobrado = if conHonor then DataManager.SpendHonor(player, total) else DataManager.SpendGold(player, total)
+	if not cobrado then
+		DataManager.RemoveItem(player, oferta.ItemId, cantidad)
+		return NetworkBridge.Fail("INTERNAL_ERROR")
+	end
+	if oferta.Rotativa then
+		anotarCompra(player, npc, oferta.ItemId, cantidad)
+	end
+	avisar(player, `Compraste {def.Nombre} x{cantidad}.`, "Oro")
+	return NetworkBridge.Ok({ Comprado = compradoEnCiclo(player, npc) })
+end
+
+local function vender(player: Player, npc: Npc, clave: string, cantidad: number): Types.Respuesta
+	local compra = npc.Arquetipo.Compra
+	if not compra then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local item = DataManager.ItemEnRanura(player, clave)
+	if not item or item.Cantidad < cantidad then
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	local def = ItemCatalog[item.ItemId]
+	if not def or def.PrecioVenta <= 0 or not table.find(compra.Tipos, def.Tipo) then
+		avisar(player, "Eso no me interesa.")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local pago = math.floor(def.PrecioVenta * compra.Factor) * cantidad
+	if pago < 1 then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local quitado = DataManager.QuitarDeRanura(player, clave, cantidad)
+	if not quitado then
+		return NetworkBridge.Fail("INTERNAL_ERROR")
+	end
+	if not DataManager.AddGold(player, pago) then
+		-- Tope de oro: el ítem vuelve a la mochila (la ranura acaba de liberarse).
+		DataManager.AgregarInstancia(player, quitado)
+		avisar(player, "No podés llevar más oro.")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	avisar(player, `Vendiste {def.Nombre} x{cantidad} por {pago} de oro.`, "Oro")
+	return NetworkBridge.Ok({ Pago = pago })
+end
+
+------------------------------------------------------------------------
+-- Servicios
+------------------------------------------------------------------------
+
+-- Registra qué hace un servicio (campo `Accion` del arquetipo). Otros sistemas
+-- pueden sumar las suyas (por ejemplo, el Vault para el Banquero).
+function NpcManager.RegistrarAccion(nombre: string, accion: Accion)
+	acciones[nombre] = accion
+end
+
+-- Operaciones sobre un ítem (campo `SobreItem` del arquetipo).
+function NpcManager.RegistrarAccionItem(nombre: string, accion: AccionItem)
+	accionesItem[nombre] = accion
+end
+
+-- Para servicios con `Cotiza`: cuánto le cuesta a ese jugador ahora.
+function NpcManager.RegistrarCotizacion(nombre: string, cotizar: (Player) -> number)
+	cotizaciones[nombre] = cotizar
+end
+
+local function sobreItem(player: Player, npc: Npc, operacionId: string, ranura: string, extra: string?): Types.Respuesta
+	local declarada = false
+	local operaciones: { NpcArquetiposConfig.OperacionItem } = npc.Arquetipo.SobreItem or {}
+	for _, operacion in operaciones do
+		declarada = declarada or operacion.Id == operacionId
+	end
+	local accion = accionesItem[operacionId]
+	if not declarada or not accion then
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	if not accion(player, npc, ranura, extra) then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	return NetworkBridge.Ok(nil)
+end
+
+local function servicio(player: Player, npc: Npc, servicioId: string): Types.Respuesta
+	local elegido: Servicio? = nil
+	local servicios: { Servicio } = npc.Arquetipo.Servicios or {}
+	for _, s in servicios do
+		if s.Id == servicioId then
+			elegido = s
+			break
+		end
+	end
+	if not elegido then
+		return NetworkBridge.Fail("NOT_FOUND")
+	end
+	local accion = if elegido.Accion then acciones[elegido.Accion] else nil
+	if not accion then
+		avisar(player, `{elegido.Nombre} todavía no está disponible.`, "Info")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if elegido.Cotiza then
+		-- Costo variable: la acción valida y cobra.
+		return if accion(player, npc, elegido) then NetworkBridge.Ok(nil) else NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local datos = DataManager.GetData(player)
+	if not datos or datos.Oro < elegido.Costo then
+		avisar(player, `{elegido.Nombre} cuesta {elegido.Costo} de oro.`)
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+	-- Las acciones no ceden el hilo: entre la verificación del oro y el cobro
+	-- no puede cambiar el saldo.
+	if not accion(player, npc, elegido) then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if elegido.Costo > 0 then
+		DataManager.SpendGold(player, elegido.Costo)
+	end
+	return NetworkBridge.Ok(nil)
+end
+
+local function registrarAccionesBase()
+	-- Afilador de Armas: mejora temporal de ataque (categoría "Filo" de
+	-- ConsumiblesConfig; no se pierde al morir).
+	NpcManager.RegistrarAccion("Afilar", function(player: Player): boolean
+		return BuffManager.Dar(player, "ServicioAfilar")
+	end)
+
+	-- Banquero de Clan: abre el banco de la hermandad (permisos, registro y
+	-- candado entre servidores los maneja HermandadManager).
+	NpcManager.RegistrarAccion("BancoClan", function(player: Player): boolean
+		if not HermandadManager.HermandadDe(player) then
+			avisar(player, "No pertenecés a ninguna hermandad.")
+			return false
+		end
+		NetworkBridge.Server.FireClient("NpcVentana", player, "BancoHermandad")
+		return true
+	end)
+
+	-- Cambista: honor por oro, en lotes fijos. Una sola vía.
+	NpcManager.RegistrarAccion("CambiarHonor", function(player: Player, _npc: Npc, elegido: Servicio): boolean
+		local lote = elegido.Lote or 0
+		local oro = math.floor(lote * NpcArquetiposConfig.Cambio.OroPorHonor)
+		local datos = DataManager.GetData(player)
+		if lote < 1 or oro < 1 or not datos then
+			return false
+		end
+		if datos.PuntosHonor < lote then
+			avisar(player, `Necesitás {lote} puntos de honor.`)
+			return false
+		end
+		-- Primero se entrega el oro (puede fallar por el tope); el honor se
+		-- descuenta después y ya no puede fallar.
+		if not DataManager.AddGold(player, oro) then
+			avisar(player, "No podés llevar más oro.")
+			return false
+		end
+		DataManager.SpendHonor(player, lote)
+		print(`[Npc] Cambio de {player.UserId}: {lote} de honor por {oro} de oro`)
+		avisar(player, `Cambiaste {lote} de honor por {oro} de oro.`, "Oro")
+		return true
+	end)
+
+	-- Subastador: abre la Casa de Subastas.
+	NpcManager.RegistrarAccion("Subasta", function(player: Player): boolean
+		NetworkBridge.Server.FireClient("SubastaAbrir", player)
+		return true
+	end)
+end
+
+------------------------------------------------------------------------
+-- Alta de NPCs
+------------------------------------------------------------------------
+
+local function abrir(player: Player, npc: Npc)
+	local raiz = raizDe(player)
+	if not raiz or (raiz.Position - npc.Raiz.Position).Magnitude > NpcArquetiposConfig.DistanciaInteraccion then
+		return
+	end
+	if not NpcManager.PuedeInteractuar(player, npc.Faccion) then
+		rechazar(player, npc)
+		return
+	end
+	local datos: { [string]: any } = { Posicion = npc.Raiz.Position }
+	if npc.Arquetipo.Viajes then
+		datos.Destinos = destinos(npc.Faccion)
+	end
+	if npc.Arquetipo.Rotacion then
+		local activas: { number } = {}
+		for indice in rotativasActivas(npc) do
+			table.insert(activas, indice)
+		end
+		datos.Rotacion = {
+			Activas = activas,
+			Termina = (cicloDe(npc.Arquetipo) + 1) * npc.Arquetipo.Rotacion.Cada,
+			Comprado = compradoEnCiclo(player, npc),
+		}
+	end
+	local costos: { [string]: number } = {}
+	local servicios: { Servicio } = npc.Arquetipo.Servicios or {}
+	for _, s in servicios do
+		local cotizar = if s.Cotiza and s.Accion then cotizaciones[s.Accion] else nil
+		if cotizar then
+			costos[s.Id] = cotizar(player)
+		end
+	end
+	datos.Costos = costos
+	NetworkBridge.Server.FireClient("NpcAbrir", player, npc.Id, npc.ArquetipoId, npc.Faccion, datos)
+end
+
+-- Cartel con el número del NPC (1 a 39) flotando sobre su cabeza.
+local function ponerNumero(modelo: Model, raiz: BasePart, arquetipo: Arquetipo, faccion: Faccion)
+	local cabeza = modelo:FindFirstChild("Head")
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "NumeroNpc"
+	cartel.Adornee = if cabeza and cabeza:IsA("BasePart") then cabeza else raiz
+	cartel.Size = UDim2.fromOffset(64, 30)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0) -- por encima del nombre
+	cartel.MaxDistance = 250
+	cartel.LightInfluence = 0
+	cartel.ResetOnSpawn = false
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+	texto.BackgroundTransparency = 0.25
+	texto.Font = Enum.Font.GothamBlack
+	texto.TextScaled = true
+	texto.Text = `#{arquetipo.Numero}`
+	texto.TextColor3 = NpcArquetiposConfig.ColoresFaccion[faccion]
+	texto.Parent = cartel
+	local esquinas = Instance.new("UICorner")
+	esquinas.CornerRadius = UDim.new(0, 8)
+	esquinas.Parent = texto
+	local margen = Instance.new("UIPadding")
+	margen.PaddingTop = UDim.new(0, 3)
+	margen.PaddingBottom = UDim.new(0, 3)
+	margen.Parent = texto
+	cartel.Parent = modelo
+end
+
+local function registrar(modelo: Model, raiz: BasePart, prompt: ProximityPrompt, arquetipoId: string, faccion: Faccion)
+	local arquetipo = NpcArquetiposConfig.Arquetipos[arquetipoId]
+	contador += 1
+	local npc: Npc =
+		{ Id = tostring(contador), ArquetipoId = arquetipoId, Arquetipo = arquetipo, Faccion = faccion, Raiz = raiz }
+	npcs[npc.Id] = npc
+	modelo:SetAttribute("NpcId", npc.Id)
+	modelo:SetAttribute("Arquetipo", arquetipoId)
+	modelo:SetAttribute("Faccion", faccion)
+	modelo:SetAttribute("Numero", arquetipo.Numero)
+	raiz:SetAttribute("Numero", arquetipo.Numero) -- el radar lee el número de la parte
+	CollectionService:AddTag(raiz, TAG_RADAR)
+	ponerNumero(modelo, raiz, arquetipo, faccion)
+
+	-- Los artesanos cuentan como estación de su oficio (sin cartel propio).
+	if arquetipo.Estacion and arquetipo.Estado ~= "Pendiente" then
+		local estacion = Instance.new("Part")
+		estacion.Name = "EstacionNpc"
+		estacion.Anchored = true
+		estacion.CanCollide = false
+		estacion.CanQuery = false
+		estacion.CanTouch = false
+		estacion.Transparency = 1
+		estacion.Size = Vector3.one
+		estacion.CFrame = raiz.CFrame
+		estacion:SetAttribute("Estacion", arquetipo.Estacion)
+		estacion:SetAttribute("SinPrompt", true)
+		estacion.Parent = modelo
+		CollectionService:AddTag(estacion, TAG_ESTACION)
+	end
+
+	-- Tags del arquetipo (por ejemplo, el Banquero es un punto de bóveda).
+	-- SinPrompt: el sistema dueño del tag no le pone cartel propio.
+	if arquetipo.Tags and arquetipo.Estado ~= "Pendiente" then
+		raiz:SetAttribute("SinPrompt", true)
+		for _, tag in arquetipo.Tags do
+			CollectionService:AddTag(raiz, tag)
+		end
+	end
+
+	prompt.Triggered:Connect(function(player: Player)
+		abrir(player, npc)
+	end)
+	modelo.Destroying:Connect(function()
+		npcs[npc.Id] = nil
+	end)
+end
+
+local function titulo(arquetipo: Arquetipo, faccion: Faccion): string
+	return if faccion == "Neutral" then arquetipo.Nombre else `{arquetipo.Nombre} ({faccion})`
+end
+
+-- Crea un NPC del arquetipo y la facción pedidos. Devuelve el modelo, o nil si
+-- el arquetipo no existe o no tiene versión de esa facción.
+function NpcManager.Crear(arquetipoId: string, faccion: Faccion, posicion: Vector3, mirarA: Vector3?): Model?
+	local arquetipo = NpcArquetiposConfig.Arquetipos[arquetipoId]
+	if not arquetipo or not table.find(arquetipo.Facciones, faccion) then
+		warn(`[Npc] No existe {arquetipoId} en versión {faccion}`)
+		return nil
+	end
+	local raiz, prompt, modelo =
+		NpcFactory.Crear(arquetipo.Nombre, titulo(arquetipo, faccion), posicion, arquetipo.Color, "Hablar", mirarA)
+	local marca = Instance.new("Highlight")
+	marca.Name = "MarcaFaccion"
+	marca.FillTransparency = 1
+	marca.OutlineColor = NpcArquetiposConfig.ColoresFaccion[faccion]
+	marca.OutlineTransparency = 0.35
+	marca.DepthMode = Enum.HighlightDepthMode.Occluded
+	marca.Parent = modelo
+	registrar(modelo, raiz, prompt, arquetipoId, faccion)
+	return modelo
+end
+
+-- NPC puesto a mano en el mapa (tag "NpcArquetipo").
+local function adoptar(instancia: Instance)
+	if not instancia:IsA("Model") or instancia:GetAttribute("NpcId") ~= nil then
+		return
+	end
+	local arquetipoId = instancia:GetAttribute("Arquetipo")
+	local faccion = instancia:GetAttribute("Faccion")
+	local arquetipo = if typeof(arquetipoId) == "string" then NpcArquetiposConfig.Arquetipos[arquetipoId] else nil
+	local raiz = instancia:FindFirstChild("HumanoidRootPart") or instancia.PrimaryPart
+	if
+		not arquetipo
+		or typeof(arquetipoId) ~= "string"
+		or (faccion ~= "Rojo" and faccion ~= "Azul" and faccion ~= "Neutral")
+		or not raiz
+		or not raiz:IsA("BasePart")
+	then
+		warn(`[Npc] {instancia:GetFullName()} necesita los atributos Arquetipo y Faccion válidos y una parte raíz`)
+		return
+	end
+	if not table.find(arquetipo.Facciones, faccion) then
+		warn(`[Npc] {instancia:GetFullName()}: {arquetipoId} no tiene versión {faccion}`)
+		return
+	end
+	local prompt = raiz:FindFirstChildOfClass("ProximityPrompt") or Instance.new("ProximityPrompt")
+	prompt.ActionText = "Hablar"
+	prompt.ObjectText = titulo(arquetipo, faccion)
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = raiz
+	registrar(instancia, raiz, prompt, arquetipoId, faccion)
+end
+
+-- Piso y cartel de la zona de NPC de prueba, para encontrarla desde lejos.
+local function plazaDePrueba(minimo: Vector3, maximo: Vector3)
+	local centro = (minimo + maximo) / 2
+	local margen = 6
+	local piso = Instance.new("Part")
+	piso.Name = "PlazaNpcPrueba"
+	piso.Anchored = true
+	piso.Material = Enum.Material.Slate
+	piso.Color = Color3.fromRGB(85, 85, 95)
+	piso.Size = Vector3.new(maximo.X - minimo.X + margen * 2, 1, maximo.Z - minimo.Z + margen * 2)
+	piso.CFrame = CFrame.new(centro.X, -0.4, centro.Z) -- apenas por encima del piso del mapa
+	piso.TopSurface = Enum.SurfaceType.Smooth
+	piso.Parent = workspace
+
+	local poste = Instance.new("Part")
+	poste.Name = "CartelNpcPrueba"
+	poste.Anchored = true
+	poste.CanCollide = false
+	poste.Material = Enum.Material.Wood
+	poste.Color = Color3.fromRGB(90, 60, 40)
+	poste.Size = Vector3.new(0.6, 10, 0.6)
+	poste.CFrame = CFrame.new(maximo.X + margen - 1, 5, minimo.Z - margen + 1)
+	poste.Parent = workspace
+
+	local cartel = Instance.new("BillboardGui")
+	cartel.Name = "Cartel"
+	cartel.Size = UDim2.fromOffset(220, 46)
+	cartel.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+	cartel.AlwaysOnTop = true
+	cartel.LightInfluence = 0
+	cartel.Parent = poste
+	local texto = Instance.new("TextLabel")
+	texto.Size = UDim2.fromScale(1, 1)
+	texto.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+	texto.BackgroundTransparency = 0.2
+	texto.Font = Enum.Font.GothamBlack
+	texto.TextScaled = true
+	texto.Text = "PLAZA DE NPC (pruebas)"
+	texto.TextColor3 = Color3.fromRGB(255, 215, 90)
+	texto.Parent = cartel
+	local esquinas = Instance.new("UICorner")
+	esquinas.CornerRadius = UDim.new(0, 8)
+	esquinas.Parent = texto
+end
+
+------------------------------------------------------------------------
+-- Init
+------------------------------------------------------------------------
+
+function NpcManager.Init()
+	assert(not iniciado, "NpcManager.Init() se llamó dos veces")
+	iniciado = true
+
+	registrarAccionesBase()
+
+	for _, instancia in CollectionService:GetTagged(TAG_NPC) do
+		adoptar(instancia)
+	end
+	CollectionService:GetInstanceAddedSignal(TAG_NPC):Connect(adoptar)
+	if Pruebas.Activas() and next(npcs) == nil then
+		local minimo, maximo = Vector3.zero, Vector3.zero
+		for i, puesto in NpcArquetiposConfig.DePrueba do
+			minimo = if i == 1 then puesto.Posicion else minimo:Min(puesto.Posicion)
+			maximo = if i == 1 then puesto.Posicion else maximo:Max(puesto.Posicion)
+		end
+		plazaDePrueba(minimo, maximo)
+		for _, puesto in NpcArquetiposConfig.DePrueba do
+			NpcManager.Crear(puesto.Arquetipo, puesto.Faccion, puesto.Posicion)
+		end
+		local centro = (minimo + maximo) / 2
+		print(
+			`[Npc] {#NpcArquetiposConfig.DePrueba} NPC de prueba entre {minimo} y {maximo}.`
+				.. ` Para ir: game.ServerStorage.RaidBloxDebug:Invoke("Ir", {math.round(centro.X)}, 0, {math.round(
+					centro.Z
+				)})`
+		)
+	end
+
+	ZoneManager.Cancelado:Connect(function(player: Player)
+		local costo = viajesPagados[player]
+		if costo then
+			viajesPagados[player] = nil
+			if DataManager.AddGold(player, costo) then
+				avisar(player, `Se te devolvieron {costo} de oro del viaje.`, "Oro")
+			end
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		viajesPagados[player] = nil
+	end)
+
+	local Guard = NetworkBridge.Guard
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcComprar",
+		function(player: Player, npcId: unknown, indice: unknown, cantidad: unknown): Types.Respuesta
+			local i = Guard.Integer(indice, 1, 50)
+			local n = Guard.Integer(cantidad, 1, MAX_POR_COMPRA)
+			if not i or not n then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return comprar(player, npc, i, n)
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcVender",
+		function(player: Player, npcId: unknown, ranura: unknown, cantidad: unknown): Types.Respuesta
+			local clave = Guard.String(ranura, 4)
+			local n = Guard.Integer(cantidad, 1, 9999)
+			if not clave or not n then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return vender(player, npc, clave, n)
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcServicio",
+		function(player: Player, npcId: unknown, servicioId: unknown): Types.Respuesta
+			local id = Guard.String(servicioId, 32)
+			if not id then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return servicio(player, npc, id)
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcSobreItem",
+		function(player: Player, npcId: unknown, operacion: unknown, ranura: unknown, extra: unknown): Types.Respuesta
+			local id = Guard.String(operacion, 32)
+			local clave = Guard.Integer(ranura, 1, 500)
+			local opcion = if extra == nil then nil else Guard.String(extra, 32)
+			if not id or not clave or (extra ~= nil and not opcion) then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return sobreItem(player, npc, id, tostring(clave), opcion)
+		end
+	)
+
+	NetworkBridge.Server.OnInvoke("NpcFabricar", function(player: Player, npcId: unknown): Types.Respuesta
+		local npc, codigo = validar(player, npcId)
+		if not npc then
+			return fallo(codigo)
+		end
+		local estacion = npc.Arquetipo.Estacion
+		if not estacion or npc.Arquetipo.Estado == "Pendiente" then
+			return NetworkBridge.Fail("NOT_ALLOWED")
+		end
+		NetworkBridge.Server.FireClient("CrafteoAbrir", player, estacion)
+		return NetworkBridge.Ok(nil)
+	end)
+
+	NetworkBridge.Server.OnInvoke(
+		"NpcViajar",
+		function(player: Player, npcId: unknown, zonaId: unknown): Types.Respuesta
+			local zona = Guard.OneOf(zonaId, ZoneConfig.Zonas)
+			if not zona then
+				return NetworkBridge.Fail("INVALID_ARGS")
+			end
+			local npc, codigo = validar(player, npcId)
+			if not npc then
+				return fallo(codigo)
+			end
+			return viajar(player, npc, zona)
+		end
+	)
+end
+
+return NpcManager

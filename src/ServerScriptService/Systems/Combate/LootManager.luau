@@ -20,6 +20,7 @@ local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
 local EnemigosConfig = require(ReplicatedStorage.Configs.EnemigosConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local DataManager = require(script.Parent.Parent.DataManager)
+local Buzon = require(script.Parent.Parent.Buzon)
 
 type Rareza = Types.Rareza
 type ItemMeta = Types.ItemMeta
@@ -44,7 +45,6 @@ local DISTANCIA_RECOGIDA = 14
 local DURACION_BOLSA = 120
 local azar = Random.new()
 local pendientes: { [Player]: { [string]: Pendiente } } = {}
-local enviosEnCurso = 0 -- envíos al buzón que todavía no terminaron (para el cierre)
 local iniciado = false
 
 local RAREZAS: { [string]: Rareza } = {
@@ -153,28 +153,9 @@ local function nombreItem(item: ItemGenerado): string
 	return if def then def.Nombre else item.ItemId
 end
 
--- Envía un ítem al buzón con reintentos (espera creciente). El cierre del
--- servidor espera a que terminen todos los envíos en curso.
+-- Envía un ítem al buzón (reintentos, id fijo y espera al cierre: módulo Buzon).
 local function enviarAlBuzon(userId: number, item: ItemGenerado, origen: string)
-	enviosEnCurso += 1
-	task.spawn(function()
-		local espera = 1
-		local enviado = false
-		for _ = 1, 5 do
-			local okLlamada, resultado =
-				pcall(DataManager.EnviarItemOffline, userId, item.ItemId, item.Cantidad, item.Rareza, item.Meta, origen)
-			if okLlamada and resultado then
-				enviado = true
-				break
-			end
-			task.wait(espera)
-			espera *= 2
-		end
-		if not enviado then
-			warn(`[Botin] No se pudo enviar {item.ItemId} x{item.Cantidad} al buzón de {userId}`)
-		end
-		enviosEnCurso -= 1
-	end)
+	Buzon.EnviarItem(userId, item, origen)
 end
 
 -- Entrega sin bolsa: inventario o, si está lleno, buzón.
@@ -261,6 +242,39 @@ local function recoger(player: Player, id: string)
 	)
 end
 
+-- Mascotas coleccionistas: junta todo el botín del jugador a menos de `radio`
+-- studs. Devuelve cuántas bolsas juntó. Si el inventario se llena, para (las
+-- bolsas siguen ahí y al vencer van al buzón).
+function LootManager.RecogerCerca(player: Player, radio: number): number
+	local delJugador = pendientes[player]
+	if not delJugador or next(delJugador) == nil then
+		return 0
+	end
+	local personaje = player.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if not raiz or not raiz:IsA("BasePart") then
+		return 0
+	end
+	local juntadas = 0
+	for id, p in table.clone(delJugador) do
+		if (raiz.Position - p.Posicion).Magnitude <= radio then
+			local item = p.Item
+			if not DataManager.AddItem(player, item.ItemId, item.Cantidad, item.Rareza, item.Meta) then
+				break
+			end
+			retirar(player, id)
+			juntadas += 1
+			NetworkBridge.Server.FireClient(
+				"Notificacion",
+				player,
+				`🐾 +{nombreItem(item)} x{item.Cantidad}`,
+				if item.Rareza == "Comun" then "Info" else "Oro"
+			)
+		end
+	end
+	return juntadas
+end
+
 ------------------------------------------------------------------------
 -- Inicio
 ------------------------------------------------------------------------
@@ -285,14 +299,6 @@ function LootManager.Init()
 		end
 		for _, p in delJugador do
 			enviarAlBuzon(player.UserId, p.Item, p.Origen)
-		end
-	end)
-
-	-- Al apagarse el servidor, espera (hasta 25 s) a que lleguen los envíos al buzón.
-	game:BindToClose(function()
-		local limite = os.clock() + 25
-		while enviosEnCurso > 0 and os.clock() < limite do
-			task.wait(0.2)
 		end
 	end)
 

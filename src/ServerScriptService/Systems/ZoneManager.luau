@@ -20,11 +20,13 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Pruebas = require(game:GetService("ReplicatedStorage").Modules.Pruebas)
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
 local ZoneConfig = require(ReplicatedStorage.Configs.ZoneConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
+local Signal = require(ReplicatedStorage.Modules.Signal)
 local DataManager = require(script.Parent.DataManager)
 local AntiCheat = require(script.Parent.AntiCheat)
 
@@ -44,6 +46,10 @@ type Intento = {
 }
 
 local ZoneManager = {}
+
+-- Se dispara cuando un viaje ya iniciado no se pudo completar (jugador, zonaId).
+-- Quien haya cobrado el viaje lo usa para devolver el oro.
+ZoneManager.Cancelado = Signal.new() :: Signal.Signal<Player, string>
 
 local intentos: { [Player]: Intento } = {} -- teleports en curso
 local ultimoPortal: { [Player]: number } = {}
@@ -92,6 +98,7 @@ local function cancelar(player: Player, intento: Intento, mensaje: string)
 	end
 	intentos[player] = nil
 	NetworkBridge.Server.FireClient("TeleportEstado", player, "Fallo", intento.zonaId, mensaje)
+	ZoneManager.Cancelado:Fire(player, intento.zonaId)
 end
 
 -- Ejecuta (o reintenta) el teleport real.
@@ -159,13 +166,22 @@ end
 ------------------------------------------------------------------------
 
 -- Id de la zona de este place. En Studio devuelve "Pruebas" (área de práctica
--- con enemigos y un RaidBlox de prueba). nil si el place no está configurado.
+-- con enemigos y un RaidBlox de prueba). Fuera de Studio, si el place no está en
+-- ZoneConfig y ModoPruebas está activado, también "Pruebas". Si no, nil.
 function ZoneManager.ZonaActual(): string?
 	if RunService:IsStudio() then
 		return "Pruebas"
 	end
 	local id = zonaDeEstePlace()
+	if not id and Pruebas.Activas() then
+		return "Pruebas"
+	end
 	return id
+end
+
+-- ¿Tiene un viaje en curso?
+function ZoneManager.Viajando(player: Player): boolean
+	return intentos[player] ~= nil
 end
 
 -- Pide llevar a un jugador a una zona. Devuelve false (y avisa al jugador) si

@@ -9,6 +9,7 @@ local TeleportService = game:GetService("TeleportService")
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local PantallaCarga = require(ReplicatedStorage.Modules.PantallaCarga)
 local Avisos = require(ReplicatedStorage.Modules.Avisos)
+local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 
 local jugador = Players.LocalPlayer
 local playerGui = jugador:WaitForChild("PlayerGui")
@@ -50,6 +51,13 @@ end)
 
 -- Avisos generales del servidor (nivel insuficiente, zona no disponible...).
 NetworkBridge.Client.OnEvent("Notificacion", function(texto: any, tipo: any)
+	if tipo == "Guerra" then
+		-- Ajuste "Ignorar Guerra de Arquitectos": sin avisos de la partida.
+		local ajustes = EstadoCliente.Get("Ajustes")
+		if typeof(ajustes) == "table" and ajustes.IgnorarGuerra == true then
+			return
+		end
+	end
 	if typeof(texto) == "string" then
 		Avisos.Mostrar(texto, if typeof(tipo) == "string" then tipo else "Info")
 	end

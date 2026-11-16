@@ -7,7 +7,7 @@ objetivo" o "parry"; el servidor valida estado, cooldown, maná, rango y aplica 
 
 | Módulo | Lado | Responsabilidad |
 | --- | --- | --- |
-| `ClassConfig` | Compartido | 8 clases, stats por nivel, 4 habilidades cada una |
+| `ClassConfig` | Compartido | 8 clases con 4 habilidades cada una, más el [Chatarrero](chatarrero.md) con 30 |
 | `ItemRarityConfig` | Compartido | Rarezas, efectos secundarios y pasivas |
 | `EnemigosConfig` / `RaidBloxConfig` | Compartido | Enemigos, spawns, jefes y tablas de botín |
 | `Estadisticas` | Servidor | Stats de combate: clase + nivel + equipo |
@@ -123,7 +123,7 @@ RaidBlox además resisten la mitad de la duración. Así nadie (ni un jefe) pued
 
 | Clase | Rol | Habilidades (1 · 2 · 3 · 4) | Mecánica propia |
 | --- | --- | --- | --- |
-| Tanque | Defensor | Golpe de Escudo · Provocación · Terremoto · Muralla | Amenaza ×3, provoca |
+| Tanque | Defensor | Golpe Defensivo · Provocación · Terremoto · Muralla | Amenaza ×3, provoca |
 | Guerrero | Daño cuerpo a cuerpo | Tajo · Golpe Brutal · Torbellino · Grito de Guerra | Aura de ataque al grupo |
 | Mago | Daño mágico a distancia | Proyectil Arcano · Bola de Fuego · Nova de Escarcha · Meteoro | Casteos largos, área |
 | Arquero | Daño físico a distancia | Disparo · Disparo Certero · Flecha Venenosa · Lluvia de Flechas | Daño en el tiempo |
@@ -276,6 +276,71 @@ Pasos:
 3. Mientras casteás (Mago: Bola de Fuego), moverte cancela el hechizo.
 4. Acercate al Gólem: aparece la barra gigante. Salí de las zonas rojas. Al 20% entra en Furia.
 5. Recogé las bolsas de botín; las de rareza Épica o mayor tienen un haz de luz.
-6. Para equipar un ítem desde la barra de comandos (servidor):
-   `require(game.ServerScriptService.Systems.DataManager).EquiparItem(p, "<Uid>")`.
-   La interfaz de inventario llega en la Fase 4.
+6. Para equipar un ítem, usá la Mochila (I). Desde la barra de comandos (vista de Servidor):
+   `game.ServerStorage.RaidBloxDebug:Invoke("EquiparItem", "<Uid>")` (el Uid sale de `Invoke("Ver")`).
+## Animaciones y efectos visuales
+
+El servidor no anima nada: al resolver una habilidad manda a los jugadores cercanos un `CombateEvento` de tipo
+`Accion` (id de la habilidad, objetivo, centro y radio del área, y a quiénes alcanzó). También manda `Casteo` (con la
+duración) y `CasteoFin`. Los ataques de los enemigos llegan como la acción `AtaqueNpc`, y su aviso "¡!" hace que
+levanten el arma antes de golpear.
+
+`VisualesCombate` (cliente) dibuja todo según `Configs/VisualConfig`:
+
+| Campo | Qué hace |
+|---|---|
+| `Anim` | Animación por código (Motor6D.C0 de brazos y torso, R15 y R6): Tajo, Golpe, Estocada, Pesado, Giro, Grito, Pisotón, Guardia, Lanzar, Bendecir, Disparo, Zarpazo. |
+| `AnimCasteo` | En bucle mientras castea: Conjurar, Apuntar, Rezo. |
+| `AnimacionId` | Opcional: una animación subida desde el Animation Editor reemplaza a la de código. |
+| `Arma` | Estela del arma durante el golpe. |
+| `Proyectil` | Orbe, Flecha o Espina que viaja hasta el objetivo; al llegar, el impacto. |
+| `Impacto` | Chispas, Explosión, Veneno, Hielo, Raíces, Curación o Escudo sobre cada alcanzado. |
+| `Area` | Onda, Meteoro, Lluvia de flechas, Torbellino, Aura o Humo. |
+| `Haz` | Rayo de luz al objetivo (curas, provocación). |
+| `Casteo` | Círculo mágico bajo los pies mientras castea. |
+
+Además, quien recibe daño parpadea en blanco. Las partículas usan solo texturas que trae Roblox (`rbxasset://`), y
+todos los efectos son locales y se borran solos.
+
+## Modo apuntado (mira)
+
+Hay dos formas de elegir a quién le pegás. Arranca en el modo de siempre y la
+mira es optativa: se prende y apaga con el botón **🎯 Mira** o con **Q** (clic
+en el stick derecho del joystick).
+
+- **Apuntado**: mira en el centro, cámara sobre el hombro y
+  el personaje mira hacia donde mira la cámara. **Clic izquierdo** = ataque
+  básico; 1-4 = habilidades. El mouse se suelta solo al abrir una ventana o
+  escribir, y mientras tengas apretado **Alt** o **Ctrl** (así también podés tocar
+el botón 🎯 Mira para apagarla). La mira se pone roja sobre un
+  enemigo (verde sobre un aliado) y muestra una X al pegar.
+- **Objetivo** (el de siempre): con Tab o clic.
+
+El cliente solo manda el **punto del mundo bajo la mira**; el servidor decide
+(`resolverApuntado` en `CombatManager`):
+
+| Habilidad | En modo apuntado |
+| --- | --- |
+| Enemigo, cuerpo a cuerpo (rango ≤ 10) | todos los enemigos en un cono de 120° hacia la mira |
+| Enemigo, a distancia | el primer enemigo a menos de 4 studs de la línea de la mira y dentro del rango; si no hay nadie, no se lanza (no gasta maná) |
+| Aliado | el primer aliado en la línea de la mira; si no hay, sobre vos |
+| Área sobre un objetivo | centrada en el punto de la mira, hasta el rango de la habilidad |
+| Propio / área alrededor tuyo | igual que siempre |
+
+Los 4 studs de tolerancia (`ClassConfig.ToleranciaMira`) son la ayuda para
+apuntar, también para joystick. Con un casteo, al terminar se mantiene el
+objetivo del comienzo si sigue valiendo.
+
+## Esquiva y fallo (Fase 7)
+
+Antes de cada golpe directo (habilidad de daño o golpe de un NPC) el servidor
+tira dos veces (`CombatManager.evitado`):
+
+- **Fallo:** si el objetivo tiene más nivel, 4% por nivel de diferencia (tope
+  25%). Vale para físico y mágico. Se ve "¡FALLO!".
+- **Esquiva:** solo golpes físicos. Base 3% (Asesino 8%, Arquero 6%, Druida
+  4%; enemigos 2%) + 0,3% por punto de Agilidad del equipo, tope 30%. Se ve
+  "¡ESQUIVADO!".
+
+No se esquivan los daños en el tiempo ni las zonas rojas de los jefes (de esas
+hay que salir). Los números están en `ClassConfig` (`Esquiva*`, `Fallo*`).
