@@ -27,6 +27,17 @@ Dos servicios: **Reparar lo equipado** y **Reparar todo** (suma lo de la mochila
 reparado, según la rareza: Común 0,5 · Raro 1 · Épico 2 · Místico 3,5 · Único 5 de oro. La ventana muestra el
 costo exacto para ese jugador. No se repara en combate.
 
+### Reparación de campo (tarifa de emergencia)
+
+Arreglar lo que llevás puesto **sin volver hasta el NPC**, desde el pie del panel de equipo de la mochila. Lo
+que se paga es la comodidad: cuesta el **triple** de lo que cobraría el Reparador y se puede usar **una vez cada
+15 minutos**. Sigue sin funcionar en combate — se paga no volver a la ciudad, no arreglarse en medio de una
+pelea — y no se cobra si al equipo le faltan menos de 5 puntos en total.
+
+El descuento de la raza Artesano se aplica **antes** del recargo, así que también vale acá. La espera se marca
+recién después de cobrar: si no alcanzaba el oro, no se gasta el uso. El botón muestra el precio calculado en el
+cliente, pero el servidor lo vuelve a calcular y es el que cobra.
+
 ## NPC-011 Desencantador
 
 Destruye un equipo **Raro o mejor** de la mochila (lo equipado no se toca) por 25 de oro y devuelve esencias.
@@ -49,13 +60,24 @@ la pasiva, las gemas y la durabilidad. Cuesta 2 Polvo de Encantamiento y oro seg
 4.000 · 10.000, con 25% de recargo por cada reforja anterior del mismo ítem (tope +300%). Pide confirmación y deja
 registro en el log del servidor.
 
+**Vista previa.** Antes de pagar, la ventana muestra qué efectos tiene el ítem ahora, cuánto encarece la reforja
+lo que ya se reforjó, cuántos efectos va a sacar y la lista de los que pueden salir, con los que todavía no tiene
+primero. Lo que **no** muestra es el resultado, y es a propósito: el sorteo pasa en el servidor al confirmar, así
+que no hay forma de mirar el premio y decidir después.
+
 La **Ficha de Re-roll** de la tienda es otra cosa: vuelve a tirar los valores y la calidad, sin cambiar qué
 efectos son.
 
 ## NPC-010 Maestro Encantador
 
 Engarza gemas. Ranuras por rareza: Raro 1 · Épico 2 · Místico 2 · Único 3. Cuesta 300 de oro, 1 Esencia Mágica y
-la gema. Una gema engarzada no se puede sacar.
+la gema.
+
+**Sacar gema** devuelve la gema entera a la mochila: 400 · 900 · 1.800 · 3.500 de oro según la rareza, más 1
+Polvo de Encantamiento. Cuesta más que ponerla a propósito: si fuera barato, mover gemas de un ítem a otro
+saldría casi gratis. La ventana muestra las gemas del ítem y se elige cuál sacar, con confirmación. Las que
+quedan **se corren** para no dejar huecos, porque las ranuras libres se cuentan por cuántas gemas hay y un hueco
+haría desaparecer las de atrás. Si la gema no entra en la mochila (no debería: se revisa antes), va al buzón.
 
 | Gema | Efecto |
 |---|---|
@@ -82,5 +104,8 @@ Además de fundir minerales, nueva receta de Herrería 8 en el Yunque: **5 lingo
 ## Pruebas
 
 `python3 tests/run.py` cubre las reglas puras: durabilidad por defecto y límites, costo de reparación, qué ítems
-acepta cada operación, recargo de la reforja y coherencia de gemas, esencias y rarezas. El desgaste en combate y
+acepta cada operación, recargo de la reforja y coherencia de gemas, esencias y rarezas. También que sacar una
+gema cueste más que ponerla y corra las que quedan sin dejar huecos, que la tarifa de campo sea más cara que ir
+al NPC y nunca salga gratis, y que la vista previa de la reforja liste todos los efectos posibles sin adelantar
+ninguno. El desgaste en combate y
 las operaciones contra el perfil hay que probarlos en Studio.

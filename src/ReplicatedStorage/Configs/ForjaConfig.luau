@@ -15,7 +15,7 @@
 local ItemCatalog = require(script.Parent.ItemCatalog)
 local ItemRarityConfig = require(script.Parent.ItemRarityConfig)
 
-export type Operacion = "Desencantar" | "Reforjar" | "Engarzar"
+export type Operacion = "Desencantar" | "Reforjar" | "Engarzar" | "Extraer"
 export type Gema = { Efecto: string, Valor: number, Texto: string }
 
 local ForjaConfig = {}
@@ -32,6 +32,22 @@ ForjaConfig.Durabilidad = {
 	-- Oro por punto reparado, según la rareza de la pieza.
 	CostoPorPunto = { Comun = 0.5, Raro = 1, Epico = 2, Mistico = 3.5, Unico = 5 } :: { [string]: number },
 }
+
+-- Reparación de campo: arreglar lo que llevás puesto sin ir hasta el NPC.
+-- Se paga la comodidad, y no se puede usar a cada rato.
+ForjaConfig.Emergencia = {
+	Multiplicador = 3, -- se cobra el triple de lo que cobraría el Reparador
+	EsperaSegundos = 900, -- una vez cada 15 minutos
+	MinimoPuntos = 5, -- no vale la pena (ni se cobra) por menos que esto
+}
+
+-- Lo que sale una reparación de campo, a partir del costo normal.
+function ForjaConfig.CostoEmergencia(costoNormal: number): number
+	if costoNormal <= 0 then
+		return 0
+	end
+	return math.max(1, math.ceil(costoNormal * ForjaConfig.Emergencia.Multiplicador))
+end
 
 -- ¿El ítem se desgasta? Solo el equipo (no las herramientas ni los cosméticos).
 function ForjaConfig.TieneDurabilidad(item: any): boolean
@@ -115,6 +131,14 @@ ForjaConfig.Engarzar = {
 	} :: { [string]: Gema },
 }
 
+-- Sacar una gema ya engarzada: vuelve a la mochila entera, pero cuesta más
+-- que ponerla (si fuera barato, mover gemas de un ítem a otro sería gratis).
+ForjaConfig.Extraer = {
+	Costo = { Raro = 400, Epico = 900, Mistico = 1800, Unico = 3500 } :: { [string]: number },
+	Material = "PolvoEncantamiento",
+	CantidadMaterial = 1,
+}
+
 function ForjaConfig.RanurasGema(item: any): number
 	if not ForjaConfig.TieneDurabilidad(item) then
 		return 0
@@ -138,6 +162,77 @@ function ForjaConfig.GemasDe(item: any): { string }
 	return lista
 end
 
+-- La misma lista de gemas sin la de esa ranura, corrida para que no queden
+-- huecos (las ranuras se cuentan por cuántas gemas hay).
+function ForjaConfig.SinGema(gemas: { string }, indice: number): { string }
+	local quedan: { string } = {}
+	for i, gema in gemas do
+		if i ~= indice then
+			table.insert(quedan, gema)
+		end
+	end
+	return quedan
+end
+
+------------------------------------------------------------------------
+-- Vista previa de la reforja
+------------------------------------------------------------------------
+
+-- Qué efectos secundarios tiene el ítem ahora, ordenados para mostrarlos.
+function ForjaConfig.EfectosDe(item: any): { { Clave: string, Valor: number, Texto: string } }
+	local lista: { { Clave: string, Valor: number, Texto: string } } = {}
+	local meta = if typeof(item) == "table" then item.Meta else nil
+	if typeof(meta) ~= "table" then
+		return lista
+	end
+	for clave, valor in meta do
+		if string.sub(clave, 1, 7) ~= "Efecto_" or typeof(valor) ~= "number" then
+			continue
+		end
+		local id = string.sub(clave, 8)
+		local efecto = ItemRarityConfig.Efectos[id]
+		if efecto then
+			table.insert(lista, { Clave = id, Valor = valor, Texto = string.format(efecto.Formato, valor) })
+		end
+	end
+	table.sort(lista, function(a, b)
+		return a.Clave < b.Clave
+	end)
+	return lista
+end
+
+-- Cuánto encarece la reforja lo que ya se reforjó antes (0 = sin recargo).
+function ForjaConfig.RecargoReforja(item: any): number
+	local meta = if typeof(item) == "table" then item.Meta else nil
+	local previas = if typeof(meta) == "table" and typeof(meta.Reforjas) == "number" then meta.Reforjas else 0
+	return math.min(math.max(previas, 0) * ForjaConfig.Reforjar.AumentoPorReforja, ForjaConfig.Reforjar.MaximoAumento)
+end
+
+-- Qué efectos podrían salir, separados en los que el ítem no tiene (se
+-- sortean primero) y los que ya tiene. La vista previa muestra lo que *puede*
+-- salir: el resultado se sortea en el servidor al confirmar, así que no hay
+-- forma de mirar el premio antes de pagar.
+function ForjaConfig.CandidatosReforja(item: any): ({ string }, { string })
+	local tiene: { [string]: boolean } = {}
+	for _, efecto in ForjaConfig.EfectosDe(item) do
+		tiene[efecto.Clave] = true
+	end
+	local nuevos: { string } = {}
+	local repetidos: { string } = {}
+	for clave in ItemRarityConfig.Efectos do
+		table.insert(if tiene[clave] then repetidos else nuevos, clave)
+	end
+	table.sort(nuevos)
+	table.sort(repetidos)
+	return nuevos, repetidos
+end
+
+-- Cuántos efectos secundarios va a tener después de reforjar.
+function ForjaConfig.CuantosEfectos(item: any): number
+	local rareza = if typeof(item) == "table" then ItemRarityConfig.Rarezas[item.Rareza] else nil
+	return if rareza then rareza.EfectosSecundarios else 0
+end
+
 ------------------------------------------------------------------------
 -- Operaciones sobre un ítem de la mochila
 ------------------------------------------------------------------------
@@ -158,6 +253,8 @@ function ForjaConfig.Aplica(operacion: string, item: any): boolean
 		return esEquipoMagico(item) and ForjaConfig.Reforjar.Costo[item.Rareza] ~= nil
 	elseif operacion == "Engarzar" then
 		return #ForjaConfig.GemasDe(item) < ForjaConfig.RanurasGema(item)
+	elseif operacion == "Extraer" then
+		return #ForjaConfig.GemasDe(item) > 0 and ForjaConfig.Extraer.Costo[item.Rareza] ~= nil
 	end
 	return false
 end
@@ -168,12 +265,11 @@ function ForjaConfig.Costo(operacion: string, item: any): number
 		return ForjaConfig.Desencantar.Costo
 	elseif operacion == "Engarzar" then
 		return ForjaConfig.Engarzar.Costo
+	elseif operacion == "Extraer" then
+		return ForjaConfig.Extraer.Costo[item.Rareza] or 0
 	elseif operacion == "Reforjar" then
 		local base = ForjaConfig.Reforjar.Costo[item.Rareza] or 0
-		local meta = if typeof(item) == "table" then item.Meta else nil
-		local previas = if typeof(meta) == "table" and typeof(meta.Reforjas) == "number" then meta.Reforjas else 0
-		local recargo = math.min(previas * ForjaConfig.Reforjar.AumentoPorReforja, ForjaConfig.Reforjar.MaximoAumento)
-		return math.floor(base * (1 + recargo))
+		return math.floor(base * (1 + ForjaConfig.RecargoReforja(item)))
 	end
 	return 0
 end
@@ -184,6 +280,8 @@ function ForjaConfig.Material(operacion: string): (string?, number)
 		return ForjaConfig.Reforjar.Material, ForjaConfig.Reforjar.CantidadMaterial
 	elseif operacion == "Engarzar" then
 		return ForjaConfig.Engarzar.Material, ForjaConfig.Engarzar.CantidadMaterial
+	elseif operacion == "Extraer" then
+		return ForjaConfig.Extraer.Material, ForjaConfig.Extraer.CantidadMaterial
 	end
 	return nil, 0
 end

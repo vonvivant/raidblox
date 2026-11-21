@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ForjaConfig = require(ReplicatedStorage.Configs.ForjaConfig)
+local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local NpcArquetiposConfig = require(ReplicatedStorage.Configs.NpcArquetiposConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
@@ -370,12 +371,56 @@ local function seccionSobreItem(s: Sesion, operacion: NpcArquetiposConfig.Operac
 			continue
 		end
 
+		if operacion.EligeGemaPuesta and eligiendoGema == marca then
+			-- Segundo paso: cuál de las gemas que ya tiene.
+			boton(f, "Cancelar", 1.5, false, function()
+				eligiendoGema = nil
+				redibujar()
+			end)
+			for indice, gemaId in ForjaConfig.GemasDe(item) do
+				local gema = ForjaConfig.Engarzar.Gemas[gemaId]
+				local def = ItemCatalog[gemaId]
+				local g = fila(`   ◆ {if def then def.Nombre else gemaId}`, `   {if gema then gema.Texto else ""}`)
+				boton(g, "Sacar", 1.5, puede, function()
+					eligiendoGema = nil
+					pedir("NpcSobreItem", s.NpcId, operacion.Id, tonumber(clave), tostring(indice))
+				end)
+			end
+			continue
+		end
+
+		-- Vista previa de la reforja: qué tiene ahora, cuánto encarece lo que
+		-- ya reforjó y qué efectos pueden salir. El resultado se sortea en el
+		-- servidor al confirmar, así que no se puede espiar antes de pagar.
+		if operacion.Id == "Reforjar" then
+			local actuales: { string } = {}
+			for _, efecto in ForjaConfig.EfectosDe(item) do
+				table.insert(actuales, efecto.Texto)
+			end
+			nota(`   Ahora: {if #actuales > 0 then table.concat(actuales, ", ") else "sin efectos"}`)
+			local recargo = ForjaConfig.RecargoReforja(item)
+			if recargo > 0 then
+				nota(`   Recargo por reforjas anteriores: +{math.floor(recargo * 100)}%`)
+			end
+			local nuevos, repetidos = ForjaConfig.CandidatosReforja(item)
+			local nombres: { string } = {}
+			for _, grupo in { nuevos, repetidos } do
+				for _, id in grupo do
+					local def = ItemRarityConfig.Efectos[id]
+					table.insert(nombres, if def then def.Nombre else id)
+				end
+			end
+			nota(
+				`   Saca {ForjaConfig.CuantosEfectos(item)} de: {table.concat(nombres, ", ")} (primero los que no tiene)`
+			)
+		end
+
 		local confirmando = operacion.Confirmar and porConfirmar == marca
 		boton(f, if confirmando then "¿Seguro?" else operacion.Nombre, 1.5, puede, function()
 			if not puede then
 				return
 			end
-			if operacion.EligeGema then
+			if operacion.EligeGema or operacion.EligeGemaPuesta then
 				eligiendoGema = marca
 				redibujar()
 			elseif operacion.Confirmar and not confirmando then

@@ -20,6 +20,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local ProfesionesConfig = require(ReplicatedStorage.Configs.ProfesionesConfig)
+local ForjaConfig = require(ReplicatedStorage.Configs.ForjaConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local EstadoCliente = require(ReplicatedStorage.Modules.EstadoCliente)
 local UIKit = require(ReplicatedStorage.Modules.UIKit)
@@ -57,6 +58,14 @@ local layoutEquipo = Instance.new("UIListLayout")
 layoutEquipo.Padding = UDim.new(0, 4)
 layoutEquipo.SortOrder = Enum.SortOrder.LayoutOrder
 layoutEquipo.Parent = panelEquipo
+
+-- Reparación de campo: aparece al pie del equipo solo cuando hay algo roto o
+-- gastado, con el precio de la tarifa (el triple de lo que cobra el Reparador).
+local actualizarCampo: () -> ()
+local botonCampo = UIKit.Boton(panelEquipo, "", UDim2.new(1, 0, 0, 34), nil, UIKit.Colores.BotonPrimario)
+botonCampo.LayoutOrder = 100
+botonCampo.Visible = false
+local confirmandoCampo = false
 
 local grilla = UIKit.Lista(contenido, UDim2.fromScale(0.46, 0.9), UDim2.fromScale(0.235, 0))
 local layoutLista = grilla:FindFirstChildOfClass("UIListLayout")
@@ -404,6 +413,48 @@ end)
 -- Construcción de ranuras
 ------------------------------------------------------------------------
 
+-- Lo que falta reparar de lo que llevás puesto, calculado en el cliente solo
+-- para mostrar el precio: el servidor lo vuelve a calcular y es el que cobra.
+local function costoCampo(): (number, number)
+	local eq = EstadoCliente.Get("Equipamiento")
+	if typeof(eq) ~= "table" then
+		return 0, 0
+	end
+	local total, piezas = 0, 0
+	for _, item in eq :: { [string]: any } do
+		local costo = ForjaConfig.CostoReparar(item)
+		if costo > 0 then
+			total += costo
+			piezas += 1
+		end
+	end
+	return ForjaConfig.CostoEmergencia(total), piezas
+end
+
+actualizarCampo = function()
+	local costo, piezas = costoCampo()
+	if piezas == 0 then
+		botonCampo.Visible = false
+		confirmandoCampo = false
+		return
+	end
+	botonCampo.Visible = true
+	botonCampo.Text = if confirmandoCampo then `¿Pagar {costo} de oro?` else `Reparación de campo ({costo} oro)`
+end
+
+botonCampo.Activated:Connect(function()
+	if not confirmandoCampo then
+		confirmandoCampo = true
+		actualizarCampo()
+		return
+	end
+	confirmandoCampo = false
+	actualizarCampo()
+	task.spawn(function()
+		NetworkBridge.Client.Invoke("ForjaCampoReparar")
+	end)
+end)
+
 local function estiloRanura(boton: TextButton, item: any, vacio: string)
 	local borde = boton:FindFirstChildOfClass("UIStroke")
 	if typeof(item) == "table" then
@@ -540,6 +591,7 @@ local function redibujar()
 		estiloRanura(boton, itemEquipado(slot), NOMBRES_SLOT[slot])
 	end
 	pie.Text = `Oro: {EstadoCliente.Get("Oro") or 0}   ·   {ocupadas}/{inv.MaxSlots} ranuras`
+	actualizarCampo()
 	textoProfesiones.Text = textoProfesionesActual()
 	local s = seleccion
 	if s then

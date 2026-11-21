@@ -48,7 +48,7 @@ Hoy: **33** implementados sin verificar, **3** en desarrollo y **3** pendientes 
 | NPC-007 | Herrero General (`HerreroGeneral`) | Rojo, Azul, Neutral | vende 3 ítems, fabrica en Yunque | Línea de acero | Implementado sin verificar |
 | NPC-008 | Afilador de Armas (`AfiladorArmas`) | Rojo, Azul, Neutral | Afilar el arma | Precisión; Penetración de armadura; Pago con piedras de afilar | Implementado sin verificar |
 | NPC-009 | Reparador de Armaduras (`ReparadorArmaduras`) | Rojo, Azul, Neutral | Reparar lo equipado, Reparar todo | Tarifa de emergencia dentro de mazmorras (x3) | Implementado sin verificar |
-| NPC-010 | Maestro Encantador (`MaestroEncantador`) | Rojo, Azul, Neutral | Engarzar gema | Runas con brillo; Sacar o reemplazar gemas | Implementado sin verificar |
+| NPC-010 | Maestro Encantador (`MaestroEncantador`) | Rojo, Azul, Neutral | Engarzar gema, Sacar gema | Runas con brillo | Implementado sin verificar |
 | NPC-011 | Desencantador (`Desencantador`) | Rojo, Azul, Neutral | Desencantar | — | Implementado sin verificar |
 | NPC-012 | Reforjador de Atributos (`ReforjadorAtributos`) | Rojo, Azul, Neutral | Reforjar | Elegir qué efecto reemplazar; Vista previa antes de confirmar | Implementado sin verificar |
 | NPC-013 | Fundidor (`Fundidor`) | Rojo, Azul, Neutral | vende 2 ítems, fabrica en Yunque | — | Implementado sin verificar |

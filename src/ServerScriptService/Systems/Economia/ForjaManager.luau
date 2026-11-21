@@ -10,6 +10,7 @@
 -- la mochila) y después cobra y aplica sin ceder el hilo, así que no se puede
 -- quedar a medias ni duplicar.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ForjaConfig = require(ReplicatedStorage.Configs.ForjaConfig)
@@ -19,6 +20,7 @@ local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
 local Types = require(ReplicatedStorage.Shared.Types)
 local DataManager = require(script.Parent.Parent.DataManager)
 local NpcManager = require(script.Parent.Parent.NpcManager)
+local Buzon = require(script.Parent.Parent.Buzon)
 local CombatManager = require(script.Parent.Parent.Combate.CombatManager)
 
 type ItemInstancia = Types.ItemInstancia
@@ -190,6 +192,79 @@ local function reparar(player: Player, conMochila: boolean): boolean
 	return true
 end
 
+-- Cuántos puntos de durabilidad le faltan a lo que lleva puesto.
+local function puntosEquipados(player: Player): number
+	local datos = DataManager.GetData(player)
+	if not datos then
+		return 0
+	end
+	local faltan = 0
+	for _, item in equipados(datos) do
+		faltan += DUR.Maxima - ForjaConfig.DurabilidadDe(item)
+	end
+	return faltan
+end
+
+-- Cotización de la reparación de campo: cuánto sale, cuántas piezas entran y
+-- cuántos segundos faltan para poder usarla.
+local ultimaEmergencia: { [Player]: number } = {}
+
+local function esperaEmergencia(player: Player): number
+	local ultima = ultimaEmergencia[player]
+	if not ultima then
+		return 0
+	end
+	return math.max(0, ForjaConfig.Emergencia.EsperaSegundos - (os.clock() - ultima))
+end
+
+local function cotizarCampo(player: Player): (number, number, number)
+	local piezas, costo = aReparar(player, false)
+	if descuentoReparacion then
+		costo = descuentoReparacion(player, costo)
+	end
+	return ForjaConfig.CostoEmergencia(costo), #piezas, esperaEmergencia(player)
+end
+
+-- Reparación de campo: lo mismo que "Reparar lo equipado", sin NPC, al triple
+-- y con espera. Sigue sin funcionar en combate: lo que se paga es no tener que
+-- volver a la ciudad, no arreglarse en medio de una pelea.
+local function repararCampo(player: Player): Types.Respuesta
+	if CombatManager.EnCombate(player) then
+		avisar(player, "No se puede reparar en combate.")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local espera = esperaEmergencia(player)
+	if espera > 0 then
+		avisar(player, `La reparación de campo se puede usar de nuevo en {math.ceil(espera / 60)} min.`)
+		return NetworkBridge.Fail("RATE_LIMITED")
+	end
+	if puntosEquipados(player) < ForjaConfig.Emergencia.MinimoPuntos then
+		avisar(player, "Tu equipo está casi entero: no vale la pena pagar la tarifa.", "Info")
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	local piezas, base = aReparar(player, false)
+	if descuentoReparacion then
+		base = descuentoReparacion(player, base)
+	end
+	local costo = ForjaConfig.CostoEmergencia(base)
+	if #piezas == 0 or costo <= 0 then
+		return NetworkBridge.Fail("NOT_ALLOWED")
+	end
+	if not DataManager.SpendGold(player, costo) then
+		avisar(player, `La reparación de campo cuesta {costo} de oro.`)
+		return NetworkBridge.Fail("INSUFFICIENT_FUNDS")
+	end
+	-- Recién acá se marca el uso: si no se pudo cobrar, no se gastó la espera.
+	ultimaEmergencia[player] = os.clock()
+	DataManager.Mutar(player, "Equipamiento", function()
+		for _, item in piezas do
+			fijarDurabilidad(item, DUR.Maxima)
+		end
+	end)
+	avisar(player, `Reparación de campo: {#piezas} pieza(s) por {costo} de oro.`, "Oro")
+	return NetworkBridge.Ok({ Costo = costo, Piezas = #piezas })
+end
+
 ------------------------------------------------------------------------
 -- Operaciones sobre un ítem de la mochila
 ------------------------------------------------------------------------
@@ -355,6 +430,51 @@ local function engarzar(player: Player, _npc: any, ranura: string, gemaId: strin
 	return true
 end
 
+-- Saca una gema engarzada y la devuelve entera a la mochila. `extra` es el
+-- número de ranura (1 a 3) tal como lo muestra la ventana.
+local function extraer(player: Player, _npc: any, ranura: string, extra: string?): boolean
+	local indice = tonumber(extra)
+	if not indice or indice ~= math.floor(indice) or indice < 1 or indice > 3 then
+		avisar(player, "Elegí qué gema sacar.")
+		return false
+	end
+	local item, costo = preparar(player, "Extraer", ranura)
+	if not item then
+		return false
+	end
+	local gemas = ForjaConfig.GemasDe(item)
+	local gemaId = gemas[indice]
+	if not gemaId then
+		avisar(player, "Esa ranura está vacía.")
+		return false
+	end
+	if DataManager.RanurasLibres(player) < 1 and contar(player, gemaId) <= 0 then
+		avisar(player, "No tenés lugar en la mochila para la gema.")
+		return false
+	end
+	if not cobrar(player, "Extraer", costo) then
+		return false
+	end
+	-- Las gemas se corren para no dejar huecos: las ranuras se cuentan por
+	-- cuántas gemas hay, un hueco haría desaparecer las de atrás.
+	local meta: Types.ItemMeta = if item.Meta then table.clone(item.Meta) else {}
+	local quedan = ForjaConfig.SinGema(gemas, indice)
+	for i = 1, 3 do
+		local libre: { [string]: any } = meta
+		libre["Gema" .. i] = quedan[i]
+	end
+	DataManager.SetMetaRanura(player, ranura, meta)
+	if not DataManager.AddItem(player, gemaId, 1, "Comun") then
+		-- No debería pasar (ya se revisó el lugar); si pasa, al buzón, que la
+		-- gema no se pierda.
+		warn(`[Forja] No entró la gema {gemaId} de {player.UserId}: va al buzón`)
+		Buzon.EnviarItem(player.UserId, { ItemId = gemaId, Cantidad = 1, Rareza = "Comun" }, "Gema extraída")
+	end
+	local def = ItemCatalog[gemaId]
+	avisar(player, `Sacaste {if def then def.Nombre else gemaId} de {nombreDe(item)}.`, "Oro")
+	return true
+end
+
 ------------------------------------------------------------------------
 -- Init
 ------------------------------------------------------------------------
@@ -392,6 +512,20 @@ function ForjaManager.Init()
 	NpcManager.RegistrarAccionItem("Desencantar", desencantar)
 	NpcManager.RegistrarAccionItem("Reforjar", reforjar)
 	NpcManager.RegistrarAccionItem("Engarzar", engarzar)
+	NpcManager.RegistrarAccionItem("Extraer", extraer)
+
+	Players.PlayerRemoving:Connect(function(player: Player)
+		ultimaEmergencia[player] = nil
+	end)
+
+	NetworkBridge.Server.OnInvoke("ForjaCampoCotizar", function(player: Player): Types.Respuesta
+		local costo, piezas, espera = cotizarCampo(player)
+		return NetworkBridge.Ok({ Costo = costo, Piezas = piezas, Espera = math.ceil(espera) })
+	end)
+
+	NetworkBridge.Server.OnInvoke("ForjaCampoReparar", function(player: Player): Types.Respuesta
+		return repararCampo(player)
+	end)
 end
 
 return ForjaManager

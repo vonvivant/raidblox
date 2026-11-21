@@ -112,6 +112,9 @@ local DEFINICIONES: { [string]: Definicion } = {
 	CosmeticosAplicar = { Tipo = "Function", Critico = true, Timeout = 15 }, -- (pestaña, slot, datos)
 	CosmeticosDeshacer = { Tipo = "Function", Critico = true, Timeout = 15 }, -- (slot)
 	CosmeticosCerrar = { Tipo = "Event", Critico = false }, -- ()
+	-- Reparación de campo: arreglar lo puesto sin ir hasta el Reparador, caro.
+	ForjaCampoCotizar = { Tipo = "Function", Critico = false }, -- () -> {Costo, Piezas, Espera}
+	ForjaCampoReparar = { Tipo = "Function", Critico = true, Timeout = 15 }, -- ()
 	MazmorraSalir = { Tipo = "Function", Critico = false, Timeout = 15 },
 	-- Fase 5: voz
 	VozEstado = { Tipo = "Event", Critico = false, SoloServidorACliente = true }, -- ({Canal, Grupo, Hermandad, Oyentes})

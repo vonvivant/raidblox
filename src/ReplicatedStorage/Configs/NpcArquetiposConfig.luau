@@ -62,6 +62,7 @@ export type OperacionItem = {
 	Descripcion: string,
 	Confirmar: boolean?, -- pide un segundo clic (operaciones que no se deshacen)
 	EligeGema: boolean?, -- después de elegir el ítem hay que elegir una gema
+	EligeGemaPuesta: boolean?, -- después de elegir el ítem hay que elegir cuál de sus gemas
 }
 
 export type Arquetipo = {
@@ -324,7 +325,7 @@ local Arquetipos: { [string]: Arquetipo } = {
 		Numero = 10,
 		Nombre = "Maestro Encantador",
 		Categoria = "Herreria",
-		Descripcion = "Engarza gemas en el equipo: cada gema suma una estadística fija.",
+		Descripcion = "Engarza gemas en el equipo, y las saca si te arrepentís (cobrando bien).",
 		Interfaces = { "IServiceProvider" },
 		Facciones = TODAS,
 		Estado = "Listo",
@@ -333,13 +334,20 @@ local Arquetipos: { [string]: Arquetipo } = {
 			{
 				Id = "Engarzar",
 				Nombre = "Engarzar gema",
-				Descripcion = "300 de oro, 1 Esencia Mágica y la gema. No se puede sacar después.",
+				Descripcion = "300 de oro, 1 Esencia Mágica y la gema.",
 				EligeGema = true,
 			},
-		},
+			{
+				Id = "Extraer",
+				Nombre = "Sacar gema",
+				Descripcion = "Devuelve la gema entera a la mochila. Cuesta más que ponerla: 400 a 3.500 de oro según la rareza, más 1 Polvo de Encantamiento.",
+				EligeGemaPuesta = true,
+				Confirmar = true,
+			},
+		} :: { OperacionItem },
 		Parametros = {
-			Reglas = "ForjaConfig.Engarzar: ranuras por rareza (Raro 1, Épico 2, Místico 2, Único 3)",
-			Futuro = { "Runas con brillo", "Sacar o reemplazar gemas" },
+			Reglas = "ForjaConfig.Engarzar: ranuras por rareza (Raro 1, Épico 2, Místico 2, Único 3). ForjaConfig.Extraer: sacar cuesta más que engarzar",
+			Futuro = { "Runas con brillo" },
 		},
 	},
 	Desencantador = {

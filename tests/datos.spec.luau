@@ -211,6 +211,66 @@ prueba("forja: la reforja se encarece con cada uso y tiene tope", function()
 	exigir(tope == 500 * (1 + Forja.Reforjar.MaximoAumento), "tope " .. tope)
 end)
 
+prueba("forja: sacar una gema cuesta más que ponerla y no deja huecos", function()
+	exigir(not Forja.Aplica("Extraer", equipo("Raro")), "sin gemas no hay nada que sacar")
+	exigir(Forja.Aplica("Extraer", equipo("Raro", { Gema1 = "Rubi" })), "con una gema sí")
+	exigir(not Forja.Aplica("Extraer", equipo("Comun", { Gema1 = "Rubi" })), "el Común no tiene ranuras")
+	for rareza, costo in Forja.Extraer.Costo do
+		exigir(costo > Forja.Engarzar.Costo, "sacar tendría que costar más que engarzar en " .. rareza)
+		exigir(Forja.Costo("Extraer", equipo(rareza, { Gema1 = "Rubi" })) == costo, "costo de sacar en " .. rareza)
+	end
+	local material, cantidad = Forja.Material("Extraer")
+	exigir(material == Forja.Extraer.Material and cantidad == Forja.Extraer.CantidadMaterial, "material de sacar")
+
+	-- Al sacar la del medio, las de atrás se corren: si quedara un hueco, la
+	-- tercera desaparecería (las ranuras se cuentan por cuántas gemas hay).
+	local quedan = Forja.SinGema({ "Rubi", "Zafiro", "Diamante" }, 2)
+	exigir(#quedan == 2 and quedan[1] == "Rubi" and quedan[2] == "Diamante", "las gemas se corren")
+	exigir(#Forja.SinGema({ "Rubi" }, 1) == 0, "sacar la única la deja vacía")
+	exigir(#Forja.SinGema({ "Rubi" }, 5) == 1, "una ranura que no existe no saca nada")
+
+	-- Las tres ranuras de un Único se leen en orden aunque falte una del medio.
+	local tres = Forja.GemasDe(equipo("Unico", { Gema1 = "Rubi", Gema3 = "Zafiro" }))
+	exigir(#tres == 2, "lee las gemas que haya: " .. #tres)
+end)
+
+prueba("forja: tarifa de emergencia de la reparación de campo", function()
+	exigir(Forja.Emergencia.Multiplicador > 1, "la tarifa de campo tiene que ser más cara que ir al NPC")
+	exigir(Forja.CostoEmergencia(0) == 0, "nada que reparar, nada que cobrar")
+	local normal = Forja.CostoReparar(equipo("Epico", { Dur = 0 }))
+	exigir(Forja.CostoEmergencia(normal) == normal * Forja.Emergencia.Multiplicador, "triple del costo normal")
+	exigir(Forja.CostoEmergencia(1) >= 1, "nunca sale gratis")
+	exigir(Forja.Emergencia.EsperaSegundos > 0, "tiene que haber espera entre usos")
+end)
+
+prueba("forja: la vista previa de la reforja no adelanta el resultado", function()
+	local item = equipo("Epico", { Mult = 1.2, Efecto_Ataque = 7, Efecto_Critico = 4 })
+	local efectos = Forja.EfectosDe(item)
+	exigir(#efectos == 2, "lee los dos efectos: " .. #efectos)
+	exigir(efectos[1].Clave == "Ataque" and efectos[2].Clave == "Critico", "ordenados para mostrarlos")
+	exigir(string.find(efectos[1].Texto, "7") ~= nil, "el texto trae el valor")
+	exigir(#Forja.EfectosDe(equipo("Raro")) == 0, "sin metadatos, sin efectos")
+
+	-- Los candidatos son todos los efectos: los que no tiene primero. Es una
+	-- lista de posibles, no el resultado; el sorteo pasa en el servidor.
+	local nuevos, repetidos = Forja.CandidatosReforja(item)
+	exigir(#repetidos == 2, "los que ya tiene van al segundo grupo")
+	local total = 0
+	for _ in Rarezas.Efectos do
+		total += 1
+	end
+	exigir(#nuevos + #repetidos == total, "los candidatos son todos los efectos")
+	for _, clave in nuevos do
+		exigir(clave ~= "Ataque" and clave ~= "Critico", "un efecto que ya tiene no es nuevo")
+	end
+	exigir(Forja.CuantosEfectos(item) == Rarezas.Rarezas.Epico.EfectosSecundarios, "cuántos efectos saca")
+
+	local recargo = Forja.RecargoReforja(equipo("Raro", { Reforjas = 2 }))
+	exigir(recargo == 2 * Forja.Reforjar.AumentoPorReforja, "recargo mostrado " .. recargo)
+	exigir(Forja.RecargoReforja(equipo("Raro")) == 0, "sin reforjas previas no hay recargo")
+	exigir(Forja.RecargoReforja(equipo("Raro", { Reforjas = 1000 })) == Forja.Reforjar.MaximoAumento, "tope del recargo")
+end)
+
 prueba("forja: catálogos coherentes (gemas, esencias, materiales y rarezas)", function()
 	for gemaId, gema in Forja.Engarzar.Gemas do
 		exigir(ItemCatalog[gemaId] ~= nil, "gema inexistente: " .. gemaId)
@@ -234,10 +294,19 @@ prueba("forja: catálogos coherentes (gemas, esencias, materiales y rarezas)", f
 end)
 
 prueba("NPCs: las operaciones sobre ítems que declaran existen en la forja", function()
-	local validas = { Desencantar = true, Reforjar = true, Engarzar = true }
+	local validas = { Desencantar = true, Reforjar = true, Engarzar = true, Extraer = true }
 	for id, a in Npcs.Arquetipos do
 		for _, operacion in a.SobreItem or {} do
 			exigir(validas[operacion.Id], id .. " declara una operación desconocida: " .. operacion.Id)
+			-- Elegir gema puesta y elegir gema del inventario son dos pasos
+			-- distintos: pedir los dos dejaría la ventana sin saber qué mostrar.
+			exigir(
+				not (operacion.EligeGema and operacion.EligeGemaPuesta),
+				id .. ": " .. operacion.Id .. " no puede pedir las dos elecciones de gema"
+			)
+			if operacion.EligeGemaPuesta then
+				exigir(operacion.Id == "Extraer", id .. ": solo sacar gemas elige entre las puestas")
+			end
 		end
 	end
 end)
