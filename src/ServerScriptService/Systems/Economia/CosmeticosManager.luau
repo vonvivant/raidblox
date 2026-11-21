@@ -264,7 +264,13 @@ local function deshacer(player: Player, slot: string): Types.Respuesta
 	local item = itemEquipado(player, slot)
 	if item then
 		local meta: Types.ItemMeta = if item.Meta then table.clone(item.Meta) else {}
-		meta.Pers = foto.Pers
+		local anterior = foto.Pers
+		if anterior ~= nil then
+			meta.Pers = anterior
+		else
+			-- Volver a "sin personalizar": el campo se saca del Meta.
+			(meta :: any).Pers = nil
+		end
 		DataManager.SetMetaEquipo(player, slot, meta)
 	end
 	local visualAntes: string = foto.Transmog or ""

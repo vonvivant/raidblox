@@ -10,6 +10,47 @@
 Grupo F de los 39 NPC: Barbero (029), Cosméticos (030, antes Transfigurador), Tintorero (031, absorbido por el
 anterior) y Vendedor de Mascotas (032).
 
+## El NPC Cosméticos (#30)
+
+Reglas en `Configs/CosmeticosConfig.luau`, servidor en `Systems/Economia/CosmeticosManager.luau`, ventana en
+`CosmeticosUI`. Trabaja sobre los **ítems equipados** en los slots visibles (arma principal, secundaria, casco y
+pechera).
+
+Al hablarle se abre una **cámara mirando a tu personaje**, con dos paneles a los costados y el medio libre: a la
+izquierda los slots y las piezas del objeto elegido, a la derecha las cuatro pestañas. La cámara gira sola
+despacio, se arrastra con el mouse y se acerca con la rueda.
+
+| Pestaña | Qué hace |
+| --- | --- |
+| Visual | Le cambia el aspecto al objeto sin tocar sus estadísticas, con las apariencias desbloqueadas (el transmog de siempre) |
+| Colores | El color de cada pieza |
+| Decals | Calcomanías de color, agrupadas en Rasguños, Adornos, Símbolos y Bestias |
+| Marcas | Grabados con normal map (solo en piezas que son mallas) |
+
+**Vista previa de verdad.** Los cambios de color, decal y marca se dibujan al instante sobre el modelo que ya
+lleva tu personaje, con el mismo código que usa el equipo real (`Personalizador.Aplicar`), así que lo que ves es
+lo que vas a tener. Nada se guarda hasta que apretás *Aplicar*, y cerrar la ventana descarta lo pendiente.
+
+**Qué se paga.** Aplicar lo que ya tenés desbloqueado es **gratis**, y cambiar de visual también: podés probar
+todo lo que quieras. Lo que cuesta es **deshacer**, o sea pedirle al NPC que devuelva el slot al estado exacto
+que tenía antes del último cambio:
+
+| Deshacer | Costo |
+| --- | --- |
+| El primero | gratis |
+| El segundo | 2.500 de oro |
+| El tercero | 5.000 |
+| El cuarto | 10.000 |
+| … | el doble del anterior, hasta 320.000 |
+
+El contador es del jugador y no se reinicia. Por eso la cámara importa: la idea es decidir mirando el preview, no
+probando a ciegas. Deshacer es un **solo paso atrás** por slot: antes de cada cambio el servidor guarda una foto
+de ese slot (su personalización y su visual) y deshacer la restaura y la consume.
+
+**Qué valida el servidor.** Que estés junto al NPC en cada pedido, que el slot sea uno de los visibles, y que
+cada pestaña solo toque lo suyo: un pedido que llegue por la pestaña de colores y de paso traiga un decal se
+rechaza. El material no se cambia acá (eso se elige al comprar el objeto, con el Maestro Personalizador).
+
 **Sin probar en Studio.** Pasa el chequeo de tipos, el lint y las pruebas de datos.
 
 ## Barbero (NPC-029)

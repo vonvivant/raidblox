@@ -72,3 +72,26 @@ prueba("cosméticos: el NPC atiende lo que absorbió y nadie lo duplica", functi
 		end
 	end
 end)
+
+prueba("cosméticos: hay visuales para los slots que el NPC deja editar", function()
+	local AP = cargar("ReplicatedStorage/Configs/AparienciaEquipoConfig")
+	-- Las pestañas trabajan sobre los slots visibles: si un slot no tiene
+	-- ninguna visual, la pestaña Visual queda vacía para ese slot.
+	local conVisual: { [string]: number } = {}
+	for id, apariencia in AP.Apariencias do
+		exigir(apariencia.Nombre ~= "", "la apariencia " .. id .. " no tiene nombre")
+		exigir(AP.Modelos[apariencia.Modelo] ~= nil, id .. " usa un modelo que no existe: " .. apariencia.Modelo)
+		exigir(
+			table.find(AP.SlotsVisibles, apariencia.Slot) ~= nil,
+			id .. " apunta a un slot que no se ve: " .. apariencia.Slot
+		)
+		conVisual[apariencia.Slot] = (conVisual[apariencia.Slot] or 0) + 1
+	end
+	local algunSlot = false
+	for _, slot in AP.SlotsVisibles do
+		if (conVisual[slot] or 0) > 0 then
+			algunSlot = true
+		end
+	end
+	exigir(algunSlot, "ningún slot tiene visuales: la pestaña Visual no mostraría nada")
+end)
