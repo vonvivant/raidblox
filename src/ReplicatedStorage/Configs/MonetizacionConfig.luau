@@ -12,9 +12,10 @@ export type Producto = {
 	Nombre: string,
 	Descripcion: string,
 	Orden: number,
-	Tipo: "Booster" | "Pack" | "Ficha" | "Caja",
+	Tipo: "Booster" | "Pack" | "Ficha" | "Caja" | "Skin",
 	Ficha: string?, -- Tipo "Ficha": "Reroll" o "Bando"
 	Caja: string?, -- Tipo "Caja": clave en Cajas
+	Apariencia: string?, -- Tipo "Skin": id en AparienciaEquipoConfig.Apariencias
 	UnaVez: boolean?,
 }
 export type EntradaCaja = { ItemId: string, Peso: number, Min: number, Max: number }
@@ -157,6 +158,36 @@ local MonetizacionConfig = {
 			Orden = 4,
 			Tipo = "Ficha",
 			Ficha = "Bando",
+		},
+		-- Skins del NPC Cosméticos (#30), pestaña Visual. Id = 0: hay que crear
+		-- el Developer Product en el Creator Hub y pegar su id acá; hasta
+		-- entonces figuran como "próximamente" y no se pueden comprar.
+		SkinEspadaEclipse = {
+			Id = 0,
+			Nombre = "Skin: Espada Eclipse",
+			Descripcion = "Visual para el arma principal. No cambia las estadísticas.",
+			Orden = 10,
+			Tipo = "Skin",
+			Apariencia = "EspadaEclipse",
+			UnaVez = true,
+		},
+		SkinDagaEscarcha = {
+			Id = 0,
+			Nombre = "Skin: Daga de Escarcha",
+			Descripcion = "Visual para el arma secundaria. No cambia las estadísticas.",
+			Orden = 11,
+			Tipo = "Skin",
+			Apariencia = "DagaEscarcha",
+			UnaVez = true,
+		},
+		SkinPecheraVigia = {
+			Id = 0,
+			Nombre = "Skin: Pechera del Vigía",
+			Descripcion = "Visual para la pechera. No cambia las estadísticas.",
+			Orden = 12,
+			Tipo = "Skin",
+			Apariencia = "PecheraDelVigia",
+			UnaVez = true,
 		},
 		CajaMateriales = {
 			Id = 0,

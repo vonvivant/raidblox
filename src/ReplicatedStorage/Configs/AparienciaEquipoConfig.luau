@@ -210,6 +210,37 @@ local Apariencias: { [string]: Apariencia } = {
 		Efecto = "Humo",
 		ColorEfecto = Color3.fromRGB(90, 80, 80),
 	},
+
+	-- Skins premium (se compran con Robux en el NPC Cosméticos). Están armadas
+	-- con los modelos que ya existen: cuando haya arte propia, se les cambia
+	-- el Modelo y nada más.
+	EspadaEclipse = {
+		Nombre = "Espada Eclipse",
+		Slot = "ArmaPrincipal",
+		Modelo = "Espada",
+		Color = Color3.fromRGB(35, 30, 50),
+		Material = Enum.Material.Glass,
+		Efecto = "Chispas",
+		ColorEfecto = Color3.fromRGB(150, 120, 255),
+	},
+	DagaEscarcha = {
+		Nombre = "Daga de Escarcha",
+		Slot = "ArmaSecundaria",
+		Modelo = "Daga",
+		Color = Color3.fromRGB(150, 225, 255),
+		Material = Enum.Material.Ice,
+		Efecto = "Humo",
+		ColorEfecto = Color3.fromRGB(200, 240, 255),
+	},
+	PecheraDelVigia = {
+		Nombre = "Pechera del Vigía",
+		Slot = "Pechera",
+		Modelo = "Pechera",
+		Color = Color3.fromRGB(60, 70, 110),
+		Material = Enum.Material.Metal,
+		Efecto = "Chispas",
+		ColorEfecto = Color3.fromRGB(120, 180, 255),
+	},
 }
 
 return {

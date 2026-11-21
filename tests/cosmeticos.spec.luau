@@ -95,3 +95,37 @@ prueba("cosméticos: hay visuales para los slots que el NPC deja editar", functi
 	end
 	exigir(algunSlot, "ningún slot tiene visuales: la pestaña Visual no mostraría nada")
 end)
+
+prueba("cosméticos: las skins premium apuntan a apariencias reales", function()
+	local MON = cargar("ReplicatedStorage/Configs/MonetizacionConfig")
+	local AP = cargar("ReplicatedStorage/Configs/AparienciaEquipoConfig")
+	local skins = 0
+	local apariencias: { [string]: boolean } = {}
+	for clave, producto in MON.Productos do
+		if producto.Tipo ~= "Skin" then
+			continue
+		end
+		skins += 1
+		local id = producto.Apariencia
+		exigir(id ~= nil, clave .. " es una skin pero no dice qué apariencia desbloquea")
+		local apariencia = AP.Apariencias[id]
+		exigir(apariencia ~= nil, clave .. " apunta a una apariencia que no existe: " .. tostring(id))
+		exigir(AP.Modelos[apariencia.Modelo] ~= nil, "la skin " .. clave .. " usa un modelo inexistente")
+		exigir(table.find(AP.SlotsVisibles, apariencia.Slot) ~= nil, "la skin " .. clave .. " va a un slot que no se ve")
+		exigir(producto.UnaVez == true, clave .. " tendría que ser de una sola compra: desbloquea para siempre")
+		exigir(not apariencias[id], "dos productos desbloquean la misma apariencia: " .. tostring(id))
+		apariencias[id] = true
+		-- Mientras no exista el producto en Roblox, el id queda en 0 y la
+		-- interfaz la muestra como "próximamente".
+		exigir(producto.Id == 0 or producto.Id > 0, "id de producto inválido en " .. clave)
+	end
+	exigir(skins >= 3, "hacen falta skins premium para que la pestaña Visual tenga qué vender")
+
+	-- Una skin no puede dar ventaja: las apariencias no tienen estadísticas.
+	for id, apariencia in AP.Apariencias do
+		local libre: { [string]: any } = apariencia
+		for _, campo in { "Ataque", "Defensa", "Poder", "Vida", "Stats", "Bonus" } do
+			exigir(libre[campo] == nil, "la apariencia " .. id .. " no puede tocar " .. campo)
+		end
+	end
+end)

@@ -23,6 +23,7 @@ local PolicyService = game:GetService("PolicyService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Types = require(ReplicatedStorage.Shared.Types)
+local AparienciaEquipoConfig = require(ReplicatedStorage.Configs.AparienciaEquipoConfig)
 local ItemCatalog = require(ReplicatedStorage.Configs.ItemCatalog)
 local ItemRarityConfig = require(ReplicatedStorage.Configs.ItemRarityConfig)
 local MonetizacionConfig = require(ReplicatedStorage.Configs.MonetizacionConfig)
@@ -191,6 +192,21 @@ local function entregar(player: Player, clave: string, compraId: string): boolea
 	elseif p.Tipo == "Ficha" and p.Ficha then
 		DataManager.AgregarFicha(player, p.Ficha, 1)
 		avisar(player, `+1 {p.Nombre}. Usala desde la Tienda.`, "Oro")
+	elseif p.Tipo == "Skin" and p.Apariencia then
+		-- La skin desbloquea una apariencia para siempre; se usa desde el NPC
+		-- Cosméticos (pestaña Visual) y no toca ninguna estadística.
+		local apariencia = p.Apariencia
+		if not AparienciaEquipoConfig.Apariencias[apariencia] then
+			return false
+		end
+		DataManager.Mutar(player, "Cosmeticos", function(d)
+			local lista: { string } = d.Apariencias or {}
+			if not table.find(lista, apariencia) then
+				table.insert(lista, apariencia)
+			end
+			d.Apariencias = lista
+		end)
+		avisar(player, `¡{p.Nombre} desbloqueada! Aplicala en el NPC de Cosméticos.`, "Oro")
 	elseif p.Tipo == "Caja" and p.Caja then
 		local caja = CFG.Cajas[p.Caja]
 		if not caja then

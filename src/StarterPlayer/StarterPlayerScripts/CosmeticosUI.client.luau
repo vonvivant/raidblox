@@ -25,6 +25,7 @@ local Workspace = game:GetService("Workspace")
 
 local AparienciaEquipoConfig = require(ReplicatedStorage.Configs.AparienciaEquipoConfig)
 local CFG = require(ReplicatedStorage.Configs.CosmeticosConfig)
+local MonetizacionConfig = require(ReplicatedStorage.Configs.MonetizacionConfig)
 local PersonalizadorConfig = require(ReplicatedStorage.Configs.PersonalizadorConfig)
 local StencilsConfig = require(ReplicatedStorage.Configs.StencilsConfig)
 local NetworkBridge = require(ReplicatedStorage.Modules.NetworkBridge)
@@ -341,7 +342,8 @@ local function dibujarVisual()
 		ayuda.Text = "Elegí un slot de la izquierda."
 		return
 	end
-	ayuda.Text = "Cambia el aspecto sin tocar las estadísticas. Cambiar de visual es gratis."
+	ayuda.Text =
+		"Cambia el aspecto sin tocar las estadísticas. Cambiar entre las que tenés es gratis; las premium se compran con Robux."
 	local desbloqueadas: { string } = estado.Apariencias or {}
 	local transmog: { [string]: string } = estado.Transmog or {}
 
@@ -363,6 +365,14 @@ local function dibujarVisual()
 		end)
 	end)
 
+	-- Qué skin premium corresponde a cada apariencia, para ofrecer la compra.
+	local productoDe: { [string]: { Clave: string, Producto: any } } = {}
+	for clave, producto in MonetizacionConfig.Productos do
+		if producto.Tipo == "Skin" and producto.Apariencia then
+			productoDe[producto.Apariencia] = { Clave = clave, Producto = producto }
+		end
+	end
+
 	local hay = 0
 	for id, apariencia in AparienciaEquipoConfig.Apariencias do
 		if apariencia.Slot ~= slot then
@@ -370,7 +380,37 @@ local function dibujarVisual()
 		end
 		local tengo = table.find(desbloqueadas, id) ~= nil
 		hay += 1
-		local texto = if tengo then apariencia.Nombre else `{apariencia.Nombre} (bloqueada)`
+		local premium = productoDe[id]
+		-- Premium sin comprar: el botón ofrece la compra en Robux. Si el
+		-- producto todavía no tiene id (falta crearlo), se avisa y no se
+		-- puede tocar, igual que los decals sin arte.
+		if premium and not tengo then
+			local sinId = premium.Producto.Id == 0
+			local texto = if sinId
+				then `{apariencia.Nombre} (próximamente)`
+				else `{apariencia.Nombre} · comprar con Robux`
+			local boton = UIKit.Boton(
+				lista,
+				texto,
+				UDim2.new(1, -8, 0, 28),
+				nil,
+				if sinId then UIKit.Colores.Panel else UIKit.Colores.Oro
+			)
+			boton.AutoButtonColor = not sinId
+			boton.Activated:Connect(function()
+				if sinId then
+					return
+				end
+				task.spawn(function()
+					NetworkBridge.Client.Invoke("TiendaComprarProducto", premium.Clave)
+				end)
+			end)
+			continue
+		end
+		local texto = if tengo
+			then apariencia.Nombre
+			elseif premium then `{apariencia.Nombre} (premium)`
+			else `{apariencia.Nombre} (bloqueada)`
 		local color = if transmog[slot] == id
 			then UIKit.Colores.BotonPrimario
 			elseif tengo then UIKit.Colores.Boton

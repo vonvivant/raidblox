@@ -47,6 +47,29 @@ El contador es del jugador y no se reinicia. Por eso la cámara importa: la idea
 probando a ciegas. Deshacer es un **solo paso atrás** por slot: antes de cada cambio el servidor guarda una foto
 de ese slot (su personalización y su visual) y deshacer la restaura y la consume.
 
+### Skins premium (Robux)
+
+La pestaña Visual mezcla dos fuentes:
+
+- Las apariencias **que ya desbloqueás jugando** (tener el ítem, recompensas del pase): cambiar entre ellas es
+  gratis y se puede probar sin límite.
+- Las **skins premium**, que se compran con Robux. Son Developer Products de tipo `Skin` en
+  `MonetizacionConfig.Productos`, cada uno con el campo `Apariencia` apuntando a una entrada de
+  `AparienciaEquipoConfig`. Al comprarse, la apariencia queda desbloqueada **para siempre** (una sola compra por
+  cuenta) y se aplica como cualquier otra.
+
+Hoy hay tres: Espada Eclipse (arma principal), Daga de Escarcha (secundaria) y Pechera del Vigía. Están armadas
+con los modelos que ya existen, cambiándoles color, material y efecto; cuando haya arte propia se les cambia el
+`Modelo` y nada más.
+
+**Falta crear los productos.** Cada skin tiene `Id = 0`: hay que crear el Developer Product en el Creator Hub y
+pegar su id en el config. Mientras siga en 0, el botón dice "próximamente" y no se puede comprar — el mismo
+criterio que los decals sin arte. La entrega pasa por el `ProcessReceipt` que ya existe, que es idempotente, así
+que no hay que tocar nada más.
+
+Una skin **nunca da ventaja**: una apariencia no tiene estadísticas, y hay una prueba que falla si alguna vez
+aparece un campo de ataque, defensa, poder o vida en una apariencia.
+
 **Qué valida el servidor.** Que estés junto al NPC en cada pedido, que el slot sea uno de los visibles, y que
 cada pestaña solo toque lo suyo: un pedido que llegue por la pestaña de colores y de paso traiga un decal se
 rechaza. El material no se cambia acá (eso se elige al comprar el objeto, con el Maestro Personalizador).
